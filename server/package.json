@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "pg": "^8.13.3",
+    "simple-peer": "^9.11.1",
     "socket.io": "^4.7.2",
     "sqlite3": "^5.1.7",
     "uuid": "^13.0.0"

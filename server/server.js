@@ -30,6 +30,10 @@ const io = new Server(server, {
   }
 });
 
+// Initialize Voice Signaling Server for WebRTC
+const VoiceSignalingServer = require('./webrtc/signaling');
+const voiceSignaling = new VoiceSignalingServer(io);
+
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('ERROR: JWT_SECRET not set!');
@@ -163,6 +167,38 @@ app.get('/', (req, res) => {
       'Server Invites'
     ]
   });
+});
+
+// Health check endpoint untuk Docker
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    const isPostgres = process.env.USE_POSTGRES === 'true';
+    if (isPostgres) {
+      const { pool } = require('./config/database');
+      await pool.query('SELECT 1');
+    } else {
+      // For SQLite, just check if db is accessible
+      const dbModule = require('./database');
+      if (!dbModule.db) {
+        throw new Error('Database not initialized');
+      }
+    }
+    
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'connected',
+      version: '2.0.0'
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
 });
 
 // ==================== AUTH ROUTES ====================

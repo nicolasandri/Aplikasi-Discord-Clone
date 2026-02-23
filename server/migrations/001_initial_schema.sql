@@ -214,6 +214,40 @@ CREATE INDEX idx_bans_server_id ON bans(server_id);
 CREATE INDEX idx_bans_user_id ON bans(user_id);
 
 -- ============================================================
+-- VOICE PARTICIPANTS TABLE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS voice_participants (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  is_muted BOOLEAN DEFAULT false,
+  is_deafened BOOLEAN DEFAULT false,
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(channel_id, user_id)
+);
+
+-- Voice participants indexes
+CREATE INDEX idx_voice_participants_channel_id ON voice_participants(channel_id);
+CREATE INDEX idx_voice_participants_user_id ON voice_participants(user_id);
+
+-- ============================================================
+-- VOICE SIGNALING LOGS TABLE (untuk debug)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS voice_signaling_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  channel_id UUID NOT NULL,
+  user_id UUID NOT NULL,
+  event_type VARCHAR(50) NOT NULL,
+  data JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Voice signaling logs indexes
+CREATE INDEX idx_voice_signaling_logs_channel_id ON voice_signaling_logs(channel_id);
+CREATE INDEX idx_voice_signaling_logs_user_id ON voice_signaling_logs(user_id);
+CREATE INDEX idx_voice_signaling_logs_created_at ON voice_signaling_logs(created_at);
+
+-- ============================================================
 -- TRIGGERS FOR UPDATED_AT
 -- ============================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

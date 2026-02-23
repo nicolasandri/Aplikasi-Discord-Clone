@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hash, Users, Phone, Video, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw } from 'lucide-react';
+import { Hash, Volume2, Users, Phone, Video, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
 import { UserProfilePopup } from './UserProfilePopup';
 import { ImageViewer } from './ImageViewer';
 import { MessageContextMenu } from './MessageContextMenu';
+import { VoiceChannelPanel } from './VoiceChannelPanel';
 import type { Channel, Message, User } from '@/types';
 
 // Detect if running in Electron
@@ -493,6 +494,32 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   console.log('Messages count:', messages.length, 'Grouped:', groupedMessages.length);
   const channelTypingUsers = typingUsers.filter(u => u.channelId === channel.id);
 
+  // Voice channel view
+  if (channel.type === 'voice') {
+    return (
+      <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
+        {/* Header */}
+        <div className="h-12 px-4 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-3">
+            <Volume2 className="w-6 h-6 text-[#8e9297]" />
+            <h2 className="text-white font-semibold">{channel.name}</h2>
+          </div>
+        </div>
+        
+        {/* Voice Channel Content */}
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            <VoiceChannelPanel 
+              channelId={channel.id} 
+              channelName={channel.name} 
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Text channel view
   return (
     <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
       {/* Header */}

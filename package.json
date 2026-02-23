@@ -1,0 +1,35 @@
+{
+  "name": "discord-clone",
+  "version": "2.0.0",
+  "description": "Discord Clone - Real-time Team Collaboration Platform with Docker",
+  "private": true,
+  "scripts": {
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "docker:logs": "docker-compose logs -f",
+    "docker:ps": "docker-compose ps",
+    "docker:restart": "docker-compose restart",
+    "docker:clean": "docker-compose down -v --remove-orphans",
+    "deploy": "bash scripts/deploy.sh",
+    "backup": "bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh",
+    "update": "bash scripts/update.sh",
+    "health": "curl http://localhost:3001/health"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/discord-clone.git"
+  },
+  "keywords": [
+    "discord",
+    "chat",
+    "real-time",
+    "socket.io",
+    "react",
+    "docker",
+    "postgresql"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

@@ -1132,6 +1132,107 @@ const dmDB = {
 };
 
 // ============================================
+// VOICE CHANNEL DATABASE
+// ============================================
+
+const voiceDB = {
+  async joinVoiceChannel(channelId, userId) {
+    const result = await query(
+      `INSERT INTO voice_participants (channel_id, user_id, is_muted, is_deafened)
+       VALUES ($1, $2, false, false)
+       ON CONFLICT (channel_id, user_id) 
+       DO UPDATE SET joined_at = CURRENT_TIMESTAMP, is_muted = false, is_deafened = false
+       RETURNING *`,
+      [channelId, userId]
+    );
+    return result.rows[0];
+  },
+
+  async leaveVoiceChannel(channelId, userId) {
+    await query(
+      'DELETE FROM voice_participants WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+    return { success: true };
+  },
+
+  async getVoiceParticipants(channelId) {
+    return await queryMany(
+      `SELECT vp.*, u.username, u.avatar, u.status
+       FROM voice_participants vp
+       JOIN users u ON vp.user_id = u.id
+       WHERE vp.channel_id = $1
+       ORDER BY vp.joined_at ASC`,
+      [channelId]
+    );
+  },
+
+  async updateVoiceState(channelId, userId, updates) {
+    const { isMuted, isDeafened } = updates;
+    const result = await query(
+      `UPDATE voice_participants 
+       SET is_muted = COALESCE($3, is_muted),
+           is_deafened = COALESCE($4, is_deafened)
+       WHERE channel_id = $1 AND user_id = $2
+       RETURNING *`,
+      [channelId, userId, isMuted, isDeafened]
+    );
+    return result.rows[0];
+  },
+
+  async getUserVoiceChannel(userId) {
+    return await queryOne(
+      `SELECT vp.*, c.name as channel_name, c.server_id, s.name as server_name
+       FROM voice_participants vp
+       JOIN channels c ON vp.channel_id = c.id
+       JOIN servers s ON c.server_id = s.id
+       WHERE vp.user_id = $1`,
+      [userId]
+    );
+  },
+
+  async isUserInVoiceChannel(channelId, userId) {
+    const result = await queryOne(
+      'SELECT id FROM voice_participants WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+    return !!result;
+  },
+
+  async logSignalingEvent(channelId, userId, eventType, data = {}) {
+    try {
+      await query(
+        `INSERT INTO voice_signaling_logs (channel_id, user_id, event_type, data)
+         VALUES ($1, $2, $3, $4)`,
+        [channelId, userId, eventType, JSON.stringify(data)]
+      );
+    } catch (error) {
+      // Silently fail for logging
+      console.error('Failed to log signaling event:', error);
+    }
+  },
+
+  async leaveAllVoiceChannels(userId) {
+    await query(
+      'DELETE FROM voice_participants WHERE user_id = $1',
+      [userId]
+    );
+    return { success: true };
+  },
+
+  async getVoiceChannelWithPermission(channelId, userId) {
+    return await queryOne(
+      `SELECT c.*, sm.role as member_role, s.owner_id
+       FROM channels c
+       JOIN servers s ON c.server_id = s.id
+       LEFT JOIN server_members sm ON s.id = sm.server_id AND sm.user_id = $2
+       WHERE c.id = $1 AND c.type = 'voice'`,
+      [channelId, userId]
+    );
+  }
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -1148,6 +1249,7 @@ module.exports = {
   permissionDB,
   friendDB,
   dmDB,
+  voiceDB,
   Permissions,
   RolePermissions,
   RoleHierarchy
@@ -1290,6 +1392,7 @@ module.exports = {
   permissionDB,
   friendDB,
   dmDB,
+  voiceDB,
   Permissions,
   RolePermissions,
   RoleHierarchy

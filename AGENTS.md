@@ -35,6 +35,18 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 - **File Uploads**: Multer 2.0.2
 - **CORS**: Enabled for all origins
 
+### Deployment
+- **Containerization**: Docker & Docker Compose
+- **Web Server**: Nginx (reverse proxy, load balancer)
+- **Cache**: Redis (session store, rate limiting)
+- **SSL**: Let's Encrypt (optional)
+
+### Voice (WebRTC)
+- **Library**: Simple-Peer (WebRTC wrapper)
+- **Transport**: Socket.IO for signaling
+- **STUN**: Google STUN servers (free)
+- **TURN**: Coturn (optional, for production)
+
 ---
 
 ## Project Structure
@@ -65,6 +77,7 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   │   │   ├── MobileHeader.tsx # Mobile navigation header
 │   │   │   ├── MobileBottomNav.tsx # Mobile bottom navigation
 │   │   │   ├── MobileDrawer.tsx # Mobile sidebar drawers
+│   │   │   ├── VoiceChannelPanel.tsx # Voice channel UI
 │   │   │   ├── CategoryItem.tsx # Channel category component
 │   │   │   ├── CreateCategoryModal.tsx # Create category dialog
 │   │   │   └── RenameCategoryModal.tsx # Rename category dialog
@@ -72,11 +85,13 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   │   │   └── AuthContext.tsx  # Authentication state management
 │   │   ├── hooks/
 │   │   │   ├── useSocket.ts     # Socket.IO connection hook
+│   │   │   ├── useVoiceChannel.ts # WebRTC voice channel hook
 │   │   │   ├── use-mobile.ts    # Mobile detection hook
 │   │   │   ├── useBreakpoint.ts # Responsive breakpoint hook
 │   │   │   └── useNotification.ts # Notification hook
 │   │   ├── types/
 │   │   │   ├── index.ts         # TypeScript interfaces
+│   │   │   ├── voice.ts         # Voice channel types
 │   │   │   └── electron.d.ts    # Electron type declarations
 │   │   ├── lib/
 │   │   │   └── utils.ts         # Utility functions (cn helper)
@@ -105,8 +120,12 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   ├── database.js              # SQLite database module
 │   ├── database-postgres.js     # PostgreSQL database module
 │   ├── database-sqlite-backup.js # SQLite backup
+│   ├── Dockerfile               # Backend Docker image
+│   ├── .dockerignore            # Docker ignore rules
 │   ├── config/
 │   │   └── database.js          # PostgreSQL connection config
+│   ├── webrtc/                  # WebRTC voice signaling
+│   │   └── signaling.js         # Voice signaling server
 │   ├── migrations/              # Database migrations
 │   │   ├── 001_initial_schema.sql
 │   │   ├── 002_migrate_sqlite_to_postgres.js
@@ -119,6 +138,22 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   ├── uploads/                 # File upload directory
 │   ├── workgrid.db              # SQLite database file
 │   └── package.json             # Server dependencies
+│
+├── nginx/                       # Nginx configuration
+│   └── nginx.conf               # Production Nginx config
+│
+├── scripts/                     # Deployment scripts
+│   ├── deploy.sh                # Deploy script
+│   ├── backup.sh                # Backup script
+│   ├── restore.sh               # Restore script
+│   └── update.sh                # Update script
+│
+├── docker-compose.yml           # Docker Compose (dev/prod)
+├── docker-compose.prod.yml      # Docker Compose (production)
+├── .env                         # Environment variables
+├── .env.example                 # Environment example
+├── .dockerignore                # Docker ignore
+└── DOCKER_DEPLOYMENT_GUIDE.md   # Docker deployment guide
 │
 └── docs/                        # Documentation
     ├── BUG_REPORT.md            # Bug tracking and status
@@ -173,6 +208,26 @@ cd scripts
 .\switch-to-postgres.ps1     # Switch to PostgreSQL
 .\rollback-to-sqlite.ps1     # Rollback to SQLite
 .\backup-sqlite.ps1          # Backup SQLite database
+```
+
+### Docker Deployment
+
+```bash
+# Root project folder
+
+# Development
+docker-compose up --build -d
+
+# Production (with load balancing)
+docker-compose -f docker-compose.prod.yml up -d
+
+# Using npm scripts
+npm run docker:up          # Start containers
+npm run docker:down        # Stop containers
+npm run docker:logs        # View logs
+npm run deploy             # Full deployment
+npm run backup             # Backup database
+npm run restore            # Restore database
 ```
 
 ### Desktop (Electron)
@@ -263,6 +318,22 @@ DB_SSL=false
 DATABASE_URL=postgresql://user:password@host:5432/database
 ```
 
+**Docker Environment (Root `.env`):**
+```env
+# Database
+DB_PASSWORD=your_secure_password
+DB_PORT=5432
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key
+
+# Frontend URL (untuk CORS)
+FRONTEND_URL=http://localhost
+
+# Node Environment
+NODE_ENV=production
+```
+
 ---
 
 ## API & WebSocket Specification
@@ -349,6 +420,14 @@ DATABASE_URL=postgresql://user:password@host:5432/database
 | GET | `/api/dm/unread-count` | Get total unread DM count | Yes |
 | DELETE | `/api/dm/channels/:channelId` | Delete DM channel | Yes |
 
+#### Voice Channels
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| WS | `join-voice-channel` | Join voice channel | Yes |
+| WS | `leave-voice-channel` | Leave voice channel | Yes |
+| WS | `voice-state-change` | Update mute/deafen state | Yes |
+| WS | `signal` | WebRTC signaling (SDP/ICE) | Yes |
+
 #### Messages
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
@@ -414,6 +493,12 @@ DATABASE_URL=postgresql://user:password@host:5432/database
 | `channel_moved` | `{ channelId, categoryId, position, serverId }` | Channel moved |
 | `categories_reordered` | `{ serverId, categoryIds }` | Categories reordered |
 | `channels_reordered` | `{ serverId, channels }` | Channels reordered |
+| `voice-channel-joined` | `{ channelId, participants, isMuted, isDeafened }` | Successfully joined voice channel |
+| `user-joined-voice` | `{ userId, socketId, username, avatar, isMuted, isDeafened }` | User joined voice channel |
+| `user-left-voice` | `{ userId, socketId }` | User left voice channel |
+| `voice-state-changed` | `{ userId, isMuted, isDeafened }` | User mute/deafen state changed |
+| `signal` | `{ from, userId, username, signal, channelId }` | WebRTC signaling data |
+| `voice-error` | `{ message }` | Voice channel error |
 | `error` | `{ message, error? }` | Error message |
 
 ---
@@ -542,6 +627,23 @@ See `server/MIGRATION_GUIDE.md` for detailed migration instructions.
 - `reason` (TEXT)
 - `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
 - UNIQUE(server_id, user_id)
+
+**voice_participants** (PostgreSQL: UUID PRIMARY KEY DEFAULT uuid_generate_v4())
+- `id` (TEXT PRIMARY KEY)
+- `channel_id` (TEXT NOT NULL, FOREIGN KEY)
+- `user_id` (TEXT NOT NULL, FOREIGN KEY)
+- `is_muted` (BOOLEAN DEFAULT 0)
+- `is_deafened` (BOOLEAN DEFAULT 0)
+- `joined_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- UNIQUE(channel_id, user_id)
+
+**voice_signaling_logs**
+- `id` (TEXT PRIMARY KEY)
+- `channel_id` (TEXT NOT NULL)
+- `user_id` (TEXT NOT NULL)
+- `event_type` (TEXT NOT NULL)
+- `data` (JSON - optional, for debugging)
+- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
 
 ---
 
