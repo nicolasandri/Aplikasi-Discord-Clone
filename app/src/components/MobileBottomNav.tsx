@@ -13,7 +13,7 @@ export function MobileBottomNav({
   unreadDMCount = 0 
 }: MobileBottomNavProps) {
   const navItems = [
-    { id: 'servers' as const, icon: Home, label: 'Server' },
+    { id: 'server' as const, icon: Home, label: 'Server' },
     { id: 'channels' as const, icon: Hash, label: 'Channels' },
     { id: 'chat' as const, icon: MessageSquare, label: 'Chat' },
     { id: 'friends' as const, icon: Users, label: 'Friends', badge: unreadDMCount },

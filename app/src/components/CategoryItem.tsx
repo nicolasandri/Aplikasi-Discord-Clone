@@ -27,7 +27,7 @@ export function CategoryItem({
   onDeleteCategory,
   onRenameCategory,
 }: CategoryItemProps) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [_showMenu, _setShowMenu] = useState(false);
 
   return (
     <div className="mb-2">

@@ -5,7 +5,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface MobileDrawerProps {
   isOpen: boolean;

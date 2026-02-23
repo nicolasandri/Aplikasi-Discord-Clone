@@ -62,7 +62,7 @@ const roleHierarchy: Record<string, number> = {
   member: 1,
 };
 
-export function MemberList({ serverId, isMobile = false }: MemberListProps) {
+export function MemberList({ serverId, isMobile: _isMobile = false }: MemberListProps) {
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);

@@ -38,7 +38,7 @@ interface UserPermissions {
 }
 
 // Permission bitfield constants (must match server)
-const Permissions = {
+const _Permissions = {
   VIEW_CHANNEL: 1 << 0,
   SEND_MESSAGES: 1 << 1,
   CONNECT: 1 << 2,

@@ -71,7 +71,7 @@ export function useVoiceChannel(channelId: string | null) {
       config: ICE_SERVERS
     });
 
-    peer.on('signal', (signal) => {
+    peer.on('signal', (signal: any) => {
       socket?.emit('signal', {
         to: socketId,
         signal,

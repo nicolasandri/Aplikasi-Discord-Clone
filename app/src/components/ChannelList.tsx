@@ -24,7 +24,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels, selectedChannelId, onSelectChannel, onOpenSettings, isMobile = false, onClose }: ChannelListProps) {
+export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, isMobile = false, onClose }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());

@@ -6,7 +6,6 @@ import {
   HeadphoneOff, 
   PhoneOff,
   Volume2,
-  VolumeX,
   Users,
   Radio
 } from 'lucide-react';

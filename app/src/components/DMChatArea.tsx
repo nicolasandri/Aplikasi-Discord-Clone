@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Phone, Video, Trash2, FileText } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Phone, Video } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
 import { ImageViewer } from './ImageViewer';
 import type { DMChannel, DMMessage, User } from '@/types';
@@ -84,14 +84,14 @@ function groupMessagesByDate(messages: DMMessage[]): { date: string; messages: D
   }));
 }
 
-export function DMChatArea({ channel, currentUser, onBack }: DMChatAreaProps) {
+export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatAreaProps) {
   const [messages, setMessages] = useState<DMMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const token = localStorage.getItem('token');
 
   const scrollToBottom = () => {
@@ -225,7 +225,7 @@ export function DMChatArea({ channel, currentUser, onBack }: DMChatAreaProps) {
     }
   };
 
-  const handleReaction = (emoji: string) => {
+  const _handleReaction = (emoji: string) => {
     // DM reactions not implemented yet
     console.log('Reaction:', emoji);
   };

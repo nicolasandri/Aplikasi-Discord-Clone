@@ -17,7 +17,7 @@ export function MobileHeader({
   server,
   channel,
   dmChannel,
-  onOpenServers,
+  onOpenServers: _onOpenServers,
   onOpenChannels,
   onOpenMembers,
   onBack,

@@ -340,7 +340,7 @@ export function FriendsPage({ onClose, onStartDM }: FriendsPageProps) {
     }
   };
 
-  const handleBlockUser = async (userId: string, username: string) => {
+  const _handleBlockUser = async (userId: string, username: string) => {
     if (!confirm(`Apakah Anda yakin ingin memblokir ${username}?`)) return;
 
     try {
