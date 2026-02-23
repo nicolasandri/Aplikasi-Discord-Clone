@@ -171,21 +171,45 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     
+    // Input validation
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
     
+    // Username validation
+    if (username.length < 3 || username.length > 30) {
+      return res.status(400).json({ error: 'Username must be between 3 and 30 characters' });
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' });
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    // Password validation
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
     
+    // Check email uniqueness
     const existingUser = await userDB.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
     
+    // Check username uniqueness
+    const existingUsername = await userDB.findByUsername(username);
+    if (existingUsername) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+    
     const user = await userDB.create(username, email, password);
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
     
     res.json({ user, token });
   } catch (error) {
@@ -199,6 +223,11 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    // Input validation
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+    
     const user = await userDB.findByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -211,7 +240,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     await userDB.updateProfile(user.id, { status: 'online' });
     
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
     const { password: _, ...userWithoutPassword } = user;
     
     res.json({ user: userWithoutPassword, token });
@@ -1306,7 +1335,7 @@ app.post('/api/dm/channels/:channelId/messages', authenticateToken, async (req, 
     
     // Emit to recipient via socket
     const recipientId = channel.user1_id === userId ? channel.user2_id : channel.user1_id;
-    const recipientSocket = connectedUsers.get(recipientId);
+    const recipientSocket = getUserSocket(recipientId);
     if (recipientSocket) {
       recipientSocket.emit('dm_message_received', {
         channelId,
@@ -1517,7 +1546,49 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
 
 // ==================== SOCKET.IO ====================
 
+// Track user connections - Map<userId, Set<socketId>>
 const connectedUsers = new Map();
+const socketToUser = new Map(); // Map<socketId, userId>
+
+// Helper function to add user connection
+function addUserConnection(userId, socketId) {
+  if (!connectedUsers.has(userId)) {
+    connectedUsers.set(userId, new Set());
+  }
+  const connections = connectedUsers.get(userId);
+  const wasOffline = connections.size === 0;
+  connections.add(socketId);
+  socketToUser.set(socketId, userId);
+  return wasOffline; // Returns true if user was previously offline
+}
+
+// Helper function to remove user connection
+function removeUserConnection(socketId) {
+  const userId = socketToUser.get(socketId);
+  if (!userId) return { userId: null, isOffline: false };
+  
+  const connections = connectedUsers.get(userId);
+  if (connections) {
+    connections.delete(socketId);
+    const isOffline = connections.size === 0;
+    if (isOffline) {
+      connectedUsers.delete(userId);
+    }
+  }
+  socketToUser.delete(socketId);
+  return { userId, isOffline: connections?.size === 0 };
+}
+
+// Helper function to get socket by user ID (for notifications)
+function getUserSocket(userId) {
+  const connections = connectedUsers.get(userId);
+  if (connections && connections.size > 0) {
+    // Return the first socket from the set
+    const socketId = connections.values().next().value;
+    return io.sockets.sockets.get(socketId);
+  }
+  return null;
+}
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -1527,13 +1598,19 @@ io.on('connection', (socket) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       socket.userId = decoded.id;
-      connectedUsers.set(decoded.id, socket);
+      
+      // Add connection and check if this is the first connection for this user
+      const wasOffline = addUserConnection(decoded.id, socket.id);
       
       const user = await userDB.findById(decoded.id);
       console.log('✅ User authenticated:', user?.username, '(', decoded.id, ')');
       
-      await userDB.updateProfile(decoded.id, { status: 'online' });
-      io.emit('user_status_changed', { userId: decoded.id, status: 'online' });
+      // Only emit status change if user was previously offline
+      if (wasOffline) {
+        await userDB.updateProfile(decoded.id, { status: 'online' });
+        io.emit('user_status_changed', { userId: decoded.id, status: 'online' });
+      }
+      
       socket.emit('authenticated', { success: true, userId: decoded.id });
     } catch (err) {
       console.error('❌ Authentication failed:', err.message);
@@ -1737,7 +1814,7 @@ io.on('connection', (socket) => {
       const request = await friendDB.sendFriendRequest(socket.userId, friendId);
       
       // Emit to target user if online
-      const targetSocket = connectedUsers.get(friendId);
+      const targetSocket = getUserSocket(friendId);
       if (targetSocket) {
         const sender = await userDB.findById(socket.userId);
         targetSocket.emit('friend_request_received', {
@@ -1773,7 +1850,7 @@ io.on('connection', (socket) => {
       
       if (request) {
         // Emit to requester if online
-        const requesterSocket = connectedUsers.get(request.user_id);
+        const requesterSocket = getUserSocket(request.user_id);
         if (requesterSocket) {
           const accepter = await userDB.findById(socket.userId);
           requesterSocket.emit('friend_request_accepted', {
@@ -1814,7 +1891,7 @@ io.on('connection', (socket) => {
       await friendDB.removeFriend(socket.userId, friendId);
       
       // Notify the friend if online
-      const friendSocket = connectedUsers.get(friendId);
+      const friendSocket = getUserSocket(friendId);
       if (friendSocket) {
         friendSocket.emit('friend_removed', { friendId: socket.userId });
       }
@@ -1835,7 +1912,7 @@ io.on('connection', (socket) => {
       await friendDB.blockUser(socket.userId, blockedUserId);
       
       // Notify the blocked user if online
-      const blockedSocket = connectedUsers.get(blockedUserId);
+      const blockedSocket = getUserSocket(blockedUserId);
       if (blockedSocket) {
         blockedSocket.emit('blocked_by_user', { blockedById: socket.userId });
       }
@@ -1915,7 +1992,7 @@ io.on('connection', (socket) => {
       });
 
       // Also emit update to recipient's DM list
-      const recipientSocket = connectedUsers.get(recipientId);
+      const recipientSocket = getUserSocket(recipientId);
       if (recipientSocket) {
         recipientSocket.emit('dm_channel_updated', {
           channelId,
@@ -1950,7 +2027,7 @@ io.on('connection', (socket) => {
       const recipientId = channel.user1_id === socket.userId ? channel.user2_id : channel.user1_id;
 
       // Emit to recipient only
-      const recipientSocket = connectedUsers.get(recipientId);
+      const recipientSocket = getUserSocket(recipientId);
       if (recipientSocket) {
         recipientSocket.emit('dm_typing', {
           channelId,
@@ -2076,10 +2153,17 @@ io.on('connection', (socket) => {
   
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
-    if (socket.userId) {
-      connectedUsers.delete(socket.userId);
-      await userDB.updateProfile(socket.userId, { status: 'offline' });
-      io.emit('user_status_changed', { userId: socket.userId, status: 'offline' });
+    
+    // Remove connection and check if user is now completely offline
+    const { userId, isOffline } = removeUserConnection(socket.id);
+    
+    if (userId && isOffline) {
+      try {
+        await userDB.updateProfile(userId, { status: 'offline' });
+        io.emit('user_status_changed', { userId, status: 'offline' });
+      } catch (error) {
+        console.error('Error updating user status on disconnect:', error);
+      }
     }
   });
 });

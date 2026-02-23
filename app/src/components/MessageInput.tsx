@@ -31,17 +31,16 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   useImperativeHandle(ref, () => ({
     focus: () => {
       textareaRef.current?.focus();
-      console.log('Focus called on textarea');
     }
   }));
 
   // Auto-focus textarea when replyTo changes
   useEffect(() => {
     if (replyTo && textareaRef.current) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         textareaRef.current?.focus();
-        console.log('Auto-focused textarea for reply');
       }, 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [replyTo]);
 
@@ -86,6 +85,12 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
+
+    // Set new timeout to stop typing indicator after 3 seconds
+    typingTimeoutRef.current = setTimeout(() => {
+      // The typing indicator will timeout on the server side
+      // This is just to prevent sending typing events too frequently
+    }, 3000);
   };
 
   const handleEmojiSelect = (emoji: string) => {

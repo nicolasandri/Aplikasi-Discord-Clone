@@ -16,7 +16,7 @@ interface UseSocketReturn {
   isConnected: boolean;
   joinChannel: (channelId: string) => void;
   leaveChannel: (channelId: string) => void;
-  sendMessage: (channelId: string, content: string, replyTo?: Message | null) => void;
+  sendMessage: (channelId: string, content: string, replyTo?: Message | null, attachments?: any[]) => void;
   sendTyping: (channelId: string) => void;
   addReaction: (messageId: string, emoji: string) => void;
   removeReaction: (messageId: string, emoji: string) => void;
@@ -35,6 +35,8 @@ export function useSocket(
   const [isConnected, setIsConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; username: string; channelId: string }[]>([]);
   const { token } = useAuth();
+  // Track timeout IDs for cleanup
+  const typingTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     if (!token) return;
@@ -46,14 +48,24 @@ export function useSocket(
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Socket connected');
       setIsConnected(true);
       socket.emit('authenticate', token);
     });
 
     socket.on('disconnect', () => {
-      console.log('Socket disconnected');
       setIsConnected(false);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
+    });
+
+    socket.on('auth_error', (error) => {
+      console.error('Socket authentication error:', error);
+    });
+
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
     });
 
     socket.on('new_message', (message: Message) => {
@@ -64,14 +76,12 @@ export function useSocket(
 
     // Listen for reaction updates
     socket.on('reaction_added', (data: { messageId: string; reactions: any[] }) => {
-      console.log('Reaction added:', data);
       if (onReactionUpdate) {
         onReactionUpdate(data);
       }
     });
 
     socket.on('reaction_removed', (data: { messageId: string; reactions: any[] }) => {
-      console.log('Reaction removed:', data);
       if (onReactionUpdate) {
         onReactionUpdate(data);
       }
@@ -83,14 +93,16 @@ export function useSocket(
         return [...filtered, data];
       });
       
-      setTimeout(() => {
+      // Track timeout ID for cleanup
+      const timeoutId = setTimeout(() => {
         setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
       }, 3000);
+      
+      typingTimeoutIdsRef.current.push(timeoutId);
     });
 
     // Listen for message edits
     socket.on('message_edited', (message: Message) => {
-      console.log('Message edited:', message);
       if (onMessageEdit) {
         onMessageEdit(message);
       }
@@ -98,13 +110,17 @@ export function useSocket(
 
     // Listen for message deletions
     socket.on('message_deleted', (data: { messageId: string }) => {
-      console.log('Message deleted:', data);
       if (onMessageDelete) {
         onMessageDelete(data);
       }
     });
 
     return () => {
+      // Clear all typing timeouts
+      typingTimeoutIdsRef.current.forEach(id => clearTimeout(id));
+      typingTimeoutIdsRef.current = [];
+      
+      // Disconnect socket
       socket.disconnect();
     };
   }, [token, onMessage, onReactionUpdate, onMessageEdit, onMessageDelete]);
@@ -124,6 +140,12 @@ export function useSocket(
   const sendMessage = useCallback((channelId: string, content: string, replyTo?: Message | null, attachments?: any[]) => {
     if (socketRef.current) {
       socketRef.current.emit('send_message', { channelId, content, replyTo, attachments });
+    }
+  }, []);
+
+  const sendTyping = useCallback((channelId: string) => {
+    if (socketRef.current) {
+      socketRef.current.emit('typing', { channelId });
     }
   }, []);
 
@@ -148,12 +170,6 @@ export function useSocket(
   const editMessage = useCallback((messageId: string, content: string) => {
     if (socketRef.current) {
       socketRef.current.emit('edit_message', { messageId, content });
-    }
-  }, []);
-
-  const sendTyping = useCallback((channelId: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('typing', { channelId });
     }
   }, []);
 

@@ -179,7 +179,11 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             className={`rounded-full mt-0.5 hover:opacity-80 transition-opacity object-cover ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
-              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username}`;
+              // Prevent infinite loop by checking if we've already tried fallback
+              if (!target.dataset.fallbackApplied) {
+                target.dataset.fallbackApplied = 'true';
+                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username}`;
+              }
             }}
           />
         </button>
