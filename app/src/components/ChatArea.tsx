@@ -22,6 +22,7 @@ interface ChatAreaProps {
   onReply?: (message: Message) => void;
   serverId?: string | null;
   onRefresh?: () => void;
+  isMobile?: boolean;
 }
 
 // User permissions interface
@@ -121,9 +122,10 @@ interface MessageItemProps {
   onImageClick?: (src: string, alt: string) => void;
   onForward?: (message: Message) => void;
   onCopy?: (content: string) => void;
+  isMobile?: boolean;
 }
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onImageClick, onForward, onCopy }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onImageClick, onForward, onCopy, isMobile = false }: MessageItemProps) {
   const [showActions, setShowActions] = useState(false);
   
   // Default handlers
@@ -161,7 +163,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
 
   return (
     <div
-      className="flex gap-3 group px-4 py-0.5 hover:bg-[#2f3136]"
+      className={`flex gap-3 group hover:bg-[#2f3136] ${isMobile ? 'px-2 py-1' : 'px-4 py-0.5'}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       onContextMenu={handleContextMenu}
@@ -174,7 +176,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           <img
             src={message.user?.avatar?.startsWith('http') ? message.user?.avatar : `${API_URL.replace('/api', '')}${message.user?.avatar}`}
             alt={message.user?.username}
-            className="w-10 h-10 rounded-full mt-0.5 hover:opacity-80 transition-opacity object-cover"
+            className={`rounded-full mt-0.5 hover:opacity-80 transition-opacity object-cover ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username}`;
@@ -182,8 +184,8 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           />
         </button>
       ) : (
-        <div className="w-10 flex-shrink-0 flex justify-end pt-1">
-          <span className="text-[10px] text-[#72767d] opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`flex-shrink-0 flex justify-end pt-1 ${isMobile ? 'w-8' : 'w-10'}`}>
+          <span className="text-[10px] text-[#72767d] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
             {formatTime(timestamp)}
           </span>
         </div>
@@ -369,7 +371,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);

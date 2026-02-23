@@ -8,9 +8,13 @@ import { SettingsModal } from './SettingsModal';
 import { FriendsPage } from '@/pages/FriendsPage';
 import { DMList } from './DMList';
 import { DMChatArea } from './DMChatArea';
+import { MobileBottomNav } from './MobileBottomNav';
+import { MobileDrawer } from './MobileDrawer';
+import { MobileHeader } from './MobileHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
 import { useNotification } from '@/hooks/useNotification';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { Server, Channel, Message, FileAttachment, DMChannel } from '@/types';
 
 // Detect if running in Electron
@@ -21,10 +25,11 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-type ViewMode = 'server' | 'friends' | 'dm';
+export type ViewMode = 'server' | 'channels' | 'chat' | 'friends' | 'settings' | 'dm';
 
 export function ChatLayout() {
   const { user, token } = useAuth();
+  const { isMobile } = useBreakpoint();
   const [servers, setServers] = useState<Server[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,12 +37,19 @@ export function ChatLayout() {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedDMChannelId, setSelectedDMChannelId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('server');
+  const [viewMode, setViewMode] = useState<ViewMode>('chat');
+  const [mobileView, setMobileView] = useState<ViewMode>('chat');
   const [dmUnreadCounts, setDMUnreadCounts] = useState<Record<string, number>>({});
   const [totalDMUnread, setTotalDMUnread] = useState(0);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Mobile drawer states
+  const [isServerDrawerOpen, setIsServerDrawerOpen] = useState(false);
+  const [isChannelDrawerOpen, setIsChannelDrawerOpen] = useState(false);
+  const [isMemberDrawerOpen, setIsMemberDrawerOpen] = useState(false);
+  
   const messageInputRef = useRef<{ focus: () => void }>(null);
 
   // Notification hook
@@ -135,13 +147,10 @@ export function ChatLayout() {
     if (!socket) return;
 
     const handleDMMessageReceived = (data: { channelId: string }) => {
-      // Refresh unread counts
       fetchDMUnreadCount();
-      // If message is for current DM channel, refresh messages
       if (data.channelId === selectedDMChannelId) {
         // Messages will be updated via socket event in DMChatArea
       }
-      // Show notification if not in DM mode or different channel
       if (viewMode !== 'dm' || selectedDMChannelId !== data.channelId) {
         const channel = dmChannels.find(c => c.id === data.channelId);
         if (channel) {
@@ -326,15 +335,27 @@ export function ChatLayout() {
     }
   }, [selectedChannelId, sendTyping]);
 
-  const handleOpenFriends = () => {
-    setViewMode('friends');
-    setSelectedServerId('home');
-    setSelectedDMChannelId(null);
-  };
-
-  const handleCloseFriends = () => {
-    setViewMode('dm');
-    setSelectedServerId(null);
+  // Mobile navigation handlers
+  const handleMobileViewChange = (view: ViewMode) => {
+    setMobileView(view);
+    
+    switch (view) {
+      case 'server':
+        setIsServerDrawerOpen(true);
+        break;
+      case 'channels':
+        setIsChannelDrawerOpen(true);
+        break;
+      case 'friends':
+        setViewMode('friends');
+        break;
+      case 'chat':
+        setViewMode(selectedDMChannelId ? 'dm' : 'server');
+        break;
+      case 'settings':
+        setIsSettingsOpen(true);
+        break;
+    }
   };
 
   const handleSelectServer = (serverId: string | null) => {
@@ -346,21 +367,26 @@ export function ChatLayout() {
       setSelectedServerId(serverId);
       setSelectedDMChannelId(null);
     }
+    setIsServerDrawerOpen(false);
+    if (isMobile) {
+      setIsChannelDrawerOpen(true);
+    }
+  };
+
+  const handleSelectChannel = (channelId: string) => {
+    setSelectedChannelId(channelId);
+    setIsChannelDrawerOpen(false);
+    setMobileView('chat');
   };
 
   const handleSelectDMChannel = (channelId: string) => {
     setSelectedDMChannelId(channelId);
     setViewMode('dm');
-    // Clear unread count for this channel
     setDMUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
-    // Update total
-    const newCounts = { ...dmUnreadCounts, [channelId]: 0 };
-    setTotalDMUnread(Object.values(newCounts).reduce((a, b) => a + b, 0));
   };
 
   const handleStartDM = async (friend: any) => {
     try {
-      // Check if DM channel already exists
       const existingChannel = dmChannels.find(c => c.friend.id === friend.id);
       if (existingChannel) {
         setSelectedDMChannelId(existingChannel.id);
@@ -368,7 +394,6 @@ export function ChatLayout() {
         return;
       }
 
-      // Create new DM channel
       const response = await fetch(`${API_URL}/dm/channels`, {
         method: 'POST',
         headers: {
@@ -389,6 +414,11 @@ export function ChatLayout() {
     }
   };
 
+  const handleBackFromDM = () => {
+    setSelectedDMChannelId(null);
+    setViewMode('friends');
+  };
+
   const selectedServer = servers.find(s => s.id === selectedServerId) || null;
   const selectedChannel = channels.find(c => c.id === selectedChannelId) || null;
   const selectedDMChannel = dmChannels.find(c => c.id === selectedDMChannelId) || null;
@@ -404,6 +434,141 @@ export function ChatLayout() {
     );
   }
 
+  // MOBILE LAYOUT
+  if (isMobile) {
+    return (
+      <div className="h-screen flex flex-col bg-[#36393f] overflow-hidden">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {viewMode === 'friends' ? (
+            <FriendsPage 
+              onClose={() => setViewMode('dm')}
+              onStartDM={handleStartDM}
+            />
+          ) : viewMode === 'dm' && selectedDMChannel ? (
+            <>
+              <MobileHeader
+                dmChannel={selectedDMChannel}
+                onBack={handleBackFromDM}
+                onOpenServers={() => setIsServerDrawerOpen(true)}
+                onOpenChannels={() => {}}
+                onOpenMembers={() => {}}
+                showBack={true}
+              />
+              <DMChatArea
+                channel={selectedDMChannel}
+                currentUser={user}
+              />
+            </>
+          ) : (
+            <>
+              <MobileHeader
+                server={selectedServer}
+                channel={selectedChannel}
+                onOpenServers={() => setIsServerDrawerOpen(true)}
+                onOpenChannels={() => setIsChannelDrawerOpen(true)}
+                onOpenMembers={() => setIsMemberDrawerOpen(true)}
+              />
+              <div className="flex-1 flex flex-col min-h-0">
+                <ChatArea
+                  channel={selectedChannel}
+                  messages={messages}
+                  typingUsers={typingUsers}
+                  currentUser={user}
+                  onReply={handleReply}
+                  serverId={selectedServerId}
+                  onRefresh={() => selectedChannelId && fetchMessages(selectedChannelId, true)}
+                  isMobile={true}
+                />
+                <MessageInput
+                  ref={messageInputRef}
+                  onSendMessage={handleSendMessage}
+                  onTyping={handleTyping}
+                  disabled={!selectedChannelId}
+                  replyTo={replyTo}
+                  onCancelReply={handleCancelReply}
+                  isMobile={true}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Bottom Navigation */}
+        <MobileBottomNav
+          currentView={mobileView}
+          onViewChange={handleMobileViewChange}
+          unreadDMCount={totalDMUnread}
+        />
+
+        {/* Mobile Drawers */}
+        <MobileDrawer
+          isOpen={isServerDrawerOpen}
+          onClose={() => setIsServerDrawerOpen(false)}
+          title="Servers"
+        >
+          <div className="p-2">
+            <ServerList
+              servers={servers}
+              selectedServerId={selectedServerId}
+              onSelectServer={handleSelectServer}
+              onCreateServer={handleCreateServer}
+              onOpenFriends={() => {
+                setViewMode('friends');
+                setIsServerDrawerOpen(false);
+              }}
+              isFriendsOpen={viewMode === 'friends'}
+              isMobile={true}
+            />
+          </div>
+        </MobileDrawer>
+
+        <MobileDrawer
+          isOpen={isChannelDrawerOpen}
+          onClose={() => setIsChannelDrawerOpen(false)}
+          title={selectedServer?.name || 'Channels'}
+        >
+          <ChannelList
+            server={selectedServer}
+            channels={channels}
+            selectedChannelId={selectedChannelId}
+            onSelectChannel={handleSelectChannel}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            isMobile={true}
+            onClose={() => setIsChannelDrawerOpen(false)}
+          />
+        </MobileDrawer>
+
+        <MobileDrawer
+          isOpen={isMemberDrawerOpen}
+          onClose={() => setIsMemberDrawerOpen(false)}
+          title="Members"
+          side="right"
+        >
+          <MemberList 
+            serverId={selectedServerId} 
+            isMobile={true}
+          />
+        </MobileDrawer>
+
+        {/* Settings Modal */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+
+        {/* Connection Status */}
+        <div className="fixed top-16 right-2 flex items-center gap-2 px-3 py-1.5 bg-[#18191c] rounded-full z-40">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3ba55d]' : 'bg-[#ed4245]'}`} />
+          <span className="text-xs text-[#b9bbbe]">
+            {isConnected ? 'Online' : 'Offline'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // DESKTOP LAYOUT
   return (
     <div className="h-full flex bg-[#36393f] overflow-hidden">
       {/* Server List */}
@@ -412,17 +577,17 @@ export function ChatLayout() {
         selectedServerId={selectedServerId}
         onSelectServer={handleSelectServer}
         onCreateServer={handleCreateServer}
-        onOpenFriends={handleOpenFriends}
+        onOpenFriends={() => setViewMode('friends')}
         isFriendsOpen={viewMode === 'friends'}
       />
 
-      {/* Left Sidebar - Shows ChannelList for server, or DMList for DM mode */}
+      {/* Left Sidebar */}
       {viewMode === 'server' && (
         <ChannelList
           server={selectedServer}
           channels={channels}
           selectedChannelId={selectedChannelId}
-          onSelectChannel={setSelectedChannelId}
+          onSelectChannel={handleSelectChannel}
           onOpenSettings={() => setIsSettingsOpen(true)}
         />
       )}
@@ -431,15 +596,15 @@ export function ChatLayout() {
         <DMList
           selectedChannelId={selectedDMChannelId}
           onSelectChannel={handleSelectDMChannel}
-          onOpenFriends={handleOpenFriends}
+          onOpenFriends={() => setViewMode('friends')}
           unreadCounts={dmUnreadCounts}
         />
       )}
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       {viewMode === 'friends' ? (
         <FriendsPage 
-          onClose={handleCloseFriends}
+          onClose={() => setViewMode('dm')}
           onStartDM={handleStartDM}
         />
       ) : viewMode === 'dm' ? (
@@ -449,7 +614,6 @@ export function ChatLayout() {
         />
       ) : (
         <>
-          {/* Chat Area */}
           <div className="flex-1 flex flex-col min-w-0">
             <ChatArea
               channel={selectedChannel}
@@ -470,7 +634,6 @@ export function ChatLayout() {
             />
           </div>
 
-          {/* Member List */}
           <MemberList serverId={selectedServerId} />
         </>
       )}
