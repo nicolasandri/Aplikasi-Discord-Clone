@@ -28,7 +28,9 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 - **Runtime**: Node.js
 - **Framework**: Express 4.18.2
 - **Real-time**: Socket.IO 4.7.2
-- **Database**: SQLite3 5.1.7 (persistent file-based at `server/workgrid.db`)
+- **Database**: 
+  - SQLite3 5.1.7 (development, file-based at `server/workgrid.db`)
+  - PostgreSQL 12+ (production, supports 110+ concurrent users)
 - **Authentication**: JWT (jsonwebtoken 9.0.3) + bcryptjs for password hashing
 - **File Uploads**: Multer 2.0.2
 - **CORS**: Enabled for all origins
@@ -56,12 +58,22 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   │   │   ├── UserProfilePopup.tsx # User profile popup
 │   │   │   ├── TitleBar.tsx     # Electron custom title bar
 │   │   │   ├── Login.tsx        # Login page
-│   │   │   └── Register.tsx     # Registration page
+│   │   │   ├── Register.tsx     # Registration page
+│   │   │   ├── FriendsPage.tsx  # Friends management page
+│   │   │   ├── DMList.tsx       # Direct message channels list
+│   │   │   ├── DMChatArea.tsx   # DM chat interface
+│   │   │   ├── MobileHeader.tsx # Mobile navigation header
+│   │   │   ├── MobileBottomNav.tsx # Mobile bottom navigation
+│   │   │   ├── MobileDrawer.tsx # Mobile sidebar drawers
+│   │   │   ├── CategoryItem.tsx # Channel category component
+│   │   │   ├── CreateCategoryModal.tsx # Create category dialog
+│   │   │   └── RenameCategoryModal.tsx # Rename category dialog
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state management
 │   │   ├── hooks/
 │   │   │   ├── useSocket.ts     # Socket.IO connection hook
 │   │   │   ├── use-mobile.ts    # Mobile detection hook
+│   │   │   ├── useBreakpoint.ts # Responsive breakpoint hook
 │   │   │   └── useNotification.ts # Notification hook
 │   │   ├── types/
 │   │   │   ├── index.ts         # TypeScript interfaces
@@ -88,12 +100,29 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   ├── tsconfig.node.json       # TypeScript node config
 │   └── vite.config.ts           # Vite configuration
 │
-└── server/                      # Backend Express server
-    ├── server.js                # Main server file
-    ├── database.js              # SQLite database operations
-    ├── uploads/                 # File upload directory
-    ├── workgrid.db              # SQLite database file
-    └── package.json             # Server dependencies
+├── server/                      # Backend Express server
+│   ├── server.js                # Main server file
+│   ├── database.js              # SQLite database module
+│   ├── database-postgres.js     # PostgreSQL database module
+│   ├── database-sqlite-backup.js # SQLite backup
+│   ├── config/
+│   │   └── database.js          # PostgreSQL connection config
+│   ├── migrations/              # Database migrations
+│   │   ├── 001_initial_schema.sql
+│   │   ├── 002_migrate_sqlite_to_postgres.js
+│   │   └── setup-postgres.js
+│   ├── scripts/                 # Migration scripts
+│   │   ├── backup-sqlite.ps1
+│   │   ├── switch-to-postgres.ps1
+│   │   └── rollback-to-sqlite.ps1
+│   ├── MIGRATION_GUIDE.md       # PostgreSQL migration guide
+│   ├── uploads/                 # File upload directory
+│   ├── workgrid.db              # SQLite database file
+│   └── package.json             # Server dependencies
+│
+└── docs/                        # Documentation
+    ├── BUG_REPORT.md            # Bug tracking and status
+    └── CHANGELOG.md             # Version history
 ```
 
 ---
@@ -108,7 +137,7 @@ cd app
 # Install dependencies
 npm install
 
-# Development server (runs on http://localhost:3000)
+# Development server (runs on http://localhost:5173)
 npm run dev
 
 # Production build (outputs to dist/)
@@ -134,6 +163,16 @@ npm start
 
 # Development with auto-reload (requires nodemon)
 npm run dev
+
+# PostgreSQL Migration
+npm run setup:postgres         # Setup PostgreSQL database
+npm run migrate               # Migrate data from SQLite
+
+# Or use PowerShell scripts
+cd scripts
+.\switch-to-postgres.ps1     # Switch to PostgreSQL
+.\rollback-to-sqlite.ps1     # Rollback to SQLite
+.\backup-sqlite.ps1          # Backup SQLite database
 ```
 
 ### Desktop (Electron)
@@ -195,6 +234,34 @@ VITE_SOCKET_URL=https://xoqeprkp54f74.ok.kimi.link
 The server uses these environment variables (with defaults):
 - `PORT` - Server port (default: 3001)
 - `JWT_SECRET` - JWT signing secret (default: 'workgrid-secret-key-change-in-production')
+- `USE_POSTGRES` - Use PostgreSQL instead of SQLite (default: false)
+
+Create a `.env` file in the `server/` directory:
+
+**SQLite (Default):**
+```env
+PORT=3001
+JWT_SECRET=your-secret-key-here
+USE_POSTGRES=false
+```
+
+**PostgreSQL (Production):**
+```env
+PORT=3001
+JWT_SECRET=your-secret-key-here
+USE_POSTGRES=true
+
+# PostgreSQL Connection
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=discord_clone
+DB_USER=discord_user
+DB_PASSWORD=your_secure_password
+DB_SSL=false
+
+# Or use DATABASE_URL
+DATABASE_URL=postgresql://user:password@host:5432/database
+```
 
 ---
 
@@ -215,22 +282,72 @@ The server uses these environment variables (with defaults):
 | PUT | `/api/users/profile` | Update profile | Yes |
 | PUT | `/api/users/password` | Change password | Yes |
 | POST | `/api/users/avatar` | Upload avatar | Yes |
+| GET | `/api/users/search` | Search users by username/email | Yes |
+| GET | `/api/users/by-username/:username` | Get user by username | Yes |
 | GET | `/api/servers/:serverId/users/:userId` | Get user profile with role | Yes |
 | PUT | `/api/servers/:serverId/members/:userId/role` | Update user role (owner only) | Yes |
+| DELETE | `/api/servers/:serverId/members/:userId` | Kick member from server | Yes |
+| POST | `/api/servers/:serverId/bans/:userId` | Ban member from server | Yes |
+| GET | `/api/servers/:serverId/permissions` | Get user's permissions in server | Yes |
 
 #### Servers
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | GET | `/api/servers` | Get all servers for user | Yes |
 | POST | `/api/servers` | Create new server | Yes |
+| DELETE | `/api/servers/:serverId` | Delete server (owner only) | Yes |
 | GET | `/api/servers/:serverId/channels` | Get channels in server | Yes |
+| POST | `/api/servers/:serverId/channels` | Create channel | Yes |
 | GET | `/api/servers/:serverId/members` | Get server members | Yes |
+| POST | `/api/servers/:serverId/categories` | Create channel category | Yes |
+| GET | `/api/servers/:serverId/categories` | Get categories with channels | Yes |
+| PUT | `/api/servers/:serverId/categories/reorder` | Reorder categories | Yes |
+| PUT | `/api/servers/:serverId/channels/reorder` | Reorder channels | Yes |
+
+#### Channels
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| DELETE | `/api/channels/:channelId` | Delete channel | Yes |
+| GET | `/api/channels/:channelId/messages` | Get messages in channel | Yes |
+| PUT | `/api/channels/:channelId/move` | Move channel to category | Yes |
+
+#### Categories
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| PUT | `/api/categories/:categoryId` | Update category | Yes |
+| DELETE | `/api/categories/:categoryId` | Delete category | Yes |
 
 #### Invites
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | POST | `/api/servers/:serverId/invites` | Create invite link | Yes |
 | POST | `/api/invites/:code/join` | Join server with invite | Yes |
+
+#### Friends
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/friends` | Get friend list | Yes |
+| GET | `/api/friends/pending` | Get pending friend requests | Yes |
+| GET | `/api/friends/blocked` | Get blocked users | Yes |
+| POST | `/api/friends/request` | Send friend request | Yes |
+| POST | `/api/friends/:requestId/accept` | Accept friend request | Yes |
+| POST | `/api/friends/:requestId/reject` | Reject friend request | Yes |
+| DELETE | `/api/friends/:requestId/cancel` | Cancel outgoing request | Yes |
+| DELETE | `/api/friends/:friendId` | Remove friend | Yes |
+| POST | `/api/friends/:userId/block` | Block user | Yes |
+| POST | `/api/friends/:userId/unblock` | Unblock user | Yes |
+| GET | `/api/friends/status/:userId` | Check friendship status | Yes |
+
+#### Direct Messages
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/dm/channels` | Get DM channels | Yes |
+| POST | `/api/dm/channels` | Create DM channel with friend | Yes |
+| GET | `/api/dm/channels/:channelId/messages` | Get DM messages | Yes |
+| POST | `/api/dm/channels/:channelId/messages` | Send DM message | Yes |
+| POST | `/api/dm/messages/:messageId/read` | Mark DM message as read | Yes |
+| GET | `/api/dm/unread-count` | Get total unread DM count | Yes |
+| DELETE | `/api/dm/channels/:channelId` | Delete DM channel | Yes |
 
 #### Messages
 | Method | Endpoint | Description | Auth Required |
@@ -258,6 +375,19 @@ The server uses these environment variables (with defaults):
 | `remove_reaction` | `{ messageId, emoji }` | Remove reaction from message |
 | `edit_message` | `{ messageId, content }` | Edit a message |
 | `delete_message` | `{ messageId }` | Delete a message |
+| `send_friend_request` | `{ friendId }` | Send friend request |
+| `accept_friend_request` | `{ requestId }` | Accept friend request |
+| `reject_friend_request` | `{ requestId }` | Reject friend request |
+| `remove_friend` | `{ friendId }` | Remove friend |
+| `block_user` | `{ userId }` | Block user |
+| `unblock_user` | `{ userId }` | Unblock user |
+| `join_dm_channel` | `channelId: string` | Join DM channel |
+| `leave_dm_channel` | `channelId: string` | Leave DM channel |
+| `send_dm_message` | `{ channelId, content, attachments? }` | Send DM message |
+| `dm_typing` | `{ channelId }` | DM typing indicator |
+| `create_category` | `{ serverId, name, position }` | Create category |
+| `delete_category` | `{ categoryId }` | Delete category |
+| `move_channel` | `{ channelId, categoryId, position }` | Move channel |
 
 #### Server → Client
 | Event | Payload | Description |
@@ -271,11 +401,44 @@ The server uses these environment variables (with defaults):
 | `reaction_removed` | `{ messageId, reactions, userId, emoji }` | Reaction removed |
 | `message_edited` | `Message` | Message was edited |
 | `message_deleted` | `{ messageId }` | Message was deleted |
+| `friend_request_received` | `{ requestId, userId, username, avatar }` | Friend request received |
+| `friend_request_accepted` | `{ friendId, username, avatar }` | Friend request accepted |
+| `friend_removed` | `{ friendId }` | Friend removed |
+| `blocked_by_user` | `{ blockedById }` | Blocked by another user |
+| `dm_message_received` | `{ channelId, message, sender }` | DM message received |
+| `dm_channel_updated` | `{ channelId, lastMessage, unreadCount }` | DM channel updated |
+| `dm_typing` | `{ channelId, userId, username }` | DM typing indicator |
+| `category_created` | `{ serverId, category }` | Category created |
+| `category_updated` | `{ categoryId, updates, serverId }` | Category updated |
+| `category_deleted` | `{ categoryId, serverId }` | Category deleted |
+| `channel_moved` | `{ channelId, categoryId, position, serverId }` | Channel moved |
+| `categories_reordered` | `{ serverId, categoryIds }` | Categories reordered |
+| `channels_reordered` | `{ serverId, channels }` | Channels reordered |
 | `error` | `{ message, error? }` | Error message |
 
 ---
 
-## Database Schema (SQLite)
+## Database Support
+
+The application supports both **SQLite** (default) and **PostgreSQL** (for production/concurrent users).
+
+### SQLite (Default - Development)
+- **File**: `server/workgrid.db`
+- **Use case**: Development, single-user testing
+- **Max concurrent**: ~10-20 users
+- **Zero configuration**
+
+### PostgreSQL (Production - 110+ Users)
+- **Connection**: Configurable via environment variables
+- **Use case**: Production, 110+ concurrent users
+- **Connection pool**: 25 connections
+- **Features**: Full ACID transactions, better concurrency
+
+See `server/MIGRATION_GUIDE.md` for detailed migration instructions.
+
+---
+
+## Database Schema (SQLite/PostgreSQL)
 
 ### Tables
 
@@ -302,9 +465,17 @@ The server uses these environment variables (with defaults):
 - `role` (TEXT DEFAULT 'member')
 - `joined_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
 
+**categories**
+- `id` (TEXT PRIMARY KEY)
+- `server_id` (TEXT NOT NULL, FOREIGN KEY)
+- `name` (TEXT NOT NULL)
+- `position` (INTEGER DEFAULT 0)
+- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+
 **channels**
 - `id` (TEXT PRIMARY KEY)
 - `server_id` (TEXT NOT NULL, FOREIGN KEY)
+- `category_id` (TEXT, FOREIGN KEY)
 - `name` (TEXT NOT NULL)
 - `type` (TEXT DEFAULT 'text')
 - `position` (INTEGER DEFAULT 0)
@@ -337,21 +508,40 @@ The server uses these environment variables (with defaults):
 - `uses` (INTEGER DEFAULT 0)
 - `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
 
-**direct_messages**
-- `id` (TEXT PRIMARY KEY)
-- `sender_id` (TEXT NOT NULL, FOREIGN KEY)
-- `receiver_id` (TEXT NOT NULL, FOREIGN KEY)
-- `content` (TEXT)
-- `attachments` (TEXT)
-- `is_read` (BOOLEAN DEFAULT 0)
-- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
-
 **friendships**
 - `id` (TEXT PRIMARY KEY)
 - `user_id` (TEXT NOT NULL, FOREIGN KEY)
 - `friend_id` (TEXT NOT NULL, FOREIGN KEY)
 - `status` (TEXT DEFAULT 'pending')
 - `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- `updated_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- UNIQUE(user_id, friend_id)
+
+**dm_channels**
+- `id` (TEXT PRIMARY KEY)
+- `user1_id` (TEXT NOT NULL, FOREIGN KEY)
+- `user2_id` (TEXT NOT NULL, FOREIGN KEY)
+- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- `updated_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- UNIQUE(user1_id, user2_id)
+
+**dm_messages**
+- `id` (TEXT PRIMARY KEY)
+- `channel_id` (TEXT NOT NULL, FOREIGN KEY)
+- `sender_id` (TEXT NOT NULL, FOREIGN KEY)
+- `content` (TEXT)
+- `attachments` (TEXT)
+- `is_read` (BOOLEAN DEFAULT 0)
+- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- `edited_at` (DATETIME)
+
+**bans**
+- `id` (TEXT PRIMARY KEY)
+- `server_id` (TEXT NOT NULL, FOREIGN KEY)
+- `user_id` (TEXT NOT NULL, FOREIGN KEY)
+- `reason` (TEXT)
+- `created_at` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- UNIQUE(server_id, user_id)
 
 ---
 
@@ -410,11 +600,21 @@ interface Server {
   icon: string;
 }
 
+interface Category {
+  id: string;
+  serverId: string;
+  name: string;
+  position: number;
+  channels?: Channel[];
+}
+
 interface Channel {
   id: string;
   name: string;
   type: 'text' | 'voice';
   serverId: string;
+  categoryId?: string | null;
+  position: number;
 }
 
 interface Reaction {
@@ -445,13 +645,35 @@ interface Message {
 }
 
 interface ServerMember extends User {
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'moderator' | 'member';
 }
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+}
+
+interface DMChannel {
+  id: string;
+  friend: User;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+  updatedAt: string;
+}
+
+interface DMMessage {
+  id: string;
+  channelId: string;
+  senderId: string;
+  content: string;
+  sender_username?: string;
+  sender_avatar?: string;
+  attachments?: FileAttachment[];
+  isRead: boolean;
+  createdAt: string;
+  editedAt?: string;
 }
 ```
 
@@ -464,21 +686,74 @@ interface AuthState {
 - React Testing Library for component tests
 - Playwright or Cypress for E2E testing
 
+### Manual Testing Checklist
+- [ ] Register with email valid
+- [ ] Login with kredensial benar
+- [ ] Create server baru
+- [ ] Create channel (text & voice)
+- [ ] Kirim pesan text
+- [ ] Upload file attachment
+- [ ] Edit dan delete message
+- [ ] Add reaction emoji
+- [ ] Reply ke message
+- [ ] Add friend dan accept request
+- [ ] Kirim DM
+- [ ] Create channel category
+- [ ] Test di mobile viewport
+
+### Test Real-time (2 Browser)
+1. Buka http://localhost:5173 di Chrome
+2. Buka http://localhost:5173 di Firefox/Chrome Incognito
+3. Login dengan 2 akun berbeda
+4. Kirim pesan dan verify real-time update
+
 ---
 
 ## Security Considerations
 
 ### Current Implementation
-- **Authentication**: JWT with Bearer token stored in localStorage
+- **Authentication**: JWT with Bearer token stored in localStorage (expires in 7 days)
 - **Password Hashing**: bcryptjs with 10 salt rounds
 - **File Uploads**: Limited to 10MB, filtered by MIME type
 - **CORS**: Enabled for all origins (development-friendly, review for production)
+- **Role-based Permissions**: Discord-like permission bitfield system
+
+### Permission System
+Roles hierarchy: owner > admin > moderator > member
+
+```javascript
+const Permissions = {
+  VIEW_CHANNEL: 1 << 0,
+  SEND_MESSAGES: 1 << 1,
+  CONNECT: 1 << 2,
+  SPEAK: 1 << 3,
+  KICK_MEMBERS: 1 << 4,
+  BAN_MEMBERS: 1 << 5,
+  MANAGE_MESSAGES: 1 << 6,
+  MANAGE_CHANNELS: 1 << 7,
+  MANAGE_ROLES: 1 << 8,
+  MANAGE_SERVER: 1 << 9,
+  ADMINISTRATOR: 1 << 10,
+  MODERATE_MEMBERS: 1 << 11,
+};
+```
 
 ### File Upload Restrictions
 Allowed MIME types:
 - Images: `image/jpeg`, `image/png`, `image/gif`, `image/webp`
 - Documents: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
 - Other: `text/plain`, `application/zip`
+
+### Known Security Issues (See docs/BUG_REPORT.md)
+**Critical (Open)**:
+- BUG-003: No rate limiting on API endpoints (brute force vulnerable)
+- BUG-004: Socket join channel no auth check
+- BUG-005: Socket send message no channel verification
+- BUG-010: Socket remove reaction no ownership check
+
+**Medium Priority**:
+- BUG-013: CORS allows all origins
+- BUG-014: No input sanitization (XSS risk)
 
 ### Recommendations for Production
 1. Change default JWT secret to a secure random string
@@ -488,6 +763,8 @@ Allowed MIME types:
 5. Add input validation middleware (zod or joi)
 6. Implement file upload virus scanning
 7. Add database connection pooling for better performance
+8. Add socket event authorization checks
+9. Sanitize user input before storage/display
 
 ---
 
@@ -502,6 +779,12 @@ The project has 50+ shadcn/ui components installed in `app/src/components/ui/`:
 - **Overlays**: dialog, drawer, hover-card, popover, tooltip
 - **Data Display**: aspect-ratio, avatar, badge, calendar, carousel, chart, table
 - **Utilities**: button-group, empty, field, form, input-group, item, kbd, label, toggle, toggle-group
+
+To add a new shadcn/ui component:
+```bash
+cd app
+npx shadcn@latest add [component-name]
+```
 
 ---
 
@@ -535,16 +818,6 @@ On first server start, the following seed data is created:
 
 ---
 
-## Known Issues & TODOs
-
-1. **Tests**: No testing framework configured
-2. **Rate Limiting**: Not implemented (consider adding for production)
-3. **Input Validation**: Could be strengthened with schema validation
-4. **File Security**: No virus scanning for uploads
-5. **Database**: SQLite is suitable for small deployments; consider PostgreSQL for scale
-
----
-
 ## Multi-Platform Notes
 
 ### Electron Detection
@@ -563,3 +836,37 @@ This pattern is used in `AuthContext.tsx`, `useSocket.ts`, and `ChatLayout.tsx`.
 - Vite handles env vars with `import.meta.env.VITE_*` prefix
 - Default values fallback to localhost for development
 - Production values should be set in `.env.production`
+
+---
+
+## Documentation Files
+
+- `README.md` - User-facing documentation (Indonesian language)
+- `docs/BUG_REPORT.md` - Detailed bug tracking with severity levels
+- `docs/CHANGELOG.md` - Version history and feature list
+- `AGENTS.md` - This file - Agent development guide
+
+---
+
+## Known Issues & TODOs
+
+See `docs/BUG_REPORT.md` for complete bug tracking.
+
+### Critical Issues (6 Fixed, 4 Open)
+- ✅ JWT tokens now expire in 7 days
+- ✅ Username uniqueness validation
+- ✅ Fixed user status with multiple tabs
+- ✅ Fixed typing indicator timeout
+- ✅ Fixed memory leak in useSocket
+- ✅ Fixed avatar infinite loop
+- ⏳ No rate limiting on API endpoints
+- ⏳ Socket events need better authorization checks
+
+### Feature TODOs
+1. **Tests**: No testing framework configured
+2. **Rate Limiting**: Not implemented
+3. **Input Validation**: Could be strengthened with schema validation
+4. **File Security**: No virus scanning for uploads
+5. **Database**: SQLite is suitable for small deployments; consider PostgreSQL for scale
+6. **Voice Chat**: Not yet implemented
+7. **Message Search**: Not yet implemented

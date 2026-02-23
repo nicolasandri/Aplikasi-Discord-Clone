@@ -1710,11 +1710,7 @@ const dmDB = {
   }
 };
 
-// Dummy pool for compatibility with PostgreSQL interface
-const pool = { query: () => Promise.resolve({ rows: [] }) };
-
 module.exports = {
-  pool,
   db,
   initDatabase,
   userDB,

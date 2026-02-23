@@ -10,7 +10,13 @@ const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
-const { db, initDatabase, userDB, serverDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, Permissions } = require('./database');
+// Database selection: SQLite or PostgreSQL
+const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+const dbModule = usePostgres ? require('./database-postgres') : require('./database');
+
+const { db, initDatabase, userDB, serverDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, Permissions } = dbModule;
+
+console.log(`📦 Using database: ${usePostgres ? 'PostgreSQL' : 'SQLite'}`);
 const { checkPermission, requireServerOwner, canManageMember, fetchPermissions } = require('./middleware/permissions');
 
 const app = express();
@@ -40,43 +46,38 @@ async function seedData() {
   // Check if admin exists
   const admin = await userDB.findByEmail('admin@workgrid.com');
   if (!admin) {
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    const adminId = uuidv4();
-    
-    db.run(
-      'INSERT INTO users (id, username, email, password, avatar, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [adminId, 'Admin', 'admin@workgrid.com', hashedPassword, 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin', 'online']
-    );
-    
-    // Create default server
-    const serverId = uuidv4();
-    db.run(
-      'INSERT INTO servers (id, name, icon, owner_id) VALUES (?, ?, ?, ?)',
-      [serverId, 'WorkGrid Official', 'https://api.dicebear.com/7.x/identicon/svg?seed=WorkGrid', adminId]
-    );
-    
-    // Add admin as member
-    db.run(
-      'INSERT INTO server_members (id, server_id, user_id, role) VALUES (?, ?, ?, ?)',
-      [uuidv4(), serverId, adminId, 'owner']
-    );
-    
-    // Create channels
-    const channels = [
-      { name: 'selamat-datang', type: 'text' },
-      { name: 'umum', type: 'text' },
-      { name: 'bantuan', type: 'text' },
-      { name: 'Suara Umum', type: 'voice' }
-    ];
-    
-    channels.forEach(ch => {
-      db.run(
-        'INSERT INTO channels (id, server_id, name, type) VALUES (?, ?, ?, ?)',
-        [uuidv4(), serverId, ch.name, ch.type]
+    try {
+      // Create admin user using userDB API
+      const adminUser = await userDB.create('Admin', 'admin@workgrid.com', 'admin123');
+      // Update admin status to online
+      await userDB.updateProfile(adminUser.id, { status: 'online' });
+      
+      // Create default server using serverDB API
+      const server = await serverDB.create(
+        'WorkGrid Official',
+        'https://api.dicebear.com/7.x/identicon/svg?seed=WorkGrid',
+        adminUser.id
       );
-    });
-    
-    console.log('✅ Seed data created');
+      
+      // Add admin as owner
+      await serverDB.addMember(server.id, adminUser.id, 'owner');
+      
+      // Create default channels
+      const channels = [
+        { name: 'selamat-datang', type: 'text' },
+        { name: 'umum', type: 'text' },
+        { name: 'bantuan', type: 'text' },
+        { name: 'Suara Umum', type: 'voice' }
+      ];
+      
+      for (const ch of channels) {
+        await channelDB.create(server.id, ch.name, ch.type);
+      }
+      
+      console.log('✅ Seed data created');
+    } catch (error) {
+      console.error('❌ Error creating seed data:', error);
+    }
   }
 }
 
