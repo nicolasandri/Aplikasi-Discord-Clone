@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-WorkGrid is a Discord-like real-time team collaboration platform with web, mobile (Android), and desktop (Electron) support. The application features user authentication, server/channel management, real-time messaging with Socket.IO, file sharing, message reactions, and a Discord-inspired UI.
+WorkGrid is a Discord-like real-time team collaboration platform with web, mobile (Android), and desktop (Electron) support. The application features user authentication, server/channel management, real-time messaging with Socket.IO, file sharing, message reactions, reply functionality, message editing/deletion, and a Discord-inspired UI.
 
 **Deployed URL**: https://xoqeprkp54f74.ok.kimi.link
 
@@ -28,7 +28,7 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 - **Runtime**: Node.js
 - **Framework**: Express 4.18.2
 - **Real-time**: Socket.IO 4.7.2
-- **Database**: SQLite3 5.1.7 (persistent file-based)
+- **Database**: SQLite3 5.1.7 (persistent file-based at `server/workgrid.db`)
 - **Authentication**: JWT (jsonwebtoken 9.0.3) + bcryptjs for password hashing
 - **File Uploads**: Multer 2.0.2
 - **CORS**: Enabled for all origins
@@ -78,14 +78,15 @@ WorkGrid is a Discord-like real-time team collaboration platform with web, mobil
 │   ├── dist/                    # Build output (for deployment)
 │   ├── android/                 # Capacitor Android project
 │   ├── public/                  # Static assets
-│   ├── .env                     # Local development env vars
-│   ├── .env.production          # Production env vars
-│   ├── vite.config.ts           # Vite configuration
+│   ├── capacitor.config.ts      # Capacitor mobile config
+│   ├── components.json          # shadcn/ui configuration
+│   ├── eslint.config.js         # ESLint configuration
+│   ├── package.json             # Dependencies and scripts
 │   ├── tailwind.config.js       # Tailwind CSS configuration
 │   ├── tsconfig.json            # TypeScript configuration
-│   ├── eslint.config.js         # ESLint configuration
-│   ├── components.json          # shadcn/ui configuration
-│   └── capacitor.config.ts      # Capacitor mobile config
+│   ├── tsconfig.app.json        # TypeScript app config
+│   ├── tsconfig.node.json       # TypeScript node config
+│   └── vite.config.ts           # Vite configuration
 │
 └── server/                      # Backend Express server
     ├── server.js                # Main server file
@@ -255,6 +256,7 @@ The server uses these environment variables (with defaults):
 | `typing` | `{ channelId }` | Typing indicator |
 | `add_reaction` | `{ messageId, emoji }` | Add reaction to message |
 | `remove_reaction` | `{ messageId, emoji }` | Remove reaction from message |
+| `edit_message` | `{ messageId, content }` | Edit a message |
 | `delete_message` | `{ messageId }` | Delete a message |
 
 #### Server → Client
@@ -267,6 +269,8 @@ The server uses these environment variables (with defaults):
 | `user_status_changed` | `{ userId, status }` | User status update |
 | `reaction_added` | `{ messageId, reactions, userId, emoji }` | Reaction added |
 | `reaction_removed` | `{ messageId, reactions, userId, emoji }` | Reaction removed |
+| `message_edited` | `Message` | Message was edited |
+| `message_deleted` | `{ messageId }` | Message was deleted |
 | `error` | `{ message, error? }` | Error message |
 
 ---
@@ -356,8 +360,8 @@ The server uses these environment variables (with defaults):
 ### TypeScript
 - **Target**: ES2022
 - **Strict mode**: Enabled
-- **Path aliases**: Use `@/` prefix for imports (e.g., `@/components/ui/button`)
 - **No unused locals/parameters**: Enforced
+- **Path aliases**: Use `@/` prefix for imports (e.g., `@/components/ui/button`)
 
 ### Component Structure
 - Functional components with TypeScript interfaces
@@ -375,6 +379,15 @@ The server uses these environment variables (with defaults):
 - Hooks: camelCase with `use` prefix (e.g., `useSocket.ts`)
 - Utilities: camelCase (e.g., `utils.ts`)
 - Types/Interfaces: PascalCase (e.g., `User`, `Message`)
+
+### Import Order
+1. React imports
+2. Third-party libraries
+3. Local components (@/components)
+4. Hooks (@/hooks)
+5. Contexts (@/contexts)
+6. Types (@/types)
+7. Utilities (@/lib)
 
 ---
 
@@ -433,6 +446,12 @@ interface Message {
 
 interface ServerMember extends User {
   role: 'owner' | 'admin' | 'member';
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
 }
 ```
 
@@ -523,3 +542,24 @@ On first server start, the following seed data is created:
 3. **Input Validation**: Could be strengthened with schema validation
 4. **File Security**: No virus scanning for uploads
 5. **Database**: SQLite is suitable for small deployments; consider PostgreSQL for scale
+
+---
+
+## Multi-Platform Notes
+
+### Electron Detection
+The app detects Electron runtime using:
+```typescript
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+```
+
+### API URL Resolution
+- **Web**: Uses relative URLs or `VITE_API_URL` env var
+- **Electron**: Uses absolute URL `http://localhost:3001/api`
+
+This pattern is used in `AuthContext.tsx`, `useSocket.ts`, and `ChatLayout.tsx`.
+
+### Environment Variable Handling
+- Vite handles env vars with `import.meta.env.VITE_*` prefix
+- Default values fallback to localhost for development
+- Production values should be set in `.env.production`

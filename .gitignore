@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+*/node_modules/
+package-lock.json
+*/package-lock.json
+yarn.lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+*/.env
+*/.env.local
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+android/app/build/
+release/
+
+# Uploads & Database
+uploads/
+*.db
+*/workgrid.db
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

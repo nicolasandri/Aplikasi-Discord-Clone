@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Compass, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Compass, Download, MessageCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,19 +9,112 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import type { Server } from '@/types';
+
+// Detect if running in Electron
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+
+// Use absolute URL for Electron, relative for web
+const API_URL = isElectron 
+  ? 'http://localhost:3001/api' 
+  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 interface ServerListProps {
   servers: Server[];
   selectedServerId: string | null;
-  onSelectServer: (serverId: string) => void;
+  onSelectServer: (serverId: string | null) => void;
   onCreateServer: (name: string, icon: string) => void;
+  onOpenFriends?: () => void;
+  isFriendsOpen?: boolean;
 }
 
-export function ServerList({ servers, selectedServerId, onSelectServer, onCreateServer }: ServerListProps) {
+export function ServerList({ 
+  servers, 
+  selectedServerId, 
+  onSelectServer, 
+  onCreateServer,
+  onOpenFriends,
+  isFriendsOpen = false
+}: ServerListProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newServerName, setNewServerName] = useState('');
   const [newServerIcon, setNewServerIcon] = useState('🌐');
+  const [pendingCount, setPendingCount] = useState(0);
+  const [onlineFriendCount, setOnlineFriendCount] = useState(0);
+
+  const token = localStorage.getItem('token');
+
+  // Fetch pending friend requests count
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const response = await fetch(`${API_URL}/friends/pending`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPendingCount(data.incoming?.length || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pending count:', error);
+      }
+    };
+
+    const fetchOnlineFriends = async () => {
+      try {
+        const response = await fetch(`${API_URL}/friends`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const online = data.filter((f: any) => f.status === 'online');
+          setOnlineFriendCount(online.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch online friends:', error);
+      }
+    };
+
+    fetchPendingCount();
+    fetchOnlineFriends();
+
+    // Poll for updates every 30 seconds
+    const interval = setInterval(() => {
+      fetchPendingCount();
+      fetchOnlineFriends();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [token]);
+
+  // Listen for socket events to update counts
+  useEffect(() => {
+    const socket = (window as any).socket;
+    if (!socket) return;
+
+    const handleFriendRequestReceived = () => {
+      setPendingCount(prev => prev + 1);
+    };
+
+    const handleFriendRequestAccepted = () => {
+      // Refresh counts
+      fetch(`${API_URL}/friends`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.ok ? r.json() : []).then(data => {
+        const online = data.filter((f: any) => f.status === 'online');
+        setOnlineFriendCount(online.length);
+      });
+    };
+
+    socket.on('friend_request_received', handleFriendRequestReceived);
+    socket.on('friend_request_accepted', handleFriendRequestAccepted);
+
+    return () => {
+      socket.off('friend_request_received', handleFriendRequestReceived);
+      socket.off('friend_request_accepted', handleFriendRequestAccepted);
+    };
+  }, [token]);
 
   const handleCreateServer = () => {
     if (newServerName.trim()) {
@@ -32,19 +125,50 @@ export function ServerList({ servers, selectedServerId, onSelectServer, onCreate
     }
   };
 
+  const handleDMClick = () => {
+    onSelectServer('home');
+    onOpenFriends?.();
+  };
+
   return (
     <div className="w-[72px] bg-[#202225] flex flex-col items-center py-3 gap-2 overflow-y-auto">
-      {/* Home/DM Button */}
-      <button
-        onClick={() => onSelectServer('home')}
-        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
-          selectedServerId === 'home'
-            ? 'bg-[#5865f2] rounded-2xl'
-            : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
-        }`}
-      >
-        <span className="text-xl">💬</span>
-      </button>
+      {/* Direct Messages / Friends Button */}
+      <div className="relative group">
+        <button
+          onClick={handleDMClick}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
+            isFriendsOpen || selectedServerId === 'home'
+              ? 'bg-[#5865f2] rounded-2xl'
+              : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
+          }`}
+        >
+          <MessageCircle className="w-6 h-6 text-white" />
+        </button>
+        
+        {/* Selected indicator */}
+        {(isFriendsOpen || selectedServerId === 'home') && (
+          <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
+        )}
+        
+        {/* Unread badge */}
+        {pendingCount > 0 && (
+          <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#202225]">
+            {pendingCount > 9 ? '9+' : pendingCount}
+          </Badge>
+        )}
+
+        {/* Online friend count badge */}
+        {onlineFriendCount > 0 && pendingCount === 0 && (
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3ba55d] rounded-full border-2 border-[#202225] flex items-center justify-center">
+            <span className="text-[8px] text-white font-bold">{onlineFriendCount > 9 ? '9+' : onlineFriendCount}</span>
+          </div>
+        )}
+        
+        {/* Tooltip */}
+        <div className="absolute left-16 bg-[#18191c] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+          Direct Messages {pendingCount > 0 && `(${pendingCount} pending)`}
+        </div>
+      </div>
 
       <div className="w-8 h-[2px] bg-[#36393f] rounded-full my-1" />
 
@@ -54,12 +178,12 @@ export function ServerList({ servers, selectedServerId, onSelectServer, onCreate
           key={server.id}
           onClick={() => onSelectServer(server.id)}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group overflow-hidden ${
-            selectedServerId === server.id
+            selectedServerId === server.id && !isFriendsOpen
               ? 'bg-[#5865f2] rounded-2xl'
               : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
           }`}
         >
-          {server.icon.startsWith('http') ? (
+          {server.icon?.startsWith('http') ? (
             <img 
               src={server.icon} 
               alt={server.name} 
@@ -70,17 +194,17 @@ export function ServerList({ servers, selectedServerId, onSelectServer, onCreate
               }}
             />
           ) : (
-            <span className="text-2xl">{server.icon}</span>
+            <span className="text-2xl">{server.icon || '🌐'}</span>
           )}
           
           {/* Selected indicator */}
-          {selectedServerId === server.id && (
-            <div className="absolute -left-3 w-1 h-8 bg-white rounded-r-full" />
+          {selectedServerId === server.id && !isFriendsOpen && (
+            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
           )}
           
           {/* Hover indicator */}
-          {selectedServerId !== server.id && (
-            <div className="absolute -left-3 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
+          {!(selectedServerId === server.id && !isFriendsOpen) && (
+            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
           )}
 
           {/* Tooltip */}

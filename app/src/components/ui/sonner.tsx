@@ -5,11 +5,11 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // Use dark theme by default for Discord-like UI
+  const theme = "dark"
 
   return (
     <Sonner
@@ -24,10 +24,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--normal-bg": "#18191c",
+          "--normal-text": "#dcddde",
+          "--normal-border": "#2f3136",
+          "--border-radius": "8px",
         } as React.CSSProperties
       }
       {...props}

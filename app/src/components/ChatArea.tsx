@@ -24,6 +24,33 @@ interface ChatAreaProps {
   onRefresh?: () => void;
 }
 
+// User permissions interface
+interface UserPermissions {
+  role: string;
+  permissions: number;
+  isOwner: boolean;
+  canManageMessages: boolean;
+  canManageChannels: boolean;
+  canKickMembers: boolean;
+  canBanMembers: boolean;
+}
+
+// Permission bitfield constants (must match server)
+const Permissions = {
+  VIEW_CHANNEL: 1 << 0,
+  SEND_MESSAGES: 1 << 1,
+  CONNECT: 1 << 2,
+  SPEAK: 1 << 3,
+  KICK_MEMBERS: 1 << 4,
+  BAN_MEMBERS: 1 << 5,
+  MANAGE_MESSAGES: 1 << 6,
+  MANAGE_CHANNELS: 1 << 7,
+  MANAGE_ROLES: 1 << 8,
+  MANAGE_SERVER: 1 << 9,
+  ADMINISTRATOR: 1 << 10,
+  MODERATE_MEMBERS: 1 << 11,
+};
+
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
@@ -86,6 +113,7 @@ interface MessageItemProps {
   message: Message;
   showHeader: boolean;
   currentUser: User | null;
+  userPermissions: UserPermissions | null;
   onReply: (message: Message) => void;
   onReaction: (messageId: string, emoji: string) => void;
   onDelete: (messageId: string) => void;
@@ -95,7 +123,7 @@ interface MessageItemProps {
   onCopy?: (content: string) => void;
 }
 
-function MessageItem({ message, showHeader, currentUser, onReply, onReaction, onDelete, onUserClick, onImageClick, onForward, onCopy }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onImageClick, onForward, onCopy }: MessageItemProps) {
   const [showActions, setShowActions] = useState(false);
   
   // Default handlers
@@ -116,6 +144,11 @@ function MessageItem({ message, showHeader, currentUser, onReply, onReaction, on
   
   // Get timestamp from either timestamp or createdAt field
   const timestamp = message.timestamp || (message as any).createdAt || new Date().toISOString();
+
+  // Check permissions for this message
+  const canDelete = isOwnMessage || userPermissions?.canManageMessages || false;
+  const canPin = userPermissions?.canManageMessages || false;
+  const canEdit = isOwnMessage;
 
   const handleReaction = (emoji: string) => {
     onReaction(message.id, emoji);
@@ -301,7 +334,7 @@ function MessageItem({ message, showHeader, currentUser, onReply, onReaction, on
               <EmojiPicker onEmojiSelect={handleReaction} />
             </button>
           </div>
-          {isOwnMessage && (
+          {canDelete && (
             <>
               <button
                 onClick={() => onDelete(message.id)}
@@ -325,7 +358,10 @@ function MessageItem({ message, showHeader, currentUser, onReply, onReaction, on
         onForward={() => (onForward || handleForward)(message)}
         onCopy={() => (onCopy || handleCopy)(message.content)}
         onCopyLink={() => handleCopy(`http://localhost:3001/message/${message.id}`)}
-        onDelete={isOwnMessage ? () => onDelete(message.id) : undefined}
+        onDelete={canDelete ? () => onDelete(message.id) : undefined}
+        canDelete={canDelete}
+        canPin={canPin}
+        canEdit={canEdit}
         onReaction={(emoji) => onReaction(message.id, emoji)}
         isOwnMessage={isOwnMessage}
       />
@@ -339,6 +375,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
+  const [userPermissions, setUserPermissions] = useState<UserPermissions | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -347,6 +384,29 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Fetch user permissions when server changes
+  useEffect(() => {
+    if (serverId) {
+      fetchUserPermissions();
+    }
+  }, [serverId]);
+
+  const fetchUserPermissions = async () => {
+    if (!serverId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/servers/${serverId}/permissions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserPermissions(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch permissions:', error);
+    }
+  };
 
   const handleReaction = async (messageId: string, emoji: string) => {
     console.log('handleReaction called:', messageId, emoji);
@@ -387,8 +447,11 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const handleDelete = async (messageId: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus pesan ini?')) return;
     
-    // In real implementation, this should emit socket event
-    console.log('Delete message:', messageId);
+    // Emit socket event for delete
+    const socket = (window as any).socket;
+    if (socket) {
+      socket.emit('delete_message', { messageId });
+    }
   };
 
   const handleUserClick = (userId: string) => {
@@ -517,6 +580,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           message={message}
                           showHeader={showHeader}
                           currentUser={currentUser}
+                          userPermissions={userPermissions}
                           onReply={onReply || (() => {})}
                           onReaction={handleReaction}
                           onDelete={handleDelete}
@@ -559,6 +623,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         serverId={serverId || ''}
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
+        onStartDM={(userId) => console.log('Start DM with:', userId)}
       />
 
       {/* Image Viewer */}

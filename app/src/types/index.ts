@@ -12,11 +12,21 @@ export interface Server {
   icon: string;
 }
 
+export interface Category {
+  id: string;
+  serverId: string;
+  name: string;
+  position: number;
+  channels?: Channel[];
+}
+
 export interface Channel {
   id: string;
   name: string;
   type: 'text' | 'voice';
   serverId: string;
+  categoryId?: string | null;
+  position: number;
 }
 
 export interface Reaction {
@@ -47,11 +57,33 @@ export interface Message {
 }
 
 export interface ServerMember extends User {
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'moderator' | 'member';
 }
 
 export interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+}
+
+export interface DMChannel {
+  id: string;
+  friend: User;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+  updatedAt: string;
+}
+
+export interface DMMessage {
+  id: string;
+  channelId: string;
+  senderId: string;
+  content: string;
+  sender_username?: string;
+  sender_avatar?: string;
+  attachments?: FileAttachment[];
+  isRead: boolean;
+  createdAt: string;
+  editedAt?: string;
 }

@@ -8,7 +8,9 @@ import {
   MoreHorizontal,
   Flag,
   Hash,
-  Volume2
+  Volume2,
+  Pin,
+  Edit3
 } from 'lucide-react';
 
 interface MessageContextMenuProps {
@@ -21,8 +23,13 @@ interface MessageContextMenuProps {
   onCopy: () => void;
   onCopyLink: () => void;
   onDelete?: () => void;
+  onEdit?: () => void;
+  onPin?: () => void;
   onReaction?: (emoji: string) => void;
   isOwnMessage: boolean;
+  canDelete?: boolean;
+  canPin?: boolean;
+  canEdit?: boolean;
 }
 
 export function MessageContextMenu({
@@ -35,8 +42,13 @@ export function MessageContextMenu({
   onCopy,
   onCopyLink,
   onDelete,
+  onEdit,
+  onPin,
   onReaction,
-  isOwnMessage
+  isOwnMessage,
+  canDelete = false,
+  canPin = false,
+  canEdit = false,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +81,11 @@ export function MessageContextMenu({
   // Adjust position to keep menu on screen
   const adjustedX = Math.min(x, window.innerWidth - 250);
   const adjustedY = Math.min(y, window.innerHeight - 400);
+
+  // Determine if delete should be shown
+  const showDelete = canDelete || isOwnMessage;
+  // Determine if edit should be shown
+  const showEdit = canEdit || isOwnMessage;
 
   return (
     <div
@@ -117,6 +134,12 @@ export function MessageContextMenu({
 
         <div className="h-px bg-[#2f3136] my-1" />
 
+        {showEdit && (
+          <MenuItem icon={Edit3} onClick={() => { onEdit?.(); onClose(); }}>
+            Edit Message
+          </MenuItem>
+        )}
+
         <MenuItem icon={Copy} onClick={() => { onCopy(); onClose(); }}>
           Copy Text
         </MenuItem>
@@ -134,6 +157,12 @@ export function MessageContextMenu({
 
         <div className="h-px bg-[#2f3136] my-1" />
 
+        {canPin && (
+          <MenuItem icon={Pin} onClick={() => { onPin?.(); onClose(); }}>
+            Pin Message
+          </MenuItem>
+        )}
+
         <MenuItem icon={Volume2} onClick={() => { onClose(); }}>
           Speak Message
         </MenuItem>
@@ -142,7 +171,7 @@ export function MessageContextMenu({
           Report Message
         </MenuItem>
 
-        {isOwnMessage && (
+        {showDelete && (
           <>
             <div className="h-px bg-[#2f3136] my-1" />
             <MenuItem 

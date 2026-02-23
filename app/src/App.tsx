@@ -4,6 +4,7 @@ import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
 import { ChatLayout } from '@/components/ChatLayout';
 import { TitleBar } from '@/components/TitleBar';
+import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 
 function AppContent() {
@@ -30,6 +31,7 @@ function App() {
           <AppContent />
         </AuthProvider>
       </div>
+      <Toaster position="bottom-right" />
     </div>
   );
 }
