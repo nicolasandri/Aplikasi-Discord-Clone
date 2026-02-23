@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ChatCord</string>
+    <string name="title_activity_main">ChatCord</string>
+    <string name="package_name">com.chatcord.app</string>
+    <string name="custom_url_scheme">com.chatcord.app</string>
+</resources>

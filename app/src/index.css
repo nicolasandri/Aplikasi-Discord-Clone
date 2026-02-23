@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 13% 13%;
+    --foreground: 0 0% 98%;
+    --card: 220 13% 18%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 13% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 235 86% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 13% 23%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 220 13% 23%;
+    --muted-foreground: 220 9% 60%;
+    --accent: 235 86% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 25%;
+    --input: 220 13% 25%;
+    --ring: 235 86% 65%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+  }
+  
+  /* Emoji styling for better cross-platform support */
+  .emoji, [class*="emoji"], button:has(🌱), button:has(👋), button:has(❤️), button:has(🍎) {
+    font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
+    font-size: 1.2em;
+    line-height: 1;
+  }
+}
+
+/* Discord-like scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #202225;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1a1b1e;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Discord colors */
+.discord-dark {
+  background-color: #36393f;
+}
+
+.discord-darker {
+  background-color: #2f3136;
+}
+
+.discord-darkest {
+  background-color: #202225;
+}
+
+.discord-blurple {
+  background-color: #5865f2;
+}
+
+.discord-green {
+  background-color: #3ba55d;
+}
+
+.discord-red {
+  background-color: #ed4245;
+}
+
+.discord-gray {
+  background-color: #4f545c;
+}
+
+/* Message hover effect */
+.message-hover:hover {
+  background-color: rgba(79, 84, 92, 0.16);
+}
+
+/* Server icon hover */
+.server-icon {
+  transition: border-radius 0.2s, background-color 0.2s;
+}
+
+.server-icon:hover {
+  border-radius: 12px;
+  background-color: #5865f2;
+}
+
+/* Channel hover */
+.channel-item {
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.channel-item:hover {
+  background-color: rgba(79, 84, 92, 0.4);
+}
+
+.channel-item.active {
+  background-color: rgba(79, 84, 92, 0.6);
+}
+
+/* Typing indicator */
+.typing-dot {
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Background gradient for login */
+.login-bg {
+  background: linear-gradient(135deg, #5865f2 0%, #7289da 50%, #99aab5 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: float 20s linear infinite;
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(50px, 50px); }
+}
+
+/* Status indicators */
+.status-online {
+  background-color: #3ba55d;
+}
+
+.status-idle {
+  background-color: #faa81a;
+}
+
+.status-dnd {
+  background-color: #ed4245;
+}
+
+.status-offline {
+  background-color: #747f8d;
+}
