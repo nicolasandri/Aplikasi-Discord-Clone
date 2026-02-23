@@ -27,6 +27,7 @@ interface ServerListProps {
   onCreateServer: (name: string, icon: string) => void;
   onOpenFriends?: () => void;
   isFriendsOpen?: boolean;
+  isMobile?: boolean;
 }
 
 export function ServerList({ 
@@ -35,7 +36,8 @@ export function ServerList({
   onSelectServer, 
   onCreateServer,
   onOpenFriends,
-  isFriendsOpen = false
+  isFriendsOpen = false,
+  isMobile = false
 }: ServerListProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newServerName, setNewServerName] = useState('');
@@ -129,6 +131,108 @@ export function ServerList({
     onSelectServer('home');
     onOpenFriends?.();
   };
+
+  if (isMobile) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Direct Messages / Friends Button */}
+        <button
+          onClick={handleDMClick}
+          className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
+            isFriendsOpen || selectedServerId === 'home'
+              ? 'bg-[#5865f2] text-white'
+              : 'bg-[#36393f] text-white hover:bg-[#5865f2]'
+          }`}
+        >
+          <div className="w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center">
+            <MessageCircle className="w-6 h-6" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-semibold">Pesan Langsung</div>
+            <div className="text-sm opacity-70">{onlineFriendCount} teman online</div>
+          </div>
+          {pendingCount > 0 && (
+            <Badge className="bg-[#ed4245] text-white text-xs min-w-[24px] h-6 flex items-center justify-center">
+              {pendingCount > 9 ? '9+' : pendingCount}
+            </Badge>
+          )}
+        </button>
+
+        <div className="border-t border-[#36393f] pt-4">
+          <h3 className="text-[#96989d] text-xs font-bold uppercase px-3 mb-3">Server</h3>
+          <div className="space-y-2">
+            {servers.map((server) => (
+              <button
+                key={server.id}
+                onClick={() => onSelectServer(server.id)}
+                className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
+                  selectedServerId === server.id && !isFriendsOpen
+                    ? 'bg-[#5865f2] text-white'
+                    : 'bg-[#36393f] text-white hover:bg-[#5865f2]'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center overflow-hidden">
+                  {server.icon?.startsWith('http') ? (
+                    <img src={server.icon} alt={server.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl">{server.icon || '🌐'}</span>
+                  )}
+                </div>
+                <span className="font-medium truncate flex-1 text-left">{server.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Add Server Button */}
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="w-full flex items-center gap-4 p-3 rounded-xl bg-[#36393f] hover:bg-[#3ba55d] text-[#3ba55d] hover:text-white transition-all"
+        >
+          <div className="w-12 h-12 rounded-full flex items-center justify-center">
+            <Plus className="w-6 h-6" />
+          </div>
+          <span className="font-medium">Buat Server</span>
+        </button>
+
+        {/* Create Server Dialog */}
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent className="bg-[#36393f] border-[#202225] text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Buat Server Baru</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <label className="text-[#b9bbbe] text-sm">Nama Server</label>
+                <Input
+                  value={newServerName}
+                  onChange={(e) => setNewServerName(e.target.value)}
+                  placeholder="Server saya"
+                  className="bg-[#202225] border-[#040405] text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[#b9bbbe] text-sm">Icon (emoji)</label>
+                <Input
+                  value={newServerIcon}
+                  onChange={(e) => setNewServerIcon(e.target.value)}
+                  placeholder="🌐"
+                  maxLength={2}
+                  className="bg-[#202225] border-[#040405] text-white"
+                />
+              </div>
+              <Button
+                onClick={handleCreateServer}
+                className="w-full bg-[#5865f2] hover:bg-[#4752c4]"
+              >
+                Buat Server
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   return (
     <div className="w-[72px] bg-[#202225] flex flex-col items-center py-3 gap-2 overflow-y-auto">

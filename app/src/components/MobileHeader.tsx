@@ -1,4 +1,4 @@
-import { Menu, Users, ArrowLeft } from 'lucide-react';
+import { Menu, X, Users, ArrowLeft } from 'lucide-react';
 import type { Channel, Server, DMChannel } from '@/types';
 
 interface MobileHeaderProps {
@@ -10,6 +10,7 @@ interface MobileHeaderProps {
   onOpenMembers: () => void;
   onBack?: () => void;
   showBack?: boolean;
+  isChannelsOpen?: boolean;
 }
 
 export function MobileHeader({
@@ -21,6 +22,7 @@ export function MobileHeader({
   onOpenMembers,
   onBack,
   showBack = false,
+  isChannelsOpen = false,
 }: MobileHeaderProps) {
   const isDM = !!dmChannel;
   
@@ -40,7 +42,7 @@ export function MobileHeader({
             onClick={onOpenChannels}
             className="p-2 -ml-2 text-[#b9bbbe] hover:text-white"
           >
-            <Menu className="w-5 h-5" />
+            {isChannelsOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         )}
         

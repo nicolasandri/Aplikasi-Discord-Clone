@@ -12,6 +12,8 @@ interface ChannelListProps {
   selectedChannelId: string | null;
   onSelectChannel: (channelId: string) => void;
   onOpenSettings?: () => void;
+  isMobile?: boolean;
+  onClose?: () => void;
 }
 
 // Detect if running in Electron
@@ -22,7 +24,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels, selectedChannelId, onSelectChannel, onOpenSettings }: ChannelListProps) {
+export function ChannelList({ server, channels, selectedChannelId, onSelectChannel, onOpenSettings, isMobile = false, onClose }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -213,7 +215,10 @@ export function ChannelList({ server, channels, selectedChannelId, onSelectChann
               {uncategorizedChannels.map((channel) => (
                 <button
                   key={channel.id}
-                  onClick={() => onSelectChannel(channel.id)}
+                  onClick={() => {
+                  onSelectChannel(channel.id);
+                  if (isMobile) onClose?.();
+                }}
                   className={`w-full flex items-center gap-2 px-6 py-1.5 rounded group ${
                     selectedChannelId === channel.id
                       ? 'bg-[#40444b] text-white'

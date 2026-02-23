@@ -15,10 +15,11 @@ interface MessageInputProps {
   disabled?: boolean;
   replyTo?: Message | null;
   onCancelReply?: () => void;
+  isMobile?: boolean;
 }
 
 export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>(
-  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply }, ref) => {
+  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false }, ref) => {
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -145,7 +146,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   };
 
   return (
-    <form onSubmit={handleSubmit} className="px-4 pb-4">
+    <form onSubmit={handleSubmit} className={`${isMobile ? 'px-2 pb-2' : 'px-4 pb-4'}`}>
       {/* Reply Indicator */}
       {replyTo && (
         <div className="bg-[#40444b] rounded-t-lg px-4 py-2 flex items-center justify-between">
@@ -216,38 +217,42 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           autoFocus={!!replyTo}
-          placeholder={disabled ? 'Pilih channel untuk chat...' : 'Ketik pesan...'}
+          placeholder={disabled ? 'Pilih channel...' : isMobile ? 'Ketik pesan...' : 'Ketik pesan...'}
           disabled={disabled}
-          className="flex-1 bg-transparent text-white placeholder:text-[#72767d] py-3 px-2 resize-none outline-none max-h-[200px] min-h-[44px]"
+          className={`flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none max-h-[200px] ${isMobile ? 'py-2 px-2 min-h-[48px] text-base' : 'py-3 px-2 min-h-[44px]'}`}
           style={{ fontFamily: '"Whitney", "Helvetica Neue", Helvetica, Arial, "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif' }}
           rows={1}
         />
 
         {/* Action Buttons */}
-        <div className="flex items-center pr-2">
-          <button
-            type="button"
-            className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors hidden sm:block"
-            disabled={disabled}
-          >
-            <Gift className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors hidden sm:block"
-            disabled={disabled}
-          >
-            <Sticker className="w-5 h-5" />
-          </button>
-          <div className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors">
+        <div className={`flex items-center ${isMobile ? 'pr-1' : 'pr-2'}`}>
+          {!isMobile && (
+            <>
+              <button
+                type="button"
+                className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
+                disabled={disabled}
+              >
+                <Gift className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
+                disabled={disabled}
+              >
+                <Sticker className="w-5 h-5" />
+              </button>
+            </>
+          )}
+          <div className={`text-[#b9bbbe] hover:text-[#dcddde] transition-colors ${isMobile ? 'p-1' : 'p-2'}`}>
             <EmojiPicker onEmojiSelect={handleEmojiSelect} />
           </div>
           <button
             type="submit"
             disabled={disabled || (!message.trim() && attachments.length === 0)}
-            className="p-2 text-[#5865f2] hover:text-[#4752c4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-1"
+            className={`text-[#5865f2] hover:text-[#4752c4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-1 ${isMobile ? 'p-2' : 'p-2'}`}
           >
-            <Send className="w-5 h-5" />
+            <Send className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'}`} />
           </button>
         </div>
       </div>

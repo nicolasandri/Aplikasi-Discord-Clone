@@ -588,6 +588,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           onDelete={handleDelete}
                           onUserClick={handleUserClick}
                           onImageClick={handleImageClick}
+                          isMobile={isMobile}
                         />
                       </div>
                     );
