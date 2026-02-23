@@ -21,7 +21,7 @@ SSH ke VPS dan jalankan setup script:
 
 ```bash
 # Download setup script
-curl -fsSL https://raw.githubusercontent.com/yourusername/discord-clone/main/deployment/vps-setup.sh -o vps-setup.sh
+curl -fsSL https://raw.githubusercontent.com/nicolasandri/discord-clone/main/deployment/vps-setup.sh -o vps-setup.sh
 chmod +x vps-setup.sh
 sudo ./vps-setup.sh
 ```
