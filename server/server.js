@@ -23,11 +23,19 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:3000'
+    ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true
-  }
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Initialize Voice Signaling Server for WebRTC
@@ -89,7 +97,12 @@ seedData();
 
 // Enable CORS for all routes
 app.use(cors({
-  origin: "*",
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Authorization", "Content-Type"],
   credentials: true
@@ -1454,8 +1467,8 @@ app.post('/api/servers/:serverId/invites', authenticateToken, async (req, res) =
   }
 });
 
-// Join server with invite
-app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
+// Get invite info (public, no auth required)
+app.get('/api/invites/:code', async (req, res) => {
   try {
     const { code } = req.params;
     const invite = await inviteDB.findByCode(code);
@@ -1464,20 +1477,137 @@ app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Invalid invite code' });
     }
     
+    // Check expiration
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      return res.status(400).json({ error: 'Invite has expired' });
+      return res.status(410).json({ error: 'Invite has expired' });
+    }
+    
+    // Check max uses
+    if (invite.max_uses && invite.uses >= invite.max_uses) {
+      return res.status(410).json({ error: 'Invite has reached maximum uses' });
+    }
+    
+    // Return public info
+    res.json({
+      code: invite.code,
+      serverName: invite.server_name,
+      serverIcon: invite.server_icon,
+      expiresAt: invite.expires_at,
+      maxUses: invite.max_uses,
+      uses: invite.uses
+    });
+  } catch (error) {
+    console.error('Get invite error:', error);
+    res.status(500).json({ error: 'Failed to get invite info' });
+  }
+});
+
+// Join server with invite
+app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const userId = req.userId;
+    
+    const invite = await inviteDB.findByCode(code);
+    
+    if (!invite) {
+      return res.status(404).json({ error: 'Invalid invite code' });
+    }
+    
+    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'Invite has expired' });
     }
     
     if (invite.max_uses && invite.uses >= invite.max_uses) {
-      return res.status(400).json({ error: 'Invite has reached maximum uses' });
+      return res.status(410).json({ error: 'Invite has reached maximum uses' });
     }
     
-    await serverDB.addMember(invite.server_id, req.userId);
+    // Check if already member
+    const members = await serverDB.getMembers(invite.server_id);
+    if (members.some(m => m.id === userId)) {
+      return res.status(409).json({ 
+        error: 'Already a member of this server',
+        serverId: invite.server_id
+      });
+    }
+    
+    // Add user to server
+    await serverDB.addMember(invite.server_id, userId);
     await inviteDB.incrementUses(code);
     
-    res.json({ success: true, server_id: invite.server_id });
+    // Get server info
+    const allServers = await serverDB.getAll();
+    const server = allServers.find(s => s.id === invite.server_id);
+    
+    // Get user info for notification
+    const user = await userDB.findById(userId);
+    
+    // Notify server members via socket
+    io.to(invite.server_id).emit('member_joined', {
+      userId,
+      serverId: invite.server_id,
+      username: user.username,
+      avatar: user.avatar
+    });
+    
+    res.json({ 
+      success: true, 
+      server: server || { id: invite.server_id }
+    });
   } catch (error) {
+    console.error('Join server error:', error);
     res.status(500).json({ error: 'Failed to join server' });
+  }
+});
+
+// Get server invites (for server settings)
+app.get('/api/servers/:serverId/invites', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const userId = req.userId;
+    
+    // Check if user is member
+    const members = await serverDB.getMembers(serverId);
+    if (!members.some(m => m.id === userId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    
+    const invites = await inviteDB.getServerInvites(serverId);
+    res.json(invites);
+  } catch (error) {
+    console.error('Get server invites error:', error);
+    res.status(500).json({ error: 'Failed to get invites' });
+  }
+});
+
+// Delete invite
+app.delete('/api/invites/:code', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const userId = req.userId;
+    
+    // Get invite
+    const invite = await inviteDB.findByCode(code);
+    if (!invite) {
+      return res.status(404).json({ error: 'Invite not found' });
+    }
+    
+    // Check if user has permission (admin/owner or creator)
+    const members = await serverDB.getMembers(invite.server_id);
+    const member = members.find(m => m.id === userId);
+    
+    const isAuthorized = member && 
+      (['owner', 'admin'].includes(member.role) || invite.created_by === userId);
+    
+    if (!isAuthorized) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    
+    await inviteDB.deleteInvite(code);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete invite error:', error);
+    res.status(500).json({ error: 'Failed to delete invite' });
   }
 });
 
@@ -1978,37 +2108,50 @@ io.on('connection', (socket) => {
   // ============ DM (Direct Message) Socket Events ============
 
   // Join DM channel
-  socket.on('join_dm_channel', (channelId) => {
-    if (!socket.userId || !channelId) return;
-    socket.join(`dm_${channelId}`);
-    console.log(`Socket ${socket.id} joined DM channel ${channelId}`);
+  socket.on('join-dm-channel', (channelId) => {
+    if (!socket.userId || !channelId) {
+      console.log('❌ Join DM channel failed: No userId or channelId');
+      return;
+    }
+    socket.join(`dm:${channelId}`);
+    console.log(`✅ Socket ${socket.id} (user ${socket.userId}) joined DM channel ${channelId}`);
+    // Debug: Check room members
+    const room = io.sockets.adapter.rooms.get(`dm:${channelId}`);
+    console.log(`Room dm:${channelId} now has ${room ? room.size : 0} members`);
+    socket.emit('joined-dm-channel', { channelId, success: true });
   });
 
   // Leave DM channel
-  socket.on('leave_dm_channel', (channelId) => {
+  socket.on('leave-dm-channel', (channelId) => {
     if (!socket.userId || !channelId) return;
-    socket.leave(`dm_${channelId}`);
+    socket.leave(`dm:${channelId}`);
     console.log(`Socket ${socket.id} left DM channel ${channelId}`);
   });
 
   // Send DM message via socket
-  socket.on('send_dm_message', async (data) => {
+  socket.on('send-dm-message', async (data) => {
+    console.log('📥 Server received send-dm-message:', data);
     try {
       const { channelId, content, attachments } = data;
       if (!socket.userId || !channelId || (!content && !attachments)) {
-        socket.emit('dm_error', { error: 'Invalid data' });
+        console.log('❌ Invalid data');
+        socket.emit('dm-error', { error: 'Invalid data' });
         return;
       }
 
       // Verify user is part of this channel
       const channel = await dmDB.getDMChannelById(channelId);
+      console.log('Channel found:', channel ? 'yes' : 'no');
       if (!channel || (channel.user1_id !== socket.userId && channel.user2_id !== socket.userId)) {
-        socket.emit('dm_error', { error: 'Access denied' });
+        console.log('❌ Access denied');
+        socket.emit('dm-error', { error: 'Access denied' });
         return;
       }
 
       // Send message
+      console.log('Saving message to DB...');
       const message = await dmDB.sendDMMessage(channelId, socket.userId, content, attachments);
+      console.log('✅ Message saved:', message.id);
 
       // Get sender info
       const sender = await userDB.findById(socket.userId);
@@ -2021,12 +2164,18 @@ io.on('connection', (socket) => {
       // Get recipient ID
       const recipientId = channel.user1_id === socket.userId ? channel.user2_id : channel.user1_id;
 
-      // Broadcast to both users in DM channel
-      io.to(`dm_${channelId}`).emit('dm_message_received', {
+      console.log('Emitting new-dm-message to room:', `dm:${channelId}`);
+      // EMIT TO ROOM (includes sender)
+      io.to(`dm:${channelId}`).emit('new-dm-message', {
         channelId,
         message: messageWithSender,
         sender: { id: sender.id, username: sender.username, avatar: sender.avatar }
       });
+      
+      // Debug: Check room members
+      const room = io.sockets.adapter.rooms.get(`dm:${channelId}`);
+      console.log(`Room dm:${channelId} members:`, room ? room.size : 0);
+      console.log('✅ DM message processing complete');
 
       // Also emit update to recipient's DM list
       const recipientSocket = getUserSocket(recipientId);
@@ -2046,7 +2195,7 @@ io.on('connection', (socket) => {
   });
 
   // DM typing indicator
-  socket.on('dm_typing', async (data) => {
+  socket.on('dm-typing', async (data) => {
     try {
       const { channelId } = data;
       if (!socket.userId || !channelId) return;
@@ -2066,7 +2215,7 @@ io.on('connection', (socket) => {
       // Emit to recipient only
       const recipientSocket = getUserSocket(recipientId);
       if (recipientSocket) {
-        recipientSocket.emit('dm_typing', {
+        recipientSocket.emit('dm-typing', {
           channelId,
           userId: socket.userId,
           username: sender.username

@@ -1050,6 +1050,36 @@ const inviteDB = {
         }
       );
     });
+  },
+
+  async getServerInvites(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT i.*, u.username as created_by_username
+         FROM invites i
+         JOIN users u ON i.created_by = u.id
+         WHERE i.server_id = ?
+         ORDER BY i.created_at DESC`,
+        [serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  async deleteInvite(code) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM invites WHERE code = ?',
+        [code],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
   }
 };
 

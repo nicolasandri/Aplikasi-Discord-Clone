@@ -110,7 +110,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
 
   const handleDeleteCategory = async (categoryId: string) => {
     try {
-      const response = await fetch(`${API_URL}/api/categories/${categoryId}`, {
+      const response = await fetch(`${API_URL}/categories/${categoryId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

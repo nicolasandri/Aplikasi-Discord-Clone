@@ -43,13 +43,21 @@ export function useSocket(
 
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
+      withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id);
       setIsConnected(true);
       socket.emit('authenticate', token);
+      // Expose socket to window for DMChatArea and other components
+      (window as any).socket = socket;
     });
 
     socket.on('disconnect', () => {
@@ -119,6 +127,11 @@ export function useSocket(
       // Clear all typing timeouts
       typingTimeoutIdsRef.current.forEach(id => clearTimeout(id));
       typingTimeoutIdsRef.current = [];
+      
+      // Remove socket from window
+      if ((window as any).socket === socket) {
+        delete (window as any).socket;
+      }
       
       // Disconnect socket
       socket.disconnect();

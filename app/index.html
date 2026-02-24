@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WorkGrid - Team Collaboration</title>
+    <!-- Polyfill for simple-peer (WebRTC) -->
+    <script>
+      window.global = window;
+      window.process = window.process || { env: {} };
+      if (typeof Buffer === 'undefined') {
+        window.Buffer = {
+          from: function(data) { return new Uint8Array(data); },
+          isBuffer: function() { return false; }
+        };
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

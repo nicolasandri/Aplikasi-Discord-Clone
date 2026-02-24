@@ -90,9 +90,26 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   const [isLoading, setIsLoading] = useState(false);
   const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
+  const [socketReady, setSocketReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const token = localStorage.getItem('token');
+
+  // Check socket availability periodically
+  useEffect(() => {
+    const checkSocket = () => {
+      const socket = (window as any).socket;
+      if (socket && socket.connected) {
+        setSocketReady(true);
+      } else {
+        setSocketReady(false);
+      }
+    };
+    
+    checkSocket();
+    const interval = setInterval(checkSocket, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,14 +123,20 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   useEffect(() => {
     if (channel) {
       fetchMessages();
-      joinDMChannel();
     }
-    return () => {
-      if (channel) {
-        leaveDMChannel();
-      }
-    };
   }, [channel?.id]);
+
+  // Join/Leave DM channel when channel or socket changes
+  useEffect(() => {
+    if (channel && socketReady) {
+      console.log('Joining DM channel (socket ready):', channel.id);
+      joinDMChannel();
+      return () => {
+        console.log('Leaving DM channel:', channel.id);
+        leaveDMChannel();
+      };
+    }
+  }, [channel?.id, socketReady]);
 
   // Socket listeners
   useEffect(() => {
@@ -121,11 +144,34 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
     if (!socket || !channel) return;
 
     const handleDMMessage = (data: { channelId: string; message: DMMessage }) => {
+      console.log('📨 new-dm-message received:', data);
       if (data.channelId === channel.id) {
         setMessages(prev => {
-          if (prev.some(m => m.id === data.message.id)) return prev;
+          // Check if this is a response to optimistic message (same sender and content)
+          const existingIndex = prev.findIndex(m => 
+            m.senderId === data.message.senderId && 
+            m.content === data.message.content &&
+            m.id.startsWith('temp-')
+          );
+          
+          if (existingIndex !== -1) {
+            // Replace optimistic message with real one
+            console.log('Replacing optimistic message with real message');
+            const newMessages = [...prev];
+            newMessages[existingIndex] = data.message;
+            return newMessages;
+          }
+          
+          // Check if message already exists (by id)
+          if (prev.some(m => m.id === data.message.id)) {
+            console.log('Message already exists, skipping');
+            return prev;
+          }
+          
+          console.log('Adding new message to state');
           return [...prev, data.message];
         });
+        
         // Mark as read if message is from friend
         if (data.message.senderId !== currentUser?.id) {
           markAsRead(data.message.id);
@@ -145,12 +191,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       }
     };
 
-    socket.on('dm_message_received', handleDMMessage);
-    socket.on('dm_typing', handleDMTyping);
+    socket.on('new-dm-message', handleDMMessage);
+    socket.on('dm-typing', handleDMTyping);
 
     return () => {
-      socket.off('dm_message_received', handleDMMessage);
-      socket.off('dm_typing', handleDMTyping);
+      socket.off('new-dm-message', handleDMMessage);
+      socket.off('dm-typing', handleDMTyping);
     };
   }, [channel?.id, currentUser?.id]);
 
@@ -174,15 +220,17 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
 
   const joinDMChannel = () => {
     const socket = (window as any).socket;
-    if (socket && channel) {
-      socket.emit('join_dm_channel', channel.id);
+    if (socket && socket.connected && channel) {
+      socket.emit('join-dm-channel', channel.id);
+      console.log('✅ Joined DM channel:', channel.id);
     }
   };
 
   const leaveDMChannel = () => {
     const socket = (window as any).socket;
-    if (socket && channel) {
-      socket.emit('leave_dm_channel', channel.id);
+    if (socket && socket.connected && channel) {
+      socket.emit('leave-dm-channel', channel.id);
+      console.log('✅ Left DM channel:', channel.id);
     }
   };
 
@@ -198,23 +246,82 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !channel) return;
+    if (!newMessage.trim() || !channel || !currentUser) return;
 
-    const socket = (window as any).socket;
-    if (socket) {
-      socket.emit('send_dm_message', {
-        channelId: channel.id,
-        content: newMessage.trim()
-      });
-    }
-
+    const messageContent = newMessage.trim();
+    const tempId = 'temp-' + Date.now();
+    
+    // Optimistic update - add message immediately to UI
+    const optimisticMessage: DMMessage = {
+      id: tempId,
+      channelId: channel.id,
+      senderId: currentUser.id,
+      content: messageContent,
+      sender_username: currentUser.username,
+      sender_avatar: currentUser.avatar,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
     setNewMessage('');
+    
+    const socket = (window as any).socket;
+    
+    if (socket && socket.connected) {
+      // Use socket for real-time messaging
+      console.log('Sending via socket:', { channelId: channel.id, content: messageContent });
+      socket.emit('send-dm-message', {
+        channelId: channel.id,
+        content: messageContent
+      });
+      
+      // Set timeout to confirm message was received (fallback if no response)
+      setTimeout(() => {
+        setMessages(prev => {
+          const stillHasTemp = prev.some(m => m.id === tempId);
+          if (stillHasTemp) {
+            console.log('No socket response received, keeping optimistic message');
+            // Mark as "pending" visually or try REST API fallback
+            // For now, we keep the optimistic message
+          }
+          return prev;
+        });
+      }, 5000);
+    } else {
+      // Fallback: Use REST API
+      console.log('Socket not connected, using REST API');
+      try {
+        const response = await fetch(`${API_URL}/dm/channels/${channel.id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ content: messageContent })
+        });
+        
+        if (response.ok) {
+          const message = await response.json();
+          // Replace optimistic message with real one
+          setMessages(prev => prev.map(m => m.id === tempId ? message : m));
+        } else {
+          console.error('Failed to send message:', await response.text());
+          // Remove optimistic message on error
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        // Remove optimistic message on error
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }
+    }
   };
 
   const handleTyping = () => {
     const socket = (window as any).socket;
-    if (socket && channel) {
-      socket.emit('dm_typing', { channelId: channel.id });
+    if (socket && socket.connected && channel) {
+      socket.emit('dm-typing', { channelId: channel.id });
     }
   };
 
