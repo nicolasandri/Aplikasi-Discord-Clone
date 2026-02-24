@@ -38,7 +38,7 @@ interface UserPermissions {
 }
 
 // Permission bitfield constants (must match server)
-const _Permissions = {
+/* _Permissions = {
   VIEW_CHANNEL: 1 << 0,
   SEND_MESSAGES: 1 << 1,
   CONNECT: 1 << 2,
@@ -51,7 +51,7 @@ const _Permissions = {
   MANAGE_SERVER: 1 << 9,
   ADMINISTRATOR: 1 << 10,
   MODERATE_MEMBERS: 1 << 11,
-};
+} */
 
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';

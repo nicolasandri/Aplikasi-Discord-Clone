@@ -332,10 +332,10 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
     }
   };
 
-  const _handleReaction = (emoji: string) => {
+  /* _handleReaction = (emoji: string) => {
     // DM reactions not implemented yet
     console.log('Reaction:', emoji);
-  };
+  } */
 
   if (!channel) {
     return (

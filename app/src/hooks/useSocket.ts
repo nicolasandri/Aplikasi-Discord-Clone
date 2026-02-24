@@ -23,17 +23,20 @@ interface UseSocketReturn {
   deleteMessage: (messageId: string) => void;
   editMessage: (messageId: string, content: string) => void;
   typingUsers: { userId: string; username: string; channelId: string }[];
+  userStatuses: Map<string, string>;
 }
 
 export function useSocket(
   onMessage?: (message: Message) => void,
   onReactionUpdate?: (data: { messageId: string; reactions: any[] }) => void,
   onMessageEdit?: (message: Message) => void,
-  onMessageDelete?: (data: { messageId: string }) => void
+  onMessageDelete?: (data: { messageId: string }) => void,
+  onStatusChange?: (data: { userId: string; status: string }) => void
 ): UseSocketReturn {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; username: string; channelId: string }[]>([]);
+  const [userStatuses, setUserStatuses] = useState<Map<string, string>>(new Map());
   const { token } = useAuth();
   // Track timeout IDs for cleanup
   const typingTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -123,6 +126,19 @@ export function useSocket(
       }
     });
 
+    // Listen for user status changes
+    socket.on('user_status_changed', (data: { userId: string; status: string }) => {
+      console.log('useSocket: User status changed:', data);
+      setUserStatuses(prev => {
+        const newMap = new Map(prev);
+        newMap.set(data.userId, data.status);
+        return newMap;
+      });
+      if (onStatusChange) {
+        onStatusChange(data);
+      }
+    });
+
     return () => {
       // Clear all typing timeouts
       typingTimeoutIdsRef.current.forEach(id => clearTimeout(id));
@@ -198,5 +214,6 @@ export function useSocket(
     deleteMessage,
     editMessage,
     typingUsers,
+    userStatuses,
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Crown, Shield, ShieldAlert, User } from 'lucide-react';
+import { Crown, Settings } from 'lucide-react';
 import type { ServerMember } from '@/types';
 import {
   ContextMenu,
@@ -12,10 +12,20 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useToast } from '@/hooks/use-toast.tsx';
+import { Button } from '@/components/ui/button';
+import { RoleManagerModal } from './RoleManagerModal';
 
 interface MemberListProps {
   serverId: string | null;
   isMobile?: boolean;
+  userStatuses?: Map<string, string>;
+}
+
+interface CustomRole {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
 }
 
 // Detect if running in Electron
@@ -33,46 +43,86 @@ const statusColors = {
   dnd: 'bg-[#ed4245]',
 };
 
-const roleIcons = {
-  owner: Crown,
-  admin: ShieldAlert,
-  moderator: Shield,
-  member: User,
-};
-
-const roleColors = {
+// Standard role colors for context menu
+const roleColors: Record<string, string> = {
   owner: 'text-[#ffd700]',
   admin: 'text-[#ed4245]',
   moderator: 'text-[#43b581]',
   member: 'text-[#b9bbbe]',
 };
 
-const roleLabels = {
-  owner: 'Owner',
-  admin: 'Admin',
-  moderator: 'Moderator',
-  member: 'Member',
-};
-
-// Role hierarchy for checking who can manage whom
+// Role hierarchy for checking who can manage whom (higher = more power)
 const roleHierarchy: Record<string, number> = {
-  owner: 4,
-  admin: 3,
-  moderator: 2,
-  member: 1,
+  owner: 100,
+  admin: 50,
+  moderator: 30,
+  member: 10,
 };
 
-export function MemberList({ serverId, isMobile: _isMobile = false }: MemberListProps) {
+export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses }: MemberListProps) {
   const [members, setMembers] = useState<ServerMember[]>([]);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [showRoleManager, setShowRoleManager] = useState(false);
   const { toast } = useToast();
+
+  // Apply userStatuses overrides to members
+  const membersWithLiveStatus = members.map(member => {
+    const liveStatus = userStatuses?.get(member.id);
+    if (liveStatus) {
+      return { ...member, status: liveStatus as 'online' | 'offline' | 'idle' | 'dnd' };
+    }
+    return member;
+  });
 
   useEffect(() => {
     if (serverId) {
       fetchMembers();
+      fetchCustomRoles();
       fetchCurrentUserPermissions();
     }
+  }, [serverId]);
+
+  // Listen for status changes via socket
+  useEffect(() => {
+    const socket = (window as any).socket;
+    if (!socket) {
+      console.log('MemberList: Socket not available yet');
+      return;
+    }
+
+    console.log('MemberList: Setting up user_status_changed listener');
+
+    const handleStatusChange = (data: { userId: string; status: string }) => {
+      console.log('MemberList: Status change received:', data);
+      setMembers(prev => 
+        prev.map(member => 
+          member.id === data.userId 
+            ? { ...member, status: data.status as 'online' | 'offline' | 'idle' | 'dnd' }
+            : member
+        )
+      );
+    };
+
+    socket.on('user_status_changed', handleStatusChange);
+
+    return () => {
+      console.log('MemberList: Removing user_status_changed listener');
+      socket.off('user_status_changed', handleStatusChange);
+    };
+  }, []);
+
+  // Re-fetch members every 10 seconds to ensure status is up to date
+  useEffect(() => {
+    if (!serverId) return;
+    
+    const interval = setInterval(() => {
+      fetchMembers();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [serverId]);
 
   const fetchMembers = async () => {
@@ -91,6 +141,22 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
     }
   };
 
+  const fetchCustomRoles = async () => {
+    if (!serverId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/servers/${serverId}/roles`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCustomRoles(data.filter((r: CustomRole) => !['Admin', 'Moderator', 'Member'].includes(r.name)));
+      }
+    } catch (error) {
+      console.error('Failed to fetch custom roles:', error);
+    }
+  };
+
   const fetchCurrentUserPermissions = async () => {
     if (!serverId) return;
     try {
@@ -101,6 +167,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
       if (response.ok) {
         const data = await response.json();
         setCurrentUserRole(data.role);
+        setIsOwner(data.role === 'owner');
         // Get current user ID from token
         const tokenData = JSON.parse(atob(token!.split('.')[1]));
         setCurrentUserId(tokenData.id);
@@ -110,27 +177,16 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
     }
   };
 
-  const canManageUser = useCallback((targetRole: string, targetId: string) => {
+  const canManageUser = useCallback((targetRole: string, targetId: string, targetRolePosition?: number) => {
     if (!currentUserRole || !currentUserId) return false;
     if (currentUserId === targetId) return false; // Can't manage yourself
+    if (isOwner) return targetRole !== 'owner'; // Owner can manage everyone except other owners
     
-    const currentLevel = roleHierarchy[currentUserRole];
-    const targetLevel = roleHierarchy[targetRole];
+    const currentLevel = roleHierarchy[currentUserRole] || 0;
+    const targetLevel = targetRolePosition || roleHierarchy[targetRole] || 0;
     
-    // Owner can manage everyone except other owners
-    // Admin can manage moderator and member
-    // Moderator can't manage roles
     return currentLevel > targetLevel;
-  }, [currentUserRole, currentUserId]);
-
-  const canChangeRole = useCallback((targetRole: string, targetId: string, newRole: string) => {
-    if (!canManageUser(targetRole, targetId)) return false;
-    
-    // Admin cannot assign admin role (only owner can)
-    if (currentUserRole === 'admin' && newRole === 'admin') return false;
-    
-    return true;
-  }, [canManageUser, currentUserRole]);
+  }, [currentUserRole, currentUserId, isOwner]);
 
   const handleChangeRole = async (userId: string, newRole: string) => {
     if (!serverId) return;
@@ -148,7 +204,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
       if (response.ok) {
         toast({
           title: 'Berhasil',
-          description: `Role berhasil diubah ke ${roleLabels[newRole as keyof typeof roleLabels]}`,
+          description: `Role berhasil diubah`,
         });
         fetchMembers();
       } else {
@@ -164,6 +220,43 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
       toast({
         title: 'Error',
         description: 'Terjadi kesalahan saat mengubah role',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAssignCustomRole = async (userId: string, roleId: string, roleName: string) => {
+    if (!serverId) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/custom-role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ roleId }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Berhasil',
+          description: `Role "${roleName}" berhasil diassign`,
+        });
+        fetchMembers();
+      } else {
+        const error = await response.json();
+        toast({
+          title: 'Gagal',
+          description: error.error || 'Gagal mengassign role',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Assign custom role error:', error);
+      toast({
+        title: 'Error',
+        description: 'Terjadi kesalahan saat mengassign role',
         variant: 'destructive',
       });
     }
@@ -243,6 +336,29 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
     }
   };
 
+  // Get display role for member
+  const getMemberDisplay = (member: ServerMember) => {
+    // If member has a custom role with name
+    if (member.role_name) {
+      return {
+        name: member.role_name,
+        color: member.role_color || '#99aab5',
+        isCustom: true,
+      };
+    }
+    
+    // Fallback to legacy role
+    return {
+      name: member.role === 'owner' ? 'Owner' : 
+            member.role === 'admin' ? 'Admin' :
+            member.role === 'moderator' ? 'Moderator' : 'Member',
+      color: member.role === 'owner' ? '#ffd700' : 
+             member.role === 'admin' ? '#ed4245' :
+             member.role === 'moderator' ? '#43b581' : '#99aab5',
+      isCustom: false,
+    };
+  };
+
   if (!serverId) {
     return (
       <div className="w-60 bg-[#2f3136] border-l border-[#202225] hidden lg:block">
@@ -253,8 +369,8 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
     );
   }
 
-  const onlineMembers = members.filter(m => m.status !== 'offline');
-  const offlineMembers = members.filter(m => m.status === 'offline');
+  const onlineMembers = membersWithLiveStatus.filter(m => m.status !== 'offline');
+  const offlineMembers = membersWithLiveStatus.filter(m => m.status === 'offline');
 
   const groupedMembers = [
     { title: `Online — ${onlineMembers.length}`, members: onlineMembers },
@@ -262,9 +378,9 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
   ];
 
   const MemberItem = ({ member }: { member: ServerMember }) => {
-    const RoleIcon = roleIcons[member.role];
+    const display = getMemberDisplay(member);
     const canManage = canManageUser(member.role, member.id);
-    const showContextMenu = canManage;
+    const showContextMenu = canManage || customRoles.length > 0;
 
     const memberContent = (
       <div className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[#34373c] cursor-pointer group">
@@ -283,10 +399,13 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
             <span className="text-[#dcddde] text-sm font-medium truncate group-hover:text-white">
               {member.username}
             </span>
-            <RoleIcon className={`w-3 h-3 ${roleColors[member.role]}`} />
+            {member.role === 'owner' && <Crown className="w-3 h-3 text-[#ffd700]" />}
           </div>
-          <div className="text-[10px] text-[#72767d] uppercase tracking-wide">
-            {roleLabels[member.role]}
+          <div 
+            className="text-[10px] uppercase tracking-wide"
+            style={{ color: display.color }}
+          >
+            {display.name}
           </div>
         </div>
       </div>
@@ -305,36 +424,68 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
         <ContextMenuTrigger asChild>
           {memberContent}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48 bg-[#18191c] border-[#2f3136]">
+        <ContextMenuContent className="w-56 bg-[#18191c] border-[#2f3136]">
           <div className="px-2 py-1.5 text-sm font-medium text-[#dcddde]">
             {member.username}
           </div>
           <ContextMenuSeparator className="bg-[#2f3136]" />
           
-          {/* Change Role Submenu */}
-          <ContextMenuSub>
-            <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
-              Ubah Role
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent className="bg-[#18191c] border-[#2f3136]">
-              {(['member', 'moderator', 'admin'] as const).map((role) => (
-                <ContextMenuItem
-                  key={role}
-                  className={`text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white ${
-                    member.role === role ? 'bg-[#5865f2]/20' : ''
-                  } ${!canChangeRole(member.role, member.id, role) ? 'opacity-50 pointer-events-none' : ''}`}
-                  onClick={() => handleChangeRole(member.id, role)}
-                  disabled={!canChangeRole(member.role, member.id, role)}
-                >
-                  <span className={`w-2 h-2 rounded-full mr-2 ${roleColors[role].replace('text-', 'bg-')}`} />
-                  {roleLabels[role]}
-                  {member.role === role && <span className="ml-auto text-xs">✓</span>}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuSubContent>
-          </ContextMenuSub>
+          {/* Standard Roles Submenu */}
+          {(isOwner || currentUserRole === 'admin') && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
+                Role Standar
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="bg-[#18191c] border-[#2f3136]">
+                {(['member', 'moderator', 'admin'] as const).map((role) => (
+                  <ContextMenuItem
+                    key={role}
+                    className={`text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white ${
+                      member.role === role ? 'bg-[#5865f2]/20' : ''
+                    } ${!canManageUser(role, member.id) ? 'opacity-50 pointer-events-none' : ''}`}
+                    onClick={() => handleChangeRole(member.id, role)}
+                    disabled={!canManageUser(role, member.id)}
+                  >
+                    <span className={`w-2 h-2 rounded-full mr-2 ${roleColors[role].replace('text-', 'bg-')}`} />
+                    {role === 'member' ? 'Member' : role === 'moderator' ? 'Moderator' : 'Admin'}
+                    {member.role === role && <span className="ml-auto text-xs">✓</span>}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
 
-          <ContextMenuSeparator className="bg-[#2f3136]" />
+          {/* Custom Roles Submenu */}
+          {customRoles.length > 0 && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
+                Role Custom ({customRoles.length})
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="bg-[#18191c] border-[#2f3136]">
+                {customRoles.map((role) => (
+                  <ContextMenuItem
+                    key={role.id}
+                    className={`text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white ${
+                      member.role_id === role.id ? 'bg-[#5865f2]/20' : ''
+                    } ${!canManage ? 'opacity-50 pointer-events-none' : ''}`}
+                    onClick={() => handleAssignCustomRole(member.id, role.id, role.name)}
+                    disabled={!canManage}
+                  >
+                    <span 
+                      className="w-2 h-2 rounded-full mr-2" 
+                      style={{ backgroundColor: role.color }}
+                    />
+                    {role.name}
+                    {member.role_id === role.id && <span className="ml-auto text-xs">✓</span>}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          )}
+
+          {((isOwner || currentUserRole === 'admin') || customRoles.length > 0) && (
+            <ContextMenuSeparator className="bg-[#2f3136]" />
+          )}
 
           <ContextMenuItem
             className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
@@ -355,23 +506,49 @@ export function MemberList({ serverId, isMobile: _isMobile = false }: MemberList
   };
 
   return (
-    <div className="w-60 bg-[#2f3136] border-l border-[#202225] hidden lg:flex flex-col">
-      <div className="flex-1 overflow-y-auto p-4">
-        {groupedMembers.map((group) => (
-          group.members.length > 0 && (
-            <div key={group.title} className="mb-6">
-              <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide mb-2 px-2">
-                {group.title}
-              </h3>
-              <div className="space-y-1">
-                {group.members.map((member) => (
-                  <MemberItem key={member.id} member={member} />
-                ))}
+    <>
+      <div className="w-60 bg-[#2f3136] border-l border-[#202225] hidden lg:flex flex-col">
+        {/* Header with role manager button */}
+        <div className="p-3 border-b border-[#202225] flex items-center justify-between">
+          <span className="text-[#96989d] text-xs font-semibold uppercase">Member</span>
+          {(isOwner || currentUserRole === 'admin') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowRoleManager(true)}
+              className="h-7 px-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c]"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4">
+          {groupedMembers.map((group) => (
+            group.members.length > 0 && (
+              <div key={group.title} className="mb-6">
+                <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide mb-2 px-2">
+                  {group.title}
+                </h3>
+                <div className="space-y-1">
+                  {group.members.map((member) => (
+                    <MemberItem key={member.id} member={member} />
+                  ))}
+                </div>
               </div>
-            </div>
-          )
-        ))}
+            )
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Role Manager Modal */}
+      <RoleManagerModal
+        isOpen={showRoleManager}
+        onClose={() => setShowRoleManager(false)}
+        serverId={serverId}
+        currentUserRole={currentUserRole || undefined}
+        isOwner={isOwner}
+      />
+    </>
   );
 }

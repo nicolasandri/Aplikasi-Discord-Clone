@@ -10,6 +10,7 @@ export interface VoiceParticipant {
   isDeafened: boolean;
   stream?: MediaStream;
   isSpeaking?: boolean;
+  socketId?: string;
 }
 
 export interface VoiceChannelJoinedPayload {

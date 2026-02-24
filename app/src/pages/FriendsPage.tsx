@@ -5,7 +5,6 @@ import {
   UserCheck, 
   UserX, 
   MessageCircle, 
-  MoreVertical,
   Check,
   X,
   Search,
@@ -75,7 +74,7 @@ const statusLabels = {
   dnd: 'Do Not Disturb',
 };
 
-export function FriendsPage({ onClose, onStartDM }: FriendsPageProps) {
+export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<{ incoming: FriendRequest[], outgoing: FriendRequest[] }>({ incoming: [], outgoing: [] });
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
@@ -161,7 +160,7 @@ export function FriendsPage({ onClose, onStartDM }: FriendsPageProps) {
       fetchPendingRequests();
     };
 
-    const handleFriendRemoved = (data: { friendId: string }) => {
+    const handleFriendRemoved = (_data: { friendId: string }) => {
       fetchFriends();
     };
 
@@ -340,7 +339,7 @@ export function FriendsPage({ onClose, onStartDM }: FriendsPageProps) {
     }
   };
 
-  const _handleBlockUser = async (userId: string, username: string) => {
+  /* _handleBlockUser = async (userId: string, username: string) => {
     if (!confirm(`Apakah Anda yakin ingin memblokir ${username}?`)) return;
 
     try {
@@ -371,7 +370,7 @@ export function FriendsPage({ onClose, onStartDM }: FriendsPageProps) {
         variant: 'destructive',
       });
     }
-  };
+  }; */
 
   const handleUnblockUser = async (userId: string, username: string) => {
     try {

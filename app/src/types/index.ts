@@ -57,7 +57,10 @@ export interface Message {
 }
 
 export interface ServerMember extends User {
-  role: 'owner' | 'admin' | 'moderator' | 'member';
+  role: 'owner' | 'admin' | 'moderator' | 'member' | 'custom';
+  role_id?: string | null;
+  role_name?: string;
+  role_color?: string;
 }
 
 export interface AuthState {

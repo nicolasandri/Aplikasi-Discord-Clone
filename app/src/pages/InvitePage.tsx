@@ -58,8 +58,8 @@ export function InvitePage() {
         const data = await response.json();
         if (data.error === 'Already a member of this server') {
           toast({
-            title: 'Already a member',
-            description: 'Redirecting to server...'
+            title: 'Sudah menjadi anggota',
+            description: 'Mengarahkan ke server...'
           });
           setTimeout(() => {
             navigate(`/?server=${data.serverId}`);
@@ -72,8 +72,8 @@ export function InvitePage() {
       const data = await response.json();
       setJoined(true);
       toast({
-        title: 'Success!',
-        description: `You've joined ${inviteInfo.serverName}`
+        title: 'Berhasil!',
+        description: `Anda telah bergabung dengan ${inviteInfo.serverName}`
       });
       setTimeout(() => {
         navigate(`/?server=${data.server.id}`);
@@ -82,7 +82,7 @@ export function InvitePage() {
       setError(err.message);
       toast({
         title: 'Error',
-        description: err.message,
+        description: 'Gagal bergabung ke server',
         variant: 'destructive'
       });
     } finally {
@@ -106,7 +106,7 @@ export function InvitePage() {
             <div className="flex items-center gap-4 text-[#ed4245]">
               <AlertCircle className="h-12 w-12" />
               <div>
-                <h3 className="font-semibold text-white text-lg">Invalid Invite</h3>
+                <h3 className="font-semibold text-white text-lg">Undangan Tidak Valid</h3>
                 <p className="text-[#b9bbbe] text-sm">{error}</p>
               </div>
             </div>
@@ -114,7 +114,7 @@ export function InvitePage() {
               onClick={() => navigate('/')}
               className="w-full mt-6 bg-[#5865f2] hover:bg-[#4752c4] text-white"
             >
-              Go Home
+              Kembali
             </Button>
           </CardContent>
         </Card>
@@ -128,9 +128,9 @@ export function InvitePage() {
         <Card className="max-w-md w-full bg-[#2f3136] border-[#202225]">
           <CardContent className="pt-6 text-center">
             <CheckCircle className="h-16 w-16 text-[#3ba55d] mx-auto mb-4" />
-            <h3 className="font-semibold text-white text-xl mb-2">Joined Successfully!</h3>
-            <p className="text-[#b9bbbe]">Welcome to {inviteInfo.serverName}</p>
-            <p className="text-[#b9bbbe] text-sm mt-2">Redirecting to server...</p>
+            <h3 className="font-semibold text-white text-xl mb-2">Berhasil Bergabung!</h3>
+            <p className="text-[#b9bbbe]">Selamat datang di {inviteInfo.serverName}</p>
+            <p className="text-[#b9bbbe] text-sm mt-2">Mengarahkan ke server...</p>
           </CardContent>
         </Card>
       </div>
@@ -146,7 +146,7 @@ export function InvitePage() {
           </div>
           <CardTitle className="text-2xl text-white">{inviteInfo.serverName}</CardTitle>
           <p className="text-[#b9bbbe]">
-            You've been invited to join
+            Anda diundang untuk bergabung
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -187,7 +187,7 @@ export function InvitePage() {
 
           {isAuthenticated && (
             <p className="text-center text-xs text-[#b9bbbe]">
-              Joining as <span className="text-white font-semibold">{user?.username}</span>
+              Bergabung sebagai <span className="text-white font-semibold">{user?.username}</span>
             </p>
           )}
         </CardContent>

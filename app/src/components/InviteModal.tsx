@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Link, RefreshCw, X } from 'lucide-react';
+import { Copy, Link, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -39,7 +39,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
         })
       });
 
-      if (!response.ok) throw new Error('Failed to create invite');
+      if (!response.ok) throw new Error('Gagal membuat undangan');
 
       const data = await response.json();
       const baseUrl = window.location.origin;
@@ -48,7 +48,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to generate invite link',
+        description: 'Gagal membuat link undangan',
         variant: 'destructive'
       });
     } finally {
@@ -59,16 +59,16 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
   const copyToClipboard = () => {
     navigator.clipboard.writeText(inviteUrl);
     toast({
-      title: 'Copied!',
-      description: 'Invite link copied to clipboard'
+      title: 'Berhasil disalin!',
+      description: 'Link undangan telah disalin'
     });
   };
 
   const copyCode = () => {
     navigator.clipboard.writeText(inviteCode);
     toast({
-      title: 'Copied!',
-      description: 'Invite code copied to clipboard'
+      title: 'Berhasil disalin!',
+      description: 'Kode undangan telah disalin'
     });
   };
 
@@ -76,7 +76,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-[#36393f] border-[#202225] text-white">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Invite friends to {serverName}</DialogTitle>
+          <DialogTitle className="text-xl font-bold">Undang teman ke {serverName}</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 pt-4">
@@ -86,7 +86,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
                 <Link className="h-8 w-8 text-white" />
               </div>
               <p className="text-[#b9bbbe] mb-4">
-                Share this server with your friends!
+                Bagikan server ini dengan teman-teman Anda!
               </p>
               <Button 
                 onClick={generateInvite} 
@@ -105,7 +105,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
             <>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#b9bbbe] uppercase">
-                  Invite Link
+                  Link Undangan
                 </label>
                 <div className="flex items-center space-x-2">
                   <div className="relative flex-1">
@@ -127,7 +127,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#b9bbbe] uppercase">
-                  Invite Code
+                  Kode Undangan
                 </label>
                 <div className="flex items-center space-x-2">
                   <Input

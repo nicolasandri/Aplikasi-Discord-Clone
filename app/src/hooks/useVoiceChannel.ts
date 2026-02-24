@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import SimplePeer from 'simple-peer';
+type SimplePeerInstance = any;
 import { useSocket } from './useSocket';
 import { useAuth } from '@/contexts/AuthContext';
 import type { 
@@ -37,7 +38,7 @@ export function useVoiceChannel(channelId: string | null) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const peersRef = useRef<{ [key: string]: SimplePeer.Instance }>({});
+  const peersRef = useRef<{ [key: string]: SimplePeerInstance }>({});
   const streamsRef = useRef<{ [key: string]: MediaStream }>({});
 
   // Get local media stream

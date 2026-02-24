@@ -14,7 +14,7 @@ const { v4: uuidv4 } = require('uuid');
 const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
 const dbModule = usePostgres ? require('./database-postgres') : require('./database');
 
-const { db, initDatabase, userDB, serverDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, Permissions } = dbModule;
+const { db, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, Permissions } = dbModule;
 
 console.log(`📦 Using database: ${usePostgres ? 'PostgreSQL' : 'SQLite'}`);
 const { checkPermission, requireServerOwner, canManageMember, fetchPermissions } = require('./middleware/permissions');
@@ -448,6 +448,188 @@ app.put('/api/servers/:serverId/members/:userId/role', authenticateToken, async 
   } catch (error) {
     console.error('Update role error:', error);
     res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+// ==================== CUSTOM ROLES API ====================
+
+// Get all roles for a server
+app.get('/api/servers/:serverId/roles', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const roles = await roleDB.getServerRoles(serverId);
+    res.json(roles);
+  } catch (error) {
+    console.error('Get roles error:', error);
+    res.status(500).json({ error: 'Failed to get roles' });
+  }
+});
+
+// Create a new custom role
+app.post('/api/servers/:serverId/roles', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const { name, color, permissions = 0, position = 0 } = req.body;
+    const requesterId = req.userId;
+    
+    // Check if requester can manage roles
+    const canManageRoles = await permissionDB.hasPermission(requesterId, serverId, Permissions.MANAGE_ROLES);
+    const isOwner = await permissionDB.isServerOwner(requesterId, serverId);
+    
+    if (!canManageRoles && !isOwner) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Role name is required' });
+    }
+    
+    const role = await roleDB.createRole(serverId, name.trim(), color, permissions, position);
+    res.json({ success: true, role });
+  } catch (error) {
+    console.error('Create role error:', error);
+    res.status(500).json({ error: 'Failed to create role' });
+  }
+});
+
+// Update a custom role
+app.put('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const { name, color, permissions, position } = req.body;
+    const requesterId = req.userId;
+    
+    // Check if requester can manage roles
+    const canManageRoles = await permissionDB.hasPermission(requesterId, serverId, Permissions.MANAGE_ROLES);
+    const isOwner = await permissionDB.isServerOwner(requesterId, serverId);
+    
+    if (!canManageRoles && !isOwner) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Check if role belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Don't allow modifying default roles name
+    if (role.is_default && name && name !== role.name) {
+      return res.status(403).json({ error: 'Cannot rename default roles' });
+    }
+    
+    const updates = {};
+    if (name !== undefined) updates.name = name.trim();
+    if (color !== undefined) updates.color = color;
+    if (permissions !== undefined) updates.permissions = permissions;
+    if (position !== undefined) updates.position = position;
+    
+    await roleDB.updateRole(roleId, updates);
+    res.json({ success: true, role: { ...role, ...updates } });
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+// Delete a custom role
+app.delete('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const requesterId = req.userId;
+    
+    // Check if requester can manage roles
+    const canManageRoles = await permissionDB.hasPermission(requesterId, serverId, Permissions.MANAGE_ROLES);
+    const isOwner = await permissionDB.isServerOwner(requesterId, serverId);
+    
+    if (!canManageRoles && !isOwner) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Check if role belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Don't allow deleting default roles
+    if (role.is_default) {
+      return res.status(403).json({ error: 'Cannot delete default roles' });
+    }
+    
+    // Get default role to assign to members with this role
+    const defaultRole = await roleDB.getDefaultRole(serverId);
+    
+    // Reassign all members with this role to default role
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE server_members 
+         SET role_id = ?, role = 'custom'
+         WHERE server_id = ? AND role_id = ?`,
+        [defaultRole?.id || null, serverId, roleId],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    
+    await roleDB.deleteRole(roleId);
+    res.json({ success: true, message: 'Role deleted' });
+  } catch (error) {
+    console.error('Delete role error:', error);
+    res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
+// Assign custom role to member
+app.put('/api/servers/:serverId/members/:userId/custom-role', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const { roleId } = req.body;
+    const requesterId = req.userId;
+    
+    // Check if target user exists in server
+    const targetMember = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT role FROM server_members WHERE server_id = ? AND user_id = ?',
+        [serverId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    
+    if (!targetMember) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Prevent changing owner's role
+    const isTargetOwner = await permissionDB.isServerOwner(userId, serverId);
+    if (isTargetOwner) {
+      return res.status(403).json({ error: 'Cannot change owner\'s role' });
+    }
+    
+    // Check if requester can manage this user
+    const canManage = await permissionDB.canManageUser(requesterId, userId, serverId);
+    if (!canManage) {
+      return res.status(403).json({ error: 'You cannot manage this user' });
+    }
+    
+    // Check if role exists and belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Assign the custom role
+    await roleDB.assignRole(serverId, userId, roleId);
+    
+    res.json({ success: true, userId, role: { id: role.id, name: role.name, color: role.color } });
+  } catch (error) {
+    console.error('Assign custom role error:', error);
+    res.status(500).json({ error: 'Failed to assign role' });
   }
 });
 
@@ -1536,8 +1718,7 @@ app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
     await inviteDB.incrementUses(code);
     
     // Get server info
-    const allServers = await serverDB.getAll();
-    const server = allServers.find(s => s.id === invite.server_id);
+    const server = await serverDB.findById(invite.server_id);
     
     // Get user info for notification
     const user = await userDB.findById(userId);
@@ -1775,7 +1956,10 @@ io.on('connection', (socket) => {
       // Only emit status change if user was previously offline
       if (wasOffline) {
         await userDB.updateProfile(decoded.id, { status: 'online' });
+        console.log('🟢 Broadcasting user_status_changed:', decoded.id, 'online');
         io.emit('user_status_changed', { userId: decoded.id, status: 'online' });
+      } else {
+        console.log('🔄 User already online (another tab):', decoded.id);
       }
       
       socket.emit('authenticated', { success: true, userId: decoded.id });
@@ -2346,10 +2530,13 @@ io.on('connection', (socket) => {
     if (userId && isOffline) {
       try {
         await userDB.updateProfile(userId, { status: 'offline' });
+        console.log('🔴 Broadcasting user_status_changed:', userId, 'offline');
         io.emit('user_status_changed', { userId, status: 'offline' });
       } catch (error) {
         console.error('Error updating user status on disconnect:', error);
       }
+    } else if (userId) {
+      console.log('🔄 User still has other connections:', userId);
     }
   });
 });

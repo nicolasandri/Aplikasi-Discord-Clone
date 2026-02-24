@@ -7,7 +7,7 @@ import { MemberList } from './MemberList';
 import { SettingsModal } from './SettingsModal';
 import { InviteModal } from './InviteModal';
 import { FriendsPage } from '@/pages/FriendsPage';
-import { InvitePage } from '@/pages/InvitePage';
+// import { InvitePage } from '@/pages/InvitePage';
 import { DMList } from './DMList';
 import { DMChatArea } from './DMChatArea';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -243,7 +243,8 @@ export function ChatLayout() {
     leaveChannel, 
     sendMessage, 
     sendTyping, 
-    typingUsers 
+    typingUsers,
+    userStatuses
   } = useSocket(handleNewMessage, handleReactionUpdate, handleMessageEdit, handleMessageDelete);
 
   useEffect(() => {
@@ -650,7 +651,7 @@ export function ChatLayout() {
             />
           </div>
 
-          <MemberList serverId={selectedServerId} />
+          <MemberList serverId={selectedServerId} userStatuses={userStatuses} />
         </>
       )}
 

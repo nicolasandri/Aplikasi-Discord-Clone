@@ -237,6 +237,20 @@ function initDatabase() {
       UNIQUE(server_id, user_id)
     )`);
 
+    // Custom server roles table
+    db.run(`CREATE TABLE IF NOT EXISTS server_roles (
+      id TEXT PRIMARY KEY,
+      server_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#99aab5',
+      permissions INTEGER DEFAULT 0,
+      position INTEGER DEFAULT 0,
+      is_default BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (server_id) REFERENCES servers(id),
+      UNIQUE(server_id, name)
+    )`);
+
     // Categories table for channel grouping
     db.run(`CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
@@ -365,6 +379,59 @@ function initDatabase() {
     )`);
 
     console.log('✅ Database initialized');
+    
+    // Run migrations
+    runMigrations();
+  });
+}
+
+// Database migrations
+function runMigrations() {
+  // Migration: Add role_id column to server_members if not exists
+  db.all("PRAGMA table_info(server_members)", (err, rows) => {
+    if (err) {
+      console.error('Migration error:', err);
+      return;
+    }
+    
+    const hasRoleId = rows.some(row => row.name === 'role_id');
+    if (!hasRoleId) {
+      db.run('ALTER TABLE server_members ADD COLUMN role_id TEXT', (err) => {
+        if (err) {
+          console.error('Failed to add role_id column:', err);
+        } else {
+          console.log('✅ Migration: Added role_id column to server_members');
+        }
+      });
+    }
+  });
+
+  // Migration: Create default roles for existing servers
+  db.all(`SELECT id, owner_id FROM servers WHERE id NOT IN (SELECT DISTINCT server_id FROM server_roles)`, (err, servers) => {
+    if (err || !servers || servers.length === 0) return;
+    
+    servers.forEach(server => {
+      // Create default roles for this server
+      createDefaultRolesForServer(server.id);
+    });
+  });
+}
+
+// Create default roles for a server
+function createDefaultRolesForServer(serverId) {
+  const defaultRoles = [
+    { name: 'Admin', color: '#ed4245', permissions: RolePermissions.admin, position: 3 },
+    { name: 'Moderator', color: '#43b581', permissions: RolePermissions.moderator, position: 2 },
+    { name: 'Member', color: '#99aab5', permissions: RolePermissions.member, position: 1, is_default: true },
+  ];
+
+  defaultRoles.forEach(role => {
+    const id = uuidv4();
+    db.run(
+      `INSERT OR IGNORE INTO server_roles (id, server_id, name, color, permissions, position, is_default) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, serverId, role.name, role.color, role.permissions, role.position, role.is_default || 0]
+    );
   });
 }
 
@@ -512,14 +579,183 @@ const serverDB = {
   async getMembers(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.avatar, u.status, sm.role 
+        `SELECT u.id, u.username, u.avatar, u.status, sm.role, sm.role_id,
+                COALESCE(sr.name, sm.role) as role_name, 
+                COALESCE(sr.color, CASE 
+                  WHEN sm.role = 'owner' THEN '#ffd700'
+                  WHEN sm.role = 'admin' THEN '#ed4245'
+                  WHEN sm.role = 'moderator' THEN '#43b581'
+                  ELSE '#99aab5'
+                END) as role_color
          FROM users u
          JOIN server_members sm ON u.id = sm.user_id
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
          WHERE sm.server_id = ?`,
         [serverId],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
+        }
+      );
+    });
+  },
+
+  async findById(serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM servers WHERE id = ?',
+        [serverId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  }
+};
+
+// Role operations (Custom roles)
+const roleDB = {
+  // Create a new custom role
+  async createRole(serverId, name, color = '#99aab5', permissions = 0, position = 0) {
+    const id = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO server_roles (id, server_id, name, color, permissions, position) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, serverId, name, color, permissions, position],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, server_id: serverId, name, color, permissions, position });
+        }
+      );
+    });
+  },
+
+  // Get all roles for a server
+  async getServerRoles(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT * FROM server_roles 
+         WHERE server_id = ? 
+         ORDER BY position DESC, created_at ASC`,
+        [serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get role by ID
+  async getRoleById(roleId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM server_roles WHERE id = ?',
+        [roleId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+
+  // Update role
+  async updateRole(roleId, updates) {
+    const { name, color, permissions, position } = updates;
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE server_roles 
+         SET name = COALESCE(?, name), 
+             color = COALESCE(?, color), 
+             permissions = COALESCE(?, permissions),
+             position = COALESCE(?, position)
+         WHERE id = ?`,
+        [name, color, permissions, position, roleId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: roleId, ...updates });
+        }
+      );
+    });
+  },
+
+  // Delete role
+  async deleteRole(roleId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM server_roles WHERE id = ? AND is_default = 0',
+        [roleId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ deleted: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Assign role to member
+  async assignRole(serverId, userId, roleId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE server_members 
+         SET role_id = ?, role = 'custom'
+         WHERE server_id = ? AND user_id = ?`,
+        [roleId, serverId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Set member role (legacy - for default roles)
+  async setMemberRole(serverId, userId, role) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE server_members 
+         SET role = ?, role_id = NULL
+         WHERE server_id = ? AND user_id = ?`,
+        [role, serverId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Get member's role info
+  async getMemberRole(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT sm.role, sm.role_id, sr.name as role_name, sr.color as role_color, sr.permissions
+         FROM server_members sm
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
+         WHERE sm.server_id = ? AND sm.user_id = ?`,
+        [serverId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+
+  // Get default role for a server
+  async getDefaultRole(serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM server_roles 
+         WHERE server_id = ? AND is_default = 1 
+         LIMIT 1`,
+        [serverId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
         }
       );
     });
@@ -1749,6 +1985,7 @@ module.exports = {
   initDatabase,
   userDB,
   serverDB,
+  roleDB,
   categoryDB,
   channelDB,
   messageDB,
