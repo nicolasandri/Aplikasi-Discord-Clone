@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, AlertCircle, CheckCircle, DiscordLogo } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export function InvitePage() {
@@ -142,7 +142,7 @@ export function InvitePage() {
       <Card className="max-w-md w-full bg-[#2f3136] border-[#202225]">
         <CardHeader className="text-center pb-2">
           <div className="w-20 h-20 bg-[#5865f2] rounded-full flex items-center justify-center mx-auto mb-4">
-            <DiscordLogo className="h-10 w-10 text-white" />
+            <Users className="h-10 w-10 text-white" />
           </div>
           <CardTitle className="text-2xl text-white">{inviteInfo.serverName}</CardTitle>
           <p className="text-[#b9bbbe]">

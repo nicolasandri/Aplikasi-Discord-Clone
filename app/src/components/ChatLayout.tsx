@@ -5,7 +5,9 @@ import { ChatArea } from './ChatArea';
 import { MessageInput } from './MessageInput';
 import { MemberList } from './MemberList';
 import { SettingsModal } from './SettingsModal';
+import { InviteModal } from './InviteModal';
 import { FriendsPage } from '@/pages/FriendsPage';
+import { InvitePage } from '@/pages/InvitePage';
 import { DMList } from './DMList';
 import { DMChatArea } from './DMChatArea';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -43,6 +45,7 @@ export function ChatLayout() {
   const [totalDMUnread, setTotalDMUnread] = useState(0);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   
   // Mobile drawer states
@@ -535,6 +538,7 @@ export function ChatLayout() {
             selectedChannelId={selectedChannelId}
             onSelectChannel={handleSelectChannel}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenInvite={() => setIsInviteOpen(true)}
             isMobile={true}
             onClose={() => setIsChannelDrawerOpen(false)}
           />
@@ -557,6 +561,16 @@ export function ChatLayout() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
         />
+
+        {/* Invite Modal */}
+        {selectedServer && (
+          <InviteModal
+            serverId={selectedServer.id}
+            serverName={selectedServer.name}
+            isOpen={isInviteOpen}
+            onClose={() => setIsInviteOpen(false)}
+          />
+        )}
 
         {/* Connection Status */}
         <div className="fixed top-16 right-2 flex items-center gap-2 px-3 py-1.5 bg-[#18191c] rounded-full z-40">
@@ -590,6 +604,7 @@ export function ChatLayout() {
           selectedChannelId={selectedChannelId}
           onSelectChannel={handleSelectChannel}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenInvite={() => setIsInviteOpen(true)}
         />
       )}
       
@@ -660,6 +675,16 @@ export function ChatLayout() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+
+      {/* Invite Modal */}
+      {selectedServer && (
+        <InviteModal
+          serverId={selectedServer.id}
+          serverName={selectedServer.name}
+          isOpen={isInviteOpen}
+          onClose={() => setIsInviteOpen(false)}
+        />
+      )}
     </div>
   );
 }

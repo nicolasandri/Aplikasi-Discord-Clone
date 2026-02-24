@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, Headphones } from 'lucide-react';
+import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, Headphones, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CategoryItem } from './CategoryItem';
 import { CreateCategoryModal } from './CreateCategoryModal';
@@ -12,6 +12,7 @@ interface ChannelListProps {
   selectedChannelId: string | null;
   onSelectChannel: (channelId: string) => void;
   onOpenSettings?: () => void;
+  onOpenInvite?: () => void;
   isMobile?: boolean;
   onClose?: () => void;
 }
@@ -24,7 +25,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, isMobile = false, onClose }: ChannelListProps) {
+export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenInvite, isMobile = false, onClose }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -178,9 +179,22 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   return (
     <div className="w-60 bg-[#2f3136] flex flex-col">
       {/* Server Header */}
-      <div className="h-12 px-4 flex items-center justify-between shadow-md cursor-pointer hover:bg-[#34373c] transition-colors">
+      <div className="h-12 px-4 flex items-center justify-between shadow-md cursor-pointer hover:bg-[#34373c] transition-colors group">
         <h2 className="text-white font-semibold truncate">{server.name}</h2>
-        <ChevronDown className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-2">
+          {/* Invite Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenInvite?.();
+            }}
+            className="p-1.5 rounded hover:bg-[#5865f2] text-[#b9bbbe] hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+            title="Invite People"
+          >
+            <UserPlus className="w-4 h-4" />
+          </button>
+          <ChevronDown className="w-5 h-5 text-white" />
+        </div>
       </div>
 
       {/* Channels */}

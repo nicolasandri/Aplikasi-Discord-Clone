@@ -337,9 +337,9 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             <Reply className="w-4 h-4" />
           </button>
           <div className="relative group/emoji">
-            <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c]">
+            <div className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] cursor-pointer">
               <EmojiPicker onEmojiSelect={handleReaction} />
-            </button>
+            </div>
           </div>
           {canDelete && (
             <>
