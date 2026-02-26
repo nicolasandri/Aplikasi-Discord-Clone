@@ -6,6 +6,7 @@ import { MessageInput } from './MessageInput';
 import { MemberList } from './MemberList';
 import { SettingsModal } from './SettingsModal';
 import { InviteModal } from './InviteModal';
+import { SearchModal } from './SearchModal';
 import { FriendsPage } from '@/pages/FriendsPage';
 // import { InvitePage } from '@/pages/InvitePage';
 import { DMList } from './DMList';
@@ -46,7 +47,10 @@ export function ChatLayout() {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pendingChannelId, setPendingChannelId] = useState<string | null>(null);
+  const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
   
   // Mobile drawer states
   const [isServerDrawerOpen, setIsServerDrawerOpen] = useState(false);
@@ -76,12 +80,105 @@ export function ChatLayout() {
     fetchDMUnreadCount();
   }, [token]);
 
+  // Auto-select last visited server & channel
+  useEffect(() => {
+    if (servers.length > 0 && !selectedServerId && !selectedChannelId) {
+      const lastVisited = localStorage.getItem('lastVisited');
+      if (lastVisited) {
+        try {
+          const { serverId, channelId } = JSON.parse(lastVisited);
+          // Check if server still exists
+          const serverExists = servers.find(s => s.id === serverId);
+          if (serverExists) {
+            console.log('🔄 Restoring last visited:', serverId, channelId);
+            setSelectedServerId(serverId);
+            setViewMode('server');
+            // Channel will be selected after channels are fetched
+            if (channelId) {
+              // Store temporarily and select after channels load
+              setPendingChannelId(channelId);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse lastVisited:', e);
+        }
+      }
+    }
+  }, [servers, selectedServerId, selectedChannelId]);
+
+  // Select pending channel after channels are loaded
+  useEffect(() => {
+    if (pendingChannelId && channels.length > 0) {
+      const channelExists = channels.find(c => c.id === pendingChannelId);
+      if (channelExists) {
+        console.log('🔄 Selecting pending channel:', pendingChannelId);
+        setSelectedChannelId(pendingChannelId);
+        setPendingChannelId(null);
+      }
+    }
+  }, [channels, pendingChannelId]);
+
   // Fetch channels when server is selected
   useEffect(() => {
     if (selectedServerId && viewMode === 'server') {
       fetchChannels(selectedServerId);
     }
   }, [selectedServerId, viewMode]);
+
+  // Save last visited server & channel
+  useEffect(() => {
+    if (selectedServerId && viewMode === 'server') {
+      const data = {
+        serverId: selectedServerId,
+        channelId: selectedChannelId,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('lastVisited', JSON.stringify(data));
+      console.log('💾 Saved lastVisited:', data);
+    }
+  }, [selectedServerId, selectedChannelId, viewMode]);
+
+  // Keyboard shortcut for search (Ctrl/Cmd + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      // Close search with Escape
+      if (e.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchOpen]);
+
+  // Jump to message handler
+  useEffect(() => {
+    const handleJumpToMessage = (e: CustomEvent) => {
+      const { messageId, channelId } = e.detail;
+      
+      // Navigate to channel if different
+      if (channelId !== selectedChannelId) {
+        setSelectedChannelId(channelId);
+        setJumpToMessageId(messageId);
+      } else {
+        // Same channel, just scroll
+        setTimeout(() => {
+          const element = document.getElementById(`message-${messageId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.classList.add('highlight-message');
+            setTimeout(() => element.classList.remove('highlight-message'), 2000);
+          }
+        }, 100);
+      }
+    };
+    
+    window.addEventListener('jumpToMessage', handleJumpToMessage as EventListener);
+    return () => window.removeEventListener('jumpToMessage', handleJumpToMessage as EventListener);
+  }, [selectedChannelId]);
 
   // Fetch messages function defined before effects that use it
   const fetchMessages = useCallback(async (channelId: string, force = false) => {
@@ -113,6 +210,21 @@ export function ChatLayout() {
     }
   }, [selectedChannelId, viewMode]);
 
+  // Handle jumping to message after messages are loaded
+  useEffect(() => {
+    if (jumpToMessageId && messages.length > 0) {
+      setTimeout(() => {
+        const element = document.getElementById(`message-${jumpToMessageId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('highlight-message');
+          setTimeout(() => element.classList.remove('highlight-message'), 2000);
+        }
+        setJumpToMessageId(null);
+      }, 100);
+    }
+  }, [messages, jumpToMessageId]);
+
   // Fetch DM channels
   const fetchDMChannels = async () => {
     try {
@@ -121,7 +233,23 @@ export function ChatLayout() {
       });
       if (response.ok) {
         const data = await response.json();
-        setDmChannels(data);
+        // API returns nested friend object, use it directly
+        const mappedChannels: DMChannel[] = data.map((row: any) => ({
+          id: row.id,
+          friend: row.friend || {
+            // Fallback if API returns flat format
+            id: row.friend_id,
+            username: row.friend_username,
+            avatar: row.friend_avatar,
+            status: row.friend_status || 'offline',
+            email: '',
+          },
+          lastMessage: row.last_message,
+          lastMessageAt: row.last_message_at,
+          unreadCount: row.unread_count || 0,
+          updatedAt: row.updated_at || row.last_message_at,
+        }));
+        setDmChannels(mappedChannels);
       }
     } catch (error) {
       console.error('Failed to fetch DM channels:', error);
@@ -144,12 +272,31 @@ export function ChatLayout() {
     }
   };
 
-  // Socket listeners for DM
-  useEffect(() => {
-    const socket = (window as any).socket;
-    if (!socket) return;
+  // BUG-019: Socket Event Listeners Re-registration - Use ref pattern
+  const dmHandlersRef = useRef({
+    handleDMMessageReceived: (data: { channelId: string }) => {
+      fetchDMUnreadCount();
+      if (data.channelId === selectedDMChannelId) {
+        // Messages will be updated via socket event in DMChatArea
+      }
+      if (viewMode !== 'dm' || selectedDMChannelId !== data.channelId) {
+        const channel = dmChannels.find(c => c.id === data.channelId);
+        if (channel) {
+          notify({
+            title: channel.friend.username,
+            body: 'Pesan baru',
+            icon: channel.friend.avatar,
+            tag: `dm-${data.channelId}`,
+          });
+        }
+      }
+    },
+    fetchDMUnreadCount
+  });
 
-    const handleDMMessageReceived = (data: { channelId: string }) => {
+  // Update ref when dependencies change
+  useEffect(() => {
+    dmHandlersRef.current.handleDMMessageReceived = (data: { channelId: string }) => {
       fetchDMUnreadCount();
       if (data.channelId === selectedDMChannelId) {
         // Messages will be updated via socket event in DMChatArea
@@ -166,15 +313,30 @@ export function ChatLayout() {
         }
       }
     };
+    dmHandlersRef.current.fetchDMUnreadCount = fetchDMUnreadCount;
+  }, [viewMode, selectedDMChannelId, dmChannels, notify, fetchDMUnreadCount]);
 
-    socket.on('dm_message_received', handleDMMessageReceived);
-    socket.on('dm_channel_updated', fetchDMUnreadCount);
+  // Stable effect that only runs once for socket registration
+  useEffect(() => {
+    const socket = (window as any).socket;
+    if (!socket) return;
+
+    const wrappedHandlers = {
+      dm_message_received: (data: { channelId: string }) => dmHandlersRef.current.handleDMMessageReceived(data),
+      dm_channel_updated: () => dmHandlersRef.current.fetchDMUnreadCount(),
+    };
+
+    // Register listeners
+    Object.entries(wrappedHandlers).forEach(([event, handler]) => {
+      socket.on(event, handler);
+    });
 
     return () => {
-      socket.off('dm_message_received', handleDMMessageReceived);
-      socket.off('dm_channel_updated', fetchDMUnreadCount);
+      Object.entries(wrappedHandlers).forEach(([event, handler]) => {
+        socket.off(event, handler);
+      });
     };
-  }, [viewMode, selectedDMChannelId, dmChannels, notify]);
+  }, []); // ✅ Only run once on mount
 
   // Socket connection
   const handleNewMessage = useCallback((message: Message) => {
@@ -391,7 +553,7 @@ export function ChatLayout() {
 
   const handleStartDM = async (friend: any) => {
     try {
-      const existingChannel = dmChannels.find(c => c.friend.id === friend.id);
+      const existingChannel = dmChannels.find(c => c.friend?.id === friend.id);
       if (existingChannel) {
         setSelectedDMChannelId(existingChannel.id);
         setViewMode('dm');
@@ -408,14 +570,35 @@ export function ChatLayout() {
       });
 
       if (response.ok) {
-        const newChannel = await response.json();
-        await fetchDMChannels();
+        const data = await response.json();
+        console.log('📨 Created DM channel:', data);
+        // API returns nested friend object
+        const newChannel: DMChannel = {
+          id: data.id,
+          friend: data.friend || {
+            id: friend.id,
+            username: friend.username,
+            avatar: friend.avatar,
+            status: friend.status || 'offline',
+            email: friend.email || '',
+          },
+          lastMessage: data.last_message,
+          lastMessageAt: data.last_message_at,
+          unreadCount: data.unread_count || 0,
+          updatedAt: data.updated_at || new Date().toISOString(),
+        };
+        setDmChannels(prev => [...prev, newChannel]);
         setSelectedDMChannelId(newChannel.id);
         setViewMode('dm');
       }
     } catch (error) {
       console.error('Failed to start DM:', error);
     }
+  };
+
+  // Handle start DM from user profile (used by UserProfilePopup)
+  const handleStartDMFromProfile = async (user: { id: string; username: string; avatar?: string; status?: string; email?: string }) => {
+    await handleStartDM(user);
   };
 
   const handleBackFromDM = () => {
@@ -426,6 +609,10 @@ export function ChatLayout() {
   const selectedServer = servers.find(s => s.id === selectedServerId) || null;
   const selectedChannel = channels.find(c => c.id === selectedChannelId) || null;
   const selectedDMChannel = dmChannels.find(c => c.id === selectedDMChannelId) || null;
+  
+  // Debug log
+  console.log('📊 selectedDMChannel:', selectedDMChannel);
+  console.log('📊 dmChannels:', dmChannels);
 
   if (loading) {
     return (
@@ -459,10 +646,12 @@ export function ChatLayout() {
                 onOpenMembers={() => {}}
                 showBack={true}
               />
-              <DMChatArea
-                channel={selectedDMChannel}
-                currentUser={user}
-              />
+              <div className="flex-1 flex flex-col min-h-0 pb-14">
+                <DMChatArea
+                  channel={selectedDMChannel}
+                  currentUser={user}
+                />
+              </div>
             </>
           ) : (
             <>
@@ -484,6 +673,8 @@ export function ChatLayout() {
                   serverId={selectedServerId}
                   onRefresh={() => selectedChannelId && fetchMessages(selectedChannelId, true)}
                   isMobile={true}
+                  onStartDM={handleStartDMFromProfile}
+                  onOpenSearch={() => setIsSearchOpen(true)}
                 />
                 <MessageInput
                   ref={messageInputRef}
@@ -493,6 +684,8 @@ export function ChatLayout() {
                   replyTo={replyTo}
                   onCancelReply={handleCancelReply}
                   isMobile={true}
+                  serverId={selectedServerId || undefined}
+                  channelId={selectedChannelId || undefined}
                 />
               </div>
             </>
@@ -614,6 +807,7 @@ export function ChatLayout() {
           selectedChannelId={selectedDMChannelId}
           onSelectChannel={handleSelectDMChannel}
           onOpenFriends={() => setViewMode('friends')}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           unreadCounts={dmUnreadCounts}
         />
       )}
@@ -640,6 +834,8 @@ export function ChatLayout() {
               onReply={handleReply}
               serverId={selectedServerId}
               onRefresh={() => selectedChannelId && fetchMessages(selectedChannelId, true)}
+              onStartDM={handleStartDMFromProfile}
+              onOpenSearch={() => setIsSearchOpen(true)}
             />
             <MessageInput
               ref={messageInputRef}
@@ -648,6 +844,8 @@ export function ChatLayout() {
               disabled={!selectedChannelId}
               replyTo={replyTo}
               onCancelReply={handleCancelReply}
+              serverId={selectedServerId || undefined}
+              channelId={selectedChannelId || undefined}
             />
           </div>
 
@@ -686,6 +884,14 @@ export function ChatLayout() {
           onClose={() => setIsInviteOpen(false)}
         />
       )}
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        serverId={selectedServerId || undefined}
+        channelId={selectedChannelId || undefined}
+      />
     </div>
   );
 }

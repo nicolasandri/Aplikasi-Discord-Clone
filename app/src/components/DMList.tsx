@@ -3,6 +3,7 @@ import { MessageCircle, UserPlus, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { UserProfileButton } from './UserProfileButton';
 import type { DMChannel } from '@/types';
 
 // Detect if running in Electron
@@ -12,6 +13,9 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 const API_URL = isElectron 
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+
+// Base URL for assets (images, uploads)
+const BASE_URL = 'http://localhost:3001';
 
 const statusColors = {
   online: 'bg-[#3ba55d]',
@@ -24,6 +28,7 @@ interface DMListProps {
   selectedChannelId: string | null;
   onSelectChannel: (channelId: string) => void;
   onOpenFriends: () => void;
+  onOpenSettings?: () => void;
   unreadCounts: Record<string, number>;
 }
 
@@ -31,6 +36,7 @@ export function DMList({
   selectedChannelId, 
   onSelectChannel, 
   onOpenFriends,
+  onOpenSettings,
   unreadCounts 
 }: DMListProps) {
   const [dmChannels, setDmChannels] = useState<DMChannel[]>([]);
@@ -43,7 +49,25 @@ export function DMList({
       });
       if (response.ok) {
         const data = await response.json();
-        setDmChannels(data);
+        console.log('📨 DM channels raw data:', data);
+        // API returns nested friend object, use it directly
+        const mappedChannels: DMChannel[] = data.map((row: any) => ({
+          id: row.id,
+          friend: row.friend || {
+            // Fallback if API returns flat format (from DB query)
+            id: row.friend_id,
+            username: row.friend_username,
+            avatar: row.friend_avatar,
+            status: row.friend_status || 'offline',
+            email: '',
+          },
+          lastMessage: row.last_message,
+          lastMessageAt: row.last_message_at,
+          unreadCount: row.unread_count || 0,
+          updatedAt: row.updated_at || row.last_message_at,
+        }));
+        console.log('📨 DM channels mapped:', mappedChannels);
+        setDmChannels(mappedChannels);
       }
     } catch (error) {
       console.error('Failed to fetch DM channels:', error);
@@ -166,10 +190,15 @@ export function DMList({
               {/* Avatar with status */}
               <div className="relative flex-shrink-0">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={channel.friend.avatar} alt={channel.friend.username} />
-                  <AvatarFallback>{channel.friend.username[0].toUpperCase()}</AvatarFallback>
+                  <AvatarImage 
+                    src={channel.friend?.avatar 
+                      ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
+                      : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
+                    alt={channel.friend?.username || 'User'} 
+                  />
+                  <AvatarFallback>{(channel.friend?.username || 'U')[0].toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend.status]} rounded-full border-2 border-[#2f3136]`} />
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#2f3136]`} />
               </div>
 
               {/* Content */}
@@ -178,7 +207,7 @@ export function DMList({
                   <span className={`font-medium text-sm truncate ${
                     (unreadCounts[channel.id] || 0) > 0 ? 'text-white' : ''
                   }`}>
-                    {channel.friend.username}
+                    {channel.friend?.username || 'Unknown'}
                   </span>
                   {channel.lastMessageAt && (
                     <span className="text-[10px] text-[#72767d] flex-shrink-0 ml-1">
@@ -221,6 +250,13 @@ export function DMList({
           )}
         </div>
       </ScrollArea>
+
+      {/* User Profile - Fixed at bottom */}
+      {onOpenSettings && (
+        <div className="p-2 border-t border-[#202225] bg-[#2f3136]">
+          <UserProfileButton onOpenSettings={onOpenSettings} />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { PlusCircle, Gift, Sticker, Send, X, FileText, Image, File } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
+import { RichTextEditor } from './RichTextEditor';
 import type { Message, FileAttachment } from '@/types';
 
 // Detect if running in Electron
@@ -16,29 +17,44 @@ interface MessageInputProps {
   replyTo?: Message | null;
   onCancelReply?: () => void;
   isMobile?: boolean;
+  serverId?: string;
+  channelId?: string;
+}
+
+// BUG-017: File Size Validation
+const MAX_FILE_SIZE = 10 * 1024 * 1020; // 10MB
+
+function validateFile(file: File): { valid: boolean; error?: string } {
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, error: 'File size exceeds 10MB limit' };
+  }
+  return { valid: true };
 }
 
 export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>(
-  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false }, ref) => {
+  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId, channelId }, ref) => {
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   // Expose focus method via ref
   useImperativeHandle(ref, () => ({
     focus: () => {
-      textareaRef.current?.focus();
+      // Focus will be handled by RichTextEditor internally
+      const editorElement = editorContainerRef.current?.querySelector('.ProseMirror') as HTMLElement;
+      editorElement?.focus();
     }
   }));
 
-  // Auto-focus textarea when replyTo changes
+  // Auto-focus editor when replyTo changes
   useEffect(() => {
-    if (replyTo && textareaRef.current) {
+    if (replyTo) {
       const timeoutId = setTimeout(() => {
-        textareaRef.current?.focus();
+        const editorElement = editorContainerRef.current?.querySelector('.ProseMirror') as HTMLElement;
+        editorElement?.focus();
       }, 100);
       return () => clearTimeout(timeoutId);
     }
@@ -54,29 +70,12 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     setMessage('');
     setAttachments([]);
     onCancelReply?.();
-    
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
   }, [message, attachments, disabled, onSendMessage, replyTo, onCancelReply]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+
+  const handleEditorChange = (value: string) => {
     setMessage(value);
-
-    // Auto-resize textarea
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
-    }
 
     // Send typing indicator
     onTyping();
@@ -89,7 +88,6 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     // Set new timeout to stop typing indicator after 3 seconds
     typingTimeoutRef.current = setTimeout(() => {
       // The typing indicator will timeout on the server side
-      // This is just to prevent sending typing events too frequently
     }, 3000);
   };
 
@@ -101,6 +99,15 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+
+    // BUG-017: Validate file sizes before upload
+    for (const file of Array.from(files)) {
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        alert(validation.error);
+        return;
+      }
+    }
 
     setUploading(true);
     const token = localStorage.getItem('token');
@@ -124,10 +131,13 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           const data = await response.json();
           newAttachments.push(data.file);
         } else {
-          console.error('Upload failed:', await response.text());
+          const errorText = await response.text();
+          console.error('Upload failed:', errorText);
+          alert(`Upload failed: ${errorText}`);
         }
       } catch (error) {
         console.error('Upload error:', error);
+        alert('Upload error. Please try again.');
       }
     }
 
@@ -215,19 +225,18 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           )}
         </button>
 
-        {/* Text Input */}
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          autoFocus={!!replyTo}
-          placeholder={disabled ? 'Pilih channel...' : isMobile ? 'Ketik pesan...' : 'Ketik pesan...'}
-          disabled={disabled}
-          className={`flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none max-h-[200px] ${isMobile ? 'py-2 px-2 min-h-[48px] text-base' : 'py-3 px-2 min-h-[44px]'}`}
-          style={{ fontFamily: '"Whitney", "Helvetica Neue", Helvetica, Arial, "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif' }}
-          rows={1}
-        />
+        {/* Rich Text Editor */}
+        <div ref={editorContainerRef} className="flex-1 min-w-0">
+          <RichTextEditor
+            value={message}
+            onChange={handleEditorChange}
+            onSubmit={handleSubmit}
+            placeholder={disabled ? 'Pilih channel...' : isMobile ? 'Ketik pesan...' : 'Ketik pesan...'}
+            serverId={serverId}
+            disabled={disabled}
+            className="w-full"
+          />
+        </div>
 
         {/* Action Buttons */}
         <div className={`flex items-center ${isMobile ? 'pr-1' : 'pr-2'}`}>

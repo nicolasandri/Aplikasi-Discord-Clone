@@ -26,6 +26,7 @@ interface CustomRole {
   name: string;
   color: string;
   position: number;
+  is_default?: boolean;
 }
 
 // Detect if running in Electron
@@ -66,6 +67,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [showRoleManager, setShowRoleManager] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const { toast } = useToast();
 
   // Apply userStatuses overrides to members
@@ -125,6 +127,11 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     return () => clearInterval(interval);
   }, [serverId]);
 
+  // Update avatar version when members change (for cache-busting)
+  useEffect(() => {
+    setAvatarVersion(Date.now());
+  }, [members]);
+
   const fetchMembers = async () => {
     if (!serverId) return;
     try {
@@ -150,7 +157,19 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       });
       if (response.ok) {
         const data = await response.json();
-        setCustomRoles(data.filter((r: CustomRole) => !['Admin', 'Moderator', 'Member'].includes(r.name)));
+        console.log('Fetched roles:', data);
+        // Filter out default roles - use is_default flag if available, fallback to name check
+        const filtered = data.filter((r: CustomRole) => {
+          // If is_default is defined, use it
+          if (r.is_default !== undefined) {
+            return !r.is_default;
+          }
+          // Fallback: filter by name (case-insensitive)
+          const nameLower = r.name.toLowerCase();
+          return !['admin', 'moderator', 'member'].includes(nameLower);
+        });
+        console.log('Filtered custom roles:', filtered);
+        setCustomRoles(filtered);
       }
     } catch (error) {
       console.error('Failed to fetch custom roles:', error);
@@ -382,13 +401,33 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     const canManage = canManageUser(member.role, member.id);
     const showContextMenu = canManage || customRoles.length > 0;
 
+    // Get display name for member
+    const displayName = member.displayName || member.username;
+    
+    // Get full avatar URL with fallback and cache-busting
+    const getAvatarUrl = () => {
+      if (!member.avatar) {
+        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username || 'user'}`;
+      }
+      if (member.avatar.startsWith('http')) {
+        return member.avatar;
+      }
+      // Add cache-busting to force reload when avatar changes
+      const baseUrl = API_URL.replace('/api', '');
+      return `${baseUrl}${member.avatar}${member.avatar.includes('?') ? '&' : '?'}_v=${avatarVersion}`;
+    };
+
     const memberContent = (
       <div className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[#34373c] cursor-pointer group">
         <div className="relative">
           <img
-            src={member.avatar}
-            alt={member.username}
+            src={getAvatarUrl()}
+            alt={displayName}
             className="w-8 h-8 rounded-full"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username || 'user'}`;
+            }}
           />
           <div
             className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[member.status]} rounded-full border-2 border-[#2f3136]`}
@@ -426,7 +465,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56 bg-[#18191c] border-[#2f3136]">
           <div className="px-2 py-1.5 text-sm font-medium text-[#dcddde]">
-            {member.username}
+            {displayName}
           </div>
           <ContextMenuSeparator className="bg-[#2f3136]" />
           
@@ -489,14 +528,14 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
 
           <ContextMenuItem
             className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
-            onClick={() => handleKickMember(member.id, member.username)}
+            onClick={() => handleKickMember(member.id, displayName)}
           >
             Kick Member
           </ContextMenuItem>
 
           <ContextMenuItem
             className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
-            onClick={() => handleBanMember(member.id, member.username)}
+            onClick={() => handleBanMember(member.id, displayName)}
           >
             Ban Member
           </ContextMenuItem>
@@ -544,7 +583,11 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       {/* Role Manager Modal */}
       <RoleManagerModal
         isOpen={showRoleManager}
-        onClose={() => setShowRoleManager(false)}
+        onClose={() => {
+          setShowRoleManager(false);
+          // Re-fetch custom roles after modal closes
+          fetchCustomRoles();
+        }}
         serverId={serverId}
         currentUserRole={currentUserRole || undefined}
         isOwner={isOwner}

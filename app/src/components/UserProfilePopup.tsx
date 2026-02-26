@@ -14,12 +14,13 @@ interface UserProfilePopupProps {
   serverId: string;
   isOpen: boolean;
   onClose: () => void;
-  onStartDM?: (userId: string) => void;
+  onStartDM?: (user: { id: string; username: string; avatar?: string; status?: string; email?: string }) => void;
 }
 
 interface UserProfile {
   id: string;
   username: string;
+  displayName?: string;
   email: string;
   avatar: string;
   status: 'online' | 'offline' | 'idle' | 'dnd';
@@ -65,7 +66,15 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   const [loading, setLoading] = useState(true);
   const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>('none');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const { toast } = useToast();
+
+  // Update avatar version when profile changes
+  useEffect(() => {
+    if (profile?.avatar) {
+      setAvatarVersion(Date.now());
+    }
+  }, [profile?.avatar]);
 
   const currentUserId = localStorage.getItem('token') 
     ? JSON.parse(atob(localStorage.getItem('token')!.split('.')[1])).id 
@@ -296,7 +305,15 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   };
 
   const handleStartDM = () => {
-    onStartDM?.(userId);
+    if (profile) {
+      onStartDM?.({
+        id: profile.id,
+        username: profile.username,
+        avatar: profile.avatar,
+        status: profile.status,
+        email: profile.email,
+      });
+    }
     onClose();
   };
 
@@ -329,9 +346,9 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
           <div className="relative -mt-12 mb-4">
             <img
               src={profile?.avatar 
-                ? (profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:3001${profile.avatar}`)
+                ? `${profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:3001${profile.avatar}`}?v=${avatarVersion}`
                 : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username}`}
-              alt={profile?.username}
+              alt={profile?.displayName || profile?.username}
               className="w-24 h-24 rounded-full border-4 border-[#36393f] bg-[#36393f] object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -352,7 +369,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
             <div className="space-y-4">
               {/* Username */}
               <div>
-                <h2 className="text-xl font-bold text-white">{profile.username}</h2>
+                <h2 className="text-xl font-bold text-white">{profile.displayName || profile.username}</h2>
                 <p className="text-sm text-[#b9bbbe]">{profile.email}</p>
               </div>
 

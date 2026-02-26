@@ -12,6 +12,12 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
+// Base URL for assets (images, uploads) - always use absolute URL for images
+const BASE_URL = isElectron 
+  ? 'http://localhost:3001' 
+  : 'http://localhost:3001';
+console.log('[DMChatArea] API_URL:', API_URL, 'BASE_URL:', BASE_URL);
+
 interface DMChatAreaProps {
   channel: DMChannel | null;
   currentUser: User | null;
@@ -91,9 +97,15 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [socketReady, setSocketReady] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const token = localStorage.getItem('token');
+
+  // Update avatar version when currentUser changes
+  useEffect(() => {
+    setAvatarVersion(Date.now());
+  }, [currentUser?.avatar]);
 
   // Check socket availability periodically
   useEffect(() => {
@@ -129,28 +141,55 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   // Join/Leave DM channel when channel or socket changes
   useEffect(() => {
     if (channel && socketReady) {
-      console.log('Joining DM channel (socket ready):', channel.id);
+      console.log('✅ Joining DM channel:', channel.id, 'Friend:', channel.friend?.username, 'Avatar:', channel.friend?.avatar);
       joinDMChannel();
       return () => {
-        console.log('Leaving DM channel:', channel.id);
+        console.log('👋 Leaving DM channel:', channel.id);
         leaveDMChannel();
       };
     }
   }, [channel?.id, socketReady]);
 
-  // Socket listeners
+  // Socket listeners - using ref to always have latest channel id
+  const channelIdRef = useRef(channel?.id);
+  channelIdRef.current = channel?.id;
+  const currentUserIdRef = useRef(currentUser?.id);
+  currentUserIdRef.current = currentUser?.id;
+
   useEffect(() => {
     const socket = (window as any).socket;
-    if (!socket || !channel) return;
+    if (!socket) {
+      console.log('❌ No socket available for DM listeners');
+      return;
+    }
 
-    const handleDMMessage = (data: { channelId: string; message: DMMessage }) => {
-      console.log('📨 new-dm-message received:', data);
-      if (data.channelId === channel.id) {
+    console.log('🔌 Attaching DM socket listeners. Socket connected:', socket.connected);
+
+    const handleDMMessage = (data: { channelId: string; message: any; sender?: any }) => {
+      console.log('📨 new-dm-message received:', JSON.stringify(data, null, 2));
+      console.log('📨 Current channel id ref:', channelIdRef.current);
+      
+      if (data.channelId === channelIdRef.current) {
+        console.log('✅ Message is for current channel');
+        // Map message from socket to DMMessage interface
+        const mappedMessage: DMMessage = {
+          id: data.message.id,
+          channelId: data.message.channel_id || data.message.channelId,
+          senderId: data.message.sender_id || data.message.senderId,
+          content: data.message.content,
+          sender_username: data.message.sender_username || data.sender?.username,
+          sender_avatar: data.message.sender_avatar || data.sender?.avatar,
+          attachments: data.message.attachments,
+          isRead: data.message.is_read === 1 || data.message.is_read === true || data.message.isRead === true,
+          createdAt: data.message.created_at || data.message.createdAt,
+          editedAt: data.message.edited_at || data.message.editedAt,
+        };
+        
         setMessages(prev => {
           // Check if this is a response to optimistic message (same sender and content)
           const existingIndex = prev.findIndex(m => 
-            m.senderId === data.message.senderId && 
-            m.content === data.message.content &&
+            m.senderId === mappedMessage.senderId && 
+            m.content === mappedMessage.content &&
             m.id.startsWith('temp-')
           );
           
@@ -158,29 +197,32 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
             // Replace optimistic message with real one
             console.log('Replacing optimistic message with real message');
             const newMessages = [...prev];
-            newMessages[existingIndex] = data.message;
+            newMessages[existingIndex] = mappedMessage;
             return newMessages;
           }
           
           // Check if message already exists (by id)
-          if (prev.some(m => m.id === data.message.id)) {
+          if (prev.some(m => m.id === mappedMessage.id)) {
             console.log('Message already exists, skipping');
             return prev;
           }
           
           console.log('Adding new message to state');
-          return [...prev, data.message];
+          return [...prev, mappedMessage];
         });
         
-        // Mark as read if message is from friend
-        if (data.message.senderId !== currentUser?.id) {
-          markAsRead(data.message.id);
+        // Mark as read if message is from friend (not current user)
+        if (mappedMessage.senderId !== currentUserIdRef.current) {
+          markAsRead(mappedMessage.id);
         }
+      } else {
+        console.log('❌ Message is NOT for current channel. Received:', data.channelId, 'Current:', channelIdRef.current);
       }
     };
 
     const handleDMTyping = (data: { channelId: string; username: string }) => {
-      if (data.channelId === channel.id) {
+      console.log('⌨️ dm-typing received:', data);
+      if (data.channelId === channelIdRef.current) {
         setTypingUser(data.username);
         if (typingTimeoutRef.current) {
           clearTimeout(typingTimeoutRef.current);
@@ -191,14 +233,21 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       }
     };
 
+    const handleDMError = (data: { error: string }) => {
+      console.error('❌ DM error received:', data);
+    };
+
     socket.on('new-dm-message', handleDMMessage);
     socket.on('dm-typing', handleDMTyping);
+    socket.on('dm-error', handleDMError);
 
     return () => {
+      console.log('🔌 Detaching DM socket listeners');
       socket.off('new-dm-message', handleDMMessage);
       socket.off('dm-typing', handleDMTyping);
+      socket.off('dm-error', handleDMError);
     };
-  }, [channel?.id, currentUser?.id]);
+  }, []); // Only run once on mount
 
   const fetchMessages = async () => {
     if (!channel) return;
@@ -209,7 +258,20 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data);
+        // Map database response to DMMessage interface
+        const mappedMessages: DMMessage[] = data.map((row: any) => ({
+          id: row.id,
+          channelId: row.channel_id,
+          senderId: row.sender_id,
+          content: row.content,
+          sender_username: row.sender_username,
+          sender_avatar: row.sender_avatar,
+          attachments: row.attachments,
+          isRead: row.is_read === 1 || row.is_read === true,
+          createdAt: row.created_at,
+          editedAt: row.edited_at,
+        }));
+        setMessages(mappedMessages);
       }
     } catch (error) {
       console.error('Failed to fetch DM messages:', error);
@@ -221,8 +283,15 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   const joinDMChannel = () => {
     const socket = (window as any).socket;
     if (socket && socket.connected && channel) {
+      console.log('📤 Emitting join-dm-channel for:', channel.id);
       socket.emit('join-dm-channel', channel.id);
-      console.log('✅ Joined DM channel:', channel.id);
+      
+      // Listen for confirmation
+      socket.once('joined-dm-channel', (data: { channelId: string; success: boolean }) => {
+        console.log('✅ Server confirmed join:', data);
+      });
+    } else {
+      console.log('❌ Cannot join DM channel - socket:', !!socket, 'connected:', socket?.connected, 'channel:', !!channel);
     }
   };
 
@@ -360,15 +429,22 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
         <div className="flex items-center gap-3">
           <div className="relative">
             <img 
-              src={channel.friend.avatar} 
-              alt={channel.friend.username}
+              src={channel.friend?.avatar 
+                ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
+                : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
+              alt={channel.friend?.username || 'User'}
               className="w-8 h-8 rounded-full"
+              onError={(e) => {
+                console.log('[DMChatArea] Header avatar failed to load, using fallback');
+                const target = e.target as HTMLImageElement;
+                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`;
+              }}
             />
-            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend.status]} rounded-full border-2 border-[#36393f]`} />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#36393f]`} />
           </div>
           <div>
-            <h3 className="text-white font-semibold">{channel.friend.username}</h3>
-            <p className="text-xs text-[#b9bbbe]">{statusLabels[channel.friend.status]}</p>
+            <h3 className="text-white font-semibold">{channel.friend?.username || 'Unknown'}</h3>
+            <p className="text-xs text-[#b9bbbe]">{statusLabels[channel.friend?.status || 'offline']}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -393,7 +469,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
               <span className="text-3xl">👋</span>
             </div>
             <h3 className="text-xl font-bold text-white mb-2">
-              Ini adalah awal dari percakapan Anda dengan {channel.friend.username}
+              Ini adalah awal dari percakapan Anda dengan {channel.friend?.username || 'Unknown'}
             </h3>
             <p className="text-[#b9bbbe]">Kirim pesan untuk memulai!</p>
           </div>
@@ -413,7 +489,36 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
                   {group.messages.map((message, idx) => {
                     const isOwn = message.senderId === currentUser?.id;
                     const showAvatar = idx === 0 || group.messages[idx - 1].senderId !== message.senderId;
+                    
+                    // Build full friend avatar URL
+                    const getFriendAvatar = () => {
+                      if (!channel.friend?.avatar) {
+                        console.log('[DMChatArea] Friend avatar empty, using dicebear');
+                        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`;
+                      }
+                      if (channel.friend.avatar.startsWith('http')) {
+                        console.log('[DMChatArea] Friend avatar full URL:', channel.friend.avatar);
+                        return channel.friend.avatar;
+                      }
+                      const fullUrl = `${BASE_URL}${channel.friend.avatar}`;
+                      console.log('[DMChatArea] Friend avatar constructed URL:', fullUrl, 'BASE_URL:', BASE_URL, 'avatar:', channel.friend.avatar);
+                      return fullUrl;
+                    };
+                    const friendAvatar = getFriendAvatar();
+                    const friendUsername = channel.friend?.username || 'Unknown';
 
+                    // Build full own avatar URL with cache-busting
+                    const getOwnAvatar = () => {
+                      if (!currentUser?.avatar) {
+                        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.username || 'user'}`;
+                      }
+                      if (currentUser.avatar.startsWith('http')) {
+                        return currentUser.avatar;
+                      }
+                      return `${BASE_URL}${currentUser.avatar}?v=${avatarVersion}`;
+                    };
+                    const ownAvatar = getOwnAvatar();
+                    
                     return (
                       <div 
                         key={message.id} 
@@ -421,9 +526,14 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
                       >
                         {showAvatar ? (
                           <img
-                            src={isOwn ? currentUser?.avatar : channel.friend.avatar}
-                            alt={message.sender_username}
+                            src={isOwn ? ownAvatar : friendAvatar}
+                            alt={message.sender_username || (isOwn ? currentUser?.username : friendUsername)}
                             className="w-10 h-10 rounded-full flex-shrink-0"
+                            onError={(e) => {
+                              console.log('[DMChatArea] Message avatar failed to load:', isOwn ? 'own' : 'friend');
+                              const target = e.target as HTMLImageElement;
+                              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${isOwn ? (currentUser?.username || 'user') : friendUsername}`;
+                            }}
                           />
                         ) : (
                           <div className="w-10 flex-shrink-0" />
@@ -432,7 +542,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
                           {showAvatar && (
                             <div className={`flex items-baseline gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
                               <span className="text-white font-medium text-sm">
-                                {isOwn ? currentUser?.username : channel.friend.username}
+                                {isOwn ? currentUser?.username : friendUsername}
                               </span>
                               <span className="text-[11px] text-[#72767d]">
                                 {formatTime(message.createdAt)}
@@ -484,7 +594,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleTyping}
-            placeholder={`Kirim pesan ke @${channel.friend.username}`}
+            placeholder={`Kirim pesan ke @${channel.friend?.username || 'Unknown'}`}
             className="flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none min-h-[40px] max-h-[120px] py-2"
             rows={1}
             style={{ height: 'auto' }}

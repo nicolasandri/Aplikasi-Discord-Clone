@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Hash, Volume2, Users, Phone, Video, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
 import { UserProfilePopup } from './UserProfilePopup';
-import { ImageViewer } from './ImageViewer';
+import { Lightbox } from './Lightbox';
+import { MessageContent } from './MessageContent';
 import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
 import type { Channel, Message, User } from '@/types';
@@ -24,6 +25,8 @@ interface ChatAreaProps {
   serverId?: string | null;
   onRefresh?: () => void;
   isMobile?: boolean;
+  onStartDM?: (user: { id: string; username: string; avatar?: string; status?: string; email?: string }) => void;
+  onOpenSearch?: () => void;
 }
 
 // User permissions interface
@@ -120,13 +123,14 @@ interface MessageItemProps {
   onReaction: (messageId: string, emoji: string) => void;
   onDelete: (messageId: string) => void;
   onUserClick?: (userId: string) => void;
-  onImageClick?: (src: string, alt: string) => void;
+  onAttachmentClick?: (message: Message, index: number) => void;
   onForward?: (message: Message) => void;
   onCopy?: (content: string) => void;
   isMobile?: boolean;
+  avatarVersion?: number;
 }
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onImageClick, onForward, onCopy, isMobile = false }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onAttachmentClick, onForward, onCopy, isMobile = false, avatarVersion = 0 }: MessageItemProps) {
   const [showActions, setShowActions] = useState(false);
   
   // Default handlers
@@ -144,6 +148,24 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   };
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean }>({ x: 0, y: 0, isOpen: false });
   const isOwnMessage = currentUser?.id === message.userId;
+  
+  // Use currentUser avatar for own messages (with cache busting)
+  const getAvatarSrc = () => {
+    if (isOwnMessage && currentUser?.avatar) {
+      const avatarUrl = currentUser.avatar.startsWith('http') 
+        ? currentUser.avatar 
+        : `${API_URL.replace('/api', '')}${currentUser.avatar}`;
+      return `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}v=${avatarVersion}`;
+    }
+    // For other users, use the avatar from message data
+    const otherAvatar = message.user?.avatar;
+    if (!otherAvatar) {
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username || 'user'}`;
+    }
+    return otherAvatar.startsWith('http') 
+      ? otherAvatar 
+      : `${API_URL.replace('/api', '')}${otherAvatar}`;
+  };
   
   // Get timestamp from either timestamp or createdAt field
   const timestamp = message.timestamp || (message as any).createdAt || new Date().toISOString();
@@ -175,15 +197,17 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           className="flex-shrink-0 bg-transparent border-none p-0 cursor-pointer"
         >
           <img
-            src={message.user?.avatar?.startsWith('http') ? message.user?.avatar : `${API_URL.replace('/api', '')}${message.user?.avatar}`}
-            alt={message.user?.username}
+            src={getAvatarSrc()}
+            alt={isOwnMessage 
+              ? (currentUser?.displayName || currentUser?.username || 'You')
+              : (message.user?.displayName || message.user?.username || 'User')}
             className={`rounded-full mt-0.5 hover:opacity-80 transition-opacity object-cover ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               // Prevent infinite loop by checking if we've already tried fallback
               if (!target.dataset.fallbackApplied) {
                 target.dataset.fallbackApplied = 'true';
-                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username}`;
+                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username || 'User'}`;
               }
             }}
           />
@@ -202,7 +226,9 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
               onClick={() => onUserClick?.(message.userId)}
               className="text-white font-medium hover:underline cursor-pointer text-sm bg-transparent border-none p-0"
             >
-              {message.user?.username}
+              {isOwnMessage 
+                ? (currentUser?.displayName || currentUser?.username || 'You')
+                : (message.user?.displayName || message.user?.username)}
             </button>
             <span className="text-[11px] text-[#72767d]">
               {formatTime(timestamp)}
@@ -224,7 +250,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 {message.replyTo?.user?.avatar ? (
                   <img 
                     src={message.replyTo.user.avatar.startsWith('http') ? message.replyTo.user.avatar : `${API_URL.replace('/api', '')}${message.replyTo.user.avatar}`}
-                    alt={message.replyTo.user?.username || 'User'}
+                    alt={message.replyTo.user?.displayName || message.replyTo.user?.username || 'User'}
                     className="w-4 h-4 rounded-full"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -233,10 +259,10 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                   />
                 ) : (
                   <div className="w-4 h-4 rounded-full bg-[#5865f2] flex items-center justify-center text-[8px] text-white font-bold">
-                    {(message.replyTo.user?.username || 'U')[0].toUpperCase()}
+                    {(message.replyTo.user?.displayName || message.replyTo.user?.username || 'U')[0].toUpperCase()}
                   </div>
                 )}
-                <span className="text-[#5865f2] font-medium">{message.replyTo.user?.username}</span>
+                <span className="text-[#5865f2] font-medium">{message.replyTo.user?.displayName || message.replyTo.user?.username}</span>
               </div>
               <p className="text-[#b9bbbe] text-xs mt-0.5 truncate">
                 {message.replyTo.content}
@@ -245,26 +271,23 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           </div>
         )}
         
-        <p 
-          className="text-[#dcddde] break-words text-sm leading-relaxed message-content"
-          style={{ fontFamily: '"Whitney", "Helvetica Neue", Helvetica, Arial, "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif' }}
-          dangerouslySetInnerHTML={{ 
-            __html: message.content
-              .replace(/@(\w+)/g, '<span class="text-[#00a8fc] bg-[#00a8fc]/10 px-1 rounded font-medium hover:bg-[#00a8fc]/20 cursor-pointer">@$1</span>')
-              .replace(/#(\w+)/g, '<span class="text-[#00a8fc] hover:underline cursor-pointer">#$1</span>')
-          }}
-        />
+        <MessageContent content={message.content} />
         
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className="mt-2 space-y-2">
+          <div className={`mt-2 ${
+            message.attachments.length === 1 ? 'space-y-2' :
+            message.attachments.length === 2 ? 'grid grid-cols-2 gap-2' :
+            'grid grid-cols-3 gap-2'
+          }`}>
             {message.attachments.map((file, index) => (
-              <div key={index}>
+              <div 
+                key={index}
+                className="cursor-pointer"
+                onClick={() => onAttachmentClick?.(message, index)}
+              >
                 {file.mimetype.startsWith('image/') ? (
-                  <div 
-                    className="block max-w-md cursor-pointer"
-                    onClick={() => onImageClick?.(`${API_URL.replace('/api', '')}${file.url}`, file.originalName)}
-                  >
+                  <div className="block max-w-md">
                     <img 
                       src={`${API_URL.replace('/api', '')}${file.url}`} 
                       alt={file.originalName}
@@ -272,13 +295,21 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                       loading="lazy"
                     />
                   </div>
+                ) : file.mimetype.startsWith('video/') ? (
+                  <div className="relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center max-w-md">
+                    <video
+                      src={`${API_URL.replace('/api', '')}${file.url}`}
+                      className="max-w-full max-h-[200px]"
+                      preload="metadata"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors">
+                      <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                        <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white border-b-8 border-b-transparent ml-1" />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <a 
-                    href={`${API_URL.replace('/api', '')}${file.url}`}
-                    target="_blank"
-                    rel="noopener noreferrer" 
-                    className="flex items-center gap-2 bg-[#2f3136] hover:bg-[#36393f] rounded-lg p-3 max-w-md transition-colors"
-                  >
+                  <div className="flex items-center gap-2 bg-[#2f3136] hover:bg-[#36393f] rounded-lg p-3 max-w-md transition-colors">
                     <div className="w-10 h-10 bg-[#5865f2] rounded-lg flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 text-white" />
                     </div>
@@ -286,7 +317,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                       <p className="text-white text-sm truncate">{file.originalName}</p>
                       <p className="text-[#72767d] text-xs">{(file.size / 1024).toFixed(1)} KB</p>
                     </div>
-                  </a>
+                  </div>
                 )}
               </div>
             ))}
@@ -376,21 +407,89 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxAttachments, setLightboxAttachments] = useState<Array<{id: string, url: string, filename: string, mimetype: string, size: number}>>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [userPermissions, setUserPermissions] = useState<UserPermissions | null>(null);
+  const [avatarVersion, setAvatarVersion] = useState(Date.now());
+  // BUG-018: Track user scroll position
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+
+  // Update avatar version when currentUser avatar changes
+  useEffect(() => {
+    setAvatarVersion(Date.now());
+  }, [currentUser?.avatar]);
+
+  // Listen for avatar updates from other components (e.g., SettingsModal)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        // Force update avatar version when user data in localStorage changes
+        setAvatarVersion(Date.now());
+      }
+    };
+    
+    const handleAvatarUpdated = (e: CustomEvent) => {
+      // Force update avatar version when avatar is updated
+      setAvatarVersion(Date.now());
+    };
+    
+    const handleDisplayNameUpdated = (e: CustomEvent) => {
+      // Force re-render when display name is updated
+      setAvatarVersion(Date.now()); // Using avatarVersion as a general refresh trigger
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('avatar-updated', handleAvatarUpdated as EventListener);
+    window.addEventListener('displayname-updated', handleDisplayNameUpdated as EventListener);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('avatar-updated', handleAvatarUpdated as EventListener);
+      window.removeEventListener('displayname-updated', handleDisplayNameUpdated as EventListener);
+    };
+  }, []);
+
+  // Also update avatar version periodically to catch any changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentUser?.avatar) {
+        setAvatarVersion(Date.now());
+      }
+    }, 5000); // Update every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [currentUser?.avatar]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // BUG-018: Smart auto-scroll - only scroll if user is near bottom
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    // Only auto-scroll if user is near bottom (within 100px) or not manually scrolling
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    
+    if (!isUserScrolling || isNearBottom) {
+      scrollToBottom();
+    }
+  }, [messages, isUserScrolling]);
+
+  // BUG-018: Event listener untuk detect user scroll
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    setIsUserScrolling(!isNearBottom);
+  };
 
   // Fetch user permissions when server changes
   useEffect(() => {
@@ -472,8 +571,21 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     }
   };
 
-  const handleImageClick = (src: string, alt: string) => {
-    setViewerImage({ src, alt });
+  const handleAttachmentClick = (message: Message, index: number) => {
+    if (!message.attachments || message.attachments.length === 0) return;
+    
+    // Convert attachments to Lightbox format
+    const attachments = message.attachments.map((att, i) => ({
+      id: `${message.id}-${i}`,
+      url: att.url.startsWith('http') ? att.url : `${API_URL.replace('/api', '')}${att.url}`,
+      filename: att.originalName || `file-${i}`,
+      mimetype: att.mimetype || 'application/octet-stream',
+      size: att.size || 0
+    }));
+    
+    setLightboxAttachments(attachments);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
   };
 
   if (!channel) {
@@ -503,6 +615,17 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           <div className="flex items-center gap-3">
             <Volume2 className="w-6 h-6 text-[#8e9297]" />
             <h2 className="text-white font-semibold">{channel.name}</h2>
+          </div>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={onOpenSearch}
+              className="relative flex items-center bg-[#202225] hover:bg-[#2f3136] text-[#72767d] hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
+              title="Cari pesan (Ctrl+K)"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              <span>Cari</span>
+              <kbd className="ml-auto text-xs bg-[#36393f] px-1.5 py-0.5 rounded text-[#72767d] group-hover:text-[#b9bbbe]">Ctrl+K</kbd>
+            </button>
           </div>
         </div>
         
@@ -541,14 +664,15 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           <button className="text-[#b9bbbe] hover:text-white transition-colors">
             <Users className="w-5 h-5" />
           </button>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#72767d]" />
-            <input
-              type="text"
-              placeholder="Cari"
-              className="bg-[#202225] text-white text-sm rounded-md pl-9 pr-3 py-1.5 w-36 focus:w-64 transition-all outline-none placeholder:text-[#72767d]"
-            />
-          </div>
+          <button 
+            onClick={onOpenSearch}
+            className="relative flex items-center bg-[#202225] hover:bg-[#2f3136] text-[#72767d] hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
+            title="Cari pesan (Ctrl+K)"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            <span>Cari</span>
+            <kbd className="ml-auto text-xs bg-[#36393f] px-1.5 py-0.5 rounded text-[#72767d] group-hover:text-[#b9bbbe]">Ctrl+K</kbd>
+          </button>
           <button className="text-[#b9bbbe] hover:text-white transition-colors">
             <Inbox className="w-5 h-5" />
           </button>
@@ -571,6 +695,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       <div 
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-2 py-4"
+        onScroll={handleScroll}
       >
         {groupedMessages.length === 0 ? (
           <div className="text-center py-12">
@@ -618,8 +743,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           onReaction={handleReaction}
                           onDelete={handleDelete}
                           onUserClick={handleUserClick}
-                          onImageClick={handleImageClick}
+                          onAttachmentClick={handleAttachmentClick}
                           isMobile={isMobile}
+                          avatarVersion={avatarVersion}
                         />
                       </div>
                     );
@@ -657,15 +783,16 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         serverId={serverId || ''}
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        onStartDM={(userId) => console.log('Start DM with:', userId)}
+        onStartDM={onStartDM}
       />
 
-      {/* Image Viewer */}
-      <ImageViewer
-        src={viewerImage?.src || ''}
-        alt={viewerImage?.alt || ''}
-        isOpen={!!viewerImage}
-        onClose={() => setViewerImage(null)}
+      {/* Lightbox */}
+      <Lightbox
+        attachments={lightboxAttachments}
+        currentIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        onNavigate={setLightboxIndex}
       />
     </div>
   );

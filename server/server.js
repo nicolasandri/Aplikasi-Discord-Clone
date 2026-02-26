@@ -9,26 +9,83 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
 
 // Database selection: SQLite or PostgreSQL
 const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
 const dbModule = usePostgres ? require('./database-postgres') : require('./database');
 
-const { db, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, Permissions } = dbModule;
+// Security: Allowed origins for CORS
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:5173', 'http://localhost:3000', 'https://xoqeprkp54f74.ok.kimi.link'];
 
-console.log(`📦 Using database: ${usePostgres ? 'PostgreSQL' : 'SQLite'}`);
+const { db, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, Permissions } = dbModule;
+
+// BUG-021: Conditional Logging
+const DEBUG = process.env.NODE_ENV !== 'production';
+function log(...args) {
+  if (DEBUG) console.log(...args);
+}
+function logError(...args) {
+  // Always log errors, even in production
+  console.error(...args);
+}
+
+log(`📦 Using database: ${usePostgres ? 'PostgreSQL' : 'SQLite'}`);
 const { checkPermission, requireServerOwner, canManageMember, fetchPermissions } = require('./middleware/permissions');
+
+// Push notification service
+const pushService = require('./services/push');
+
+// BUG-016: Helper function untuk socket error handling
+function handleSocketError(socket, error, context) {
+  logError(`❌ ${context}:`, error.message);
+  socket.emit('error', { 
+    context: context,
+    message: error.message || 'An error occurred',
+    timestamp: new Date().toISOString()
+  });
+}
+
+// BUG-022: Standardized Error/Success Response Helpers
+function createErrorResponse(context, message, details = null) {
+  return {
+    success: false,
+    error: {
+      context,
+      message,
+      details,
+      timestamp: new Date().toISOString()
+    }
+  };
+}
+
+function createSuccessResponse(data = null, message = null) {
+  return {
+    success: true,
+    data,
+    message,
+    timestamp: new Date().toISOString()
+  };
+}
 
 const app = express();
 const server = http.createServer(app);
+
+// Security: Socket.IO CORS with strict origin checking
 const io = new Server(server, {
   cors: {
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:3000'
-    ],
+    origin: function(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+        callback(null, true);
+      } else {
+        console.error(`Socket.IO CORS blocked: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true
@@ -95,19 +152,61 @@ async function seedData() {
 
 seedData();
 
-// Enable CORS for all routes
+// Security: Express CORS with strict origin checking
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000'
-  ],
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      console.error(`CORS blocked: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Authorization", "Content-Type"],
   credentials: true
 }));
+
 app.use(express.json());
+
+// Security: Rate Limiting (BUG-003)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many attempts. Try again in 15 minutes.' }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests. Please slow down.' }
+});
+
+app.use('/api/', apiLimiter);
+
+// Security: XSS Prevention (BUG-014)
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return input;
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+function sanitizeBody(req, res, next) {
+  if (req.body) {
+    ['content', 'name', 'username', 'email', 'message'].forEach(field => {
+      if (req.body[field] && typeof req.body[field] === 'string') {
+        req.body[field] = sanitizeInput(req.body[field]);
+      }
+    });
+  }
+  next();
+}
+app.use('/api/', sanitizeBody);
 
 // Create uploads directory
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -216,8 +315,8 @@ app.get('/health', async (req, res) => {
 
 // ==================== AUTH ROUTES ====================
 
-// Register
-app.post('/api/auth/register', async (req, res) => {
+// Register with enhanced security validation (BUG-011 & BUG-012)
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { username, email, password } = req.body;
     
@@ -235,15 +334,30 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' });
     }
     
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Email validation (stricter)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ error: 'Invalid email format' });
     }
     
-    // Password validation
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    // Block disposable emails
+    const disposableDomains = ['tempmail.com', 'throwaway.com', 'mailinator.com', 'guerrillamail.com'];
+    const emailDomain = email.split('@')[1].toLowerCase();
+    if (disposableDomains.includes(emailDomain)) {
+      return res.status(400).json({ error: 'Disposable emails not allowed' });
+    }
+    
+    // Password validation (stronger)
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      return res.status(400).json({ 
+        error: 'Password must contain uppercase, lowercase, and number' 
+      });
     }
     
     // Check email uniqueness
@@ -261,7 +375,7 @@ app.post('/api/auth/register', async (req, res) => {
     const user = await userDB.create(username, email, password);
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
     
-    res.json({ user, token });
+    res.json({ user: formatUserResponse(user), token });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
@@ -291,9 +405,8 @@ app.post('/api/auth/login', async (req, res) => {
     await userDB.updateProfile(user.id, { status: 'online' });
     
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
-    const { password: _, ...userWithoutPassword } = user;
     
-    res.json({ user: userWithoutPassword, token });
+    res.json({ user: formatUserResponse(user), token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
@@ -303,13 +416,27 @@ app.post('/api/auth/login', async (req, res) => {
 // ==================== USER ROUTES ====================
 
 // Get current user
+// Helper function to convert snake_case to camelCase for user object
+function formatUserResponse(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.display_name || user.displayName || user.username,
+    email: user.email,
+    avatar: user.avatar,
+    status: user.status,
+    created_at: user.created_at
+  };
+}
+
 app.get('/api/users/me', authenticateToken, async (req, res) => {
   try {
     const user = await userDB.findById(req.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(user);
+    res.json(formatUserResponse(user));
   } catch (error) {
     res.status(500).json({ error: 'Failed to get user' });
   }
@@ -318,10 +445,14 @@ app.get('/api/users/me', authenticateToken, async (req, res) => {
 // Update profile
 app.put('/api/users/profile', authenticateToken, async (req, res) => {
   try {
-    const { username } = req.body;
-    await userDB.updateProfile(req.userId, { username });
+    const { username, displayName } = req.body;
+    const updates = {};
+    if (username) updates.username = username;
+    if (displayName !== undefined) updates.displayName = displayName;
+    
+    await userDB.updateProfile(req.userId, updates);
     const user = await userDB.findById(req.userId);
-    res.json({ success: true, user });
+    res.json({ success: true, user: formatUserResponse(user) });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update profile' });
   }
@@ -331,16 +462,32 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
 app.put('/api/users/password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await userDB.findById(req.userId);
+    console.log('[Change Password] Request received for user:', req.userId);
     
+    if (!currentPassword || !newPassword) {
+      console.log('[Change Password] Missing fields');
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const user = await userDB.findById(req.userId, true);
+    if (!user) {
+      console.log('[Change Password] User not found');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log('[Change Password] Verifying password...');
     const validPassword = await userDB.verifyPassword(currentPassword, user.password);
     if (!validPassword) {
+      console.log('[Change Password] Invalid current password');
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
     
+    console.log('[Change Password] Updating password...');
     await userDB.updatePassword(req.userId, newPassword);
+    console.log('[Change Password] Success');
     res.json({ success: true });
   } catch (error) {
+    console.error('[Change Password] Error:', error);
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
@@ -385,7 +532,7 @@ app.get('/api/servers/:serverId/users/:userId', authenticateToken, async (req, r
     });
     
     res.json({
-      ...user,
+      ...formatUserResponse(user),
       role: member?.role || 'member'
     });
   } catch (error) {
@@ -1367,19 +1514,53 @@ app.get('/api/friends/status/:userId', authenticateToken, async (req, res) => {
 // Search users
 app.get('/api/users/search', authenticateToken, async (req, res) => {
   try {
-    const { username, email } = req.query;
+    const { q, username, email, server_id } = req.query;
     const userId = req.userId;
     
-    if (!username && !email) {
-      return res.status(400).json({ error: 'username or email required' });
+    // Support both new 'q' parameter (for mentions) and old 'username'/'email' parameters
+    const searchQuery = q || username;
+    
+    if (!searchQuery && !email) {
+      return res.status(400).json({ error: 'Query parameter (q or username) or email required' });
     }
     
+    // If server_id provided, prioritize server members for mention autocomplete
+    if (server_id && searchQuery) {
+      const sql = `
+        SELECT u.id, u.username, u.avatar, u.status, sm.role
+        FROM users u
+        JOIN server_members sm ON u.id = sm.user_id
+        WHERE sm.server_id = ?
+        AND u.username LIKE ?
+        AND u.id != ?
+        ORDER BY 
+          CASE sm.role 
+            WHEN 'owner' THEN 1 
+            WHEN 'admin' THEN 2 
+            WHEN 'moderator' THEN 3 
+            ELSE 4 
+          END,
+          u.username
+        LIMIT 10
+      `;
+      
+      db.all(sql, [server_id, `${searchQuery}%`, userId], (err, rows) => {
+        if (err) {
+          console.error('Search users error:', err);
+          return res.status(500).json({ error: 'Failed to search users' });
+        }
+        res.json({ users: rows });
+      });
+      return;
+    }
+    
+    // Regular user search (no server filter)
     let query = 'SELECT id, username, avatar, status FROM users WHERE ';
     let params = [];
     
-    if (username) {
+    if (searchQuery) {
       query += 'username LIKE ? AND id != ?';
-      params = [`%${username}%`, userId];
+      params = [`%${searchQuery}%`, userId];
     } else {
       query += 'email = ? AND id != ?';
       params = [email, userId];
@@ -1413,7 +1594,12 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
         })
       );
       
-      res.json(usersWithMutual);
+      // Return in consistent format
+      if (q !== undefined) {
+        res.json({ users: usersWithMutual });
+      } else {
+        res.json(usersWithMutual);
+      }
     });
   } catch (error) {
     console.error('Search users error:', error);
@@ -1574,6 +1760,14 @@ app.post('/api/dm/channels/:channelId/messages', authenticateToken, async (req, 
         message,
         sender: { id: sender.id, username: sender.username, avatar: sender.avatar }
       });
+    } else if (pushService.isConfigured()) {
+      // Send push notification if recipient is offline
+      await pushService.sendDMNotification(
+        recipientId,
+        sender.username,
+        content || 'Sent an attachment',
+        `/dm/${channelId}`
+      );
     }
     
     res.json(message);
@@ -1625,6 +1819,72 @@ app.delete('/api/dm/channels/:channelId', authenticateToken, async (req, res) =>
   } catch (error) {
     console.error('Delete DM channel error:', error);
     res.status(500).json({ error: 'Failed to delete channel' });
+  }
+});
+
+// ==================== PUSH NOTIFICATION ROUTES ====================
+
+// Get VAPID public key
+app.get('/api/push/vapid-public-key', authenticateToken, (req, res) => {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  if (!publicKey) {
+    return res.status(503).json({ error: 'Push notifications not configured' });
+  }
+  res.json({ publicKey });
+});
+
+// Subscribe to push notifications
+app.post('/api/push/subscribe', authenticateToken, async (req, res) => {
+  try {
+    const subscription = req.body;
+    
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ error: 'Invalid subscription' });
+    }
+
+    await subscriptionDB.create(req.userId, subscription);
+    
+    res.json({ success: true, message: 'Subscribed to push notifications' });
+  } catch (error) {
+    logError('Push subscribe error:', error);
+    res.status(500).json({ error: 'Failed to subscribe' });
+  }
+});
+
+// Unsubscribe from push notifications
+app.post('/api/push/unsubscribe', authenticateToken, async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    
+    if (endpoint) {
+      // Unsubscribe specific device
+      await subscriptionDB.remove(req.userId, endpoint);
+    } else {
+      // Unsubscribe all devices
+      await subscriptionDB.removeAllByUser(req.userId);
+    }
+    
+    res.json({ success: true, message: 'Unsubscribed from push notifications' });
+  } catch (error) {
+    logError('Push unsubscribe error:', error);
+    res.status(500).json({ error: 'Failed to unsubscribe' });
+  }
+});
+
+// Test push notification
+app.post('/api/push/test', authenticateToken, async (req, res) => {
+  try {
+    await pushService.sendToUser(req.userId, {
+      title: 'Test Notifikasi',
+      body: 'Push notifications berfungsi! 🎉',
+      url: '/',
+      requireInteraction: true
+    });
+    
+    res.json({ success: true, message: 'Test notification sent' });
+  } catch (error) {
+    logError('Push test error:', error);
+    res.status(500).json({ error: 'Failed to send test notification' });
   }
 });
 
@@ -1892,6 +2152,122 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
   });
 });
 
+// ==================== SEARCH ROUTES ====================
+
+// Search messages
+app.get('/api/search/messages', authenticateToken, async (req, res) => {
+  try {
+    const {
+      q,                    // search query
+      server_id,
+      channel_id,
+      user_id,
+      date_from,
+      date_to,
+      has_attachments,
+      limit = 50,
+      offset = 0
+    } = req.query;
+    
+    // Validate user has access to server/channel
+    if (server_id) {
+      const isMember = await serverDB.isMember(server_id, req.userId);
+      if (!isMember) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
+    if (channel_id) {
+      const channel = await channelDB.getById(channel_id);
+      if (channel) {
+        const isMember = await serverDB.isMember(channel.server_id, req.userId);
+        if (!isMember) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+      }
+    }
+    
+    const messages = await messageDB.searchMessages({
+      query: q,
+      serverId: server_id,
+      channelId: channel_id,
+      userId: user_id,
+      dateFrom: date_from,
+      dateTo: date_to,
+      hasAttachments: has_attachments === 'true' ? true : 
+                      has_attachments === 'false' ? false : null,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+    
+    const total = await messageDB.getSearchResultCount({
+      query: q,
+      serverId: server_id,
+      channelId: channel_id,
+      userId: user_id,
+      dateFrom: date_from,
+      dateTo: date_to,
+      hasAttachments: has_attachments === 'true' ? true : 
+                      has_attachments === 'false' ? false : null
+    });
+    
+    res.json({
+      messages,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: parseInt(offset) + messages.length < total
+      }
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Get search suggestions (autocomplete)
+app.get('/api/search/suggestions', authenticateToken, async (req, res) => {
+  try {
+    const { q, server_id } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+    
+    // Search for users
+    const users = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT id, username, avatar FROM users 
+         WHERE username LIKE ? 
+         LIMIT 5`,
+        [`%${q}%`],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+    
+    // Search for channels (if in server)
+    let channels = [];
+    if (server_id) {
+      channels = await channelDB.getByServer(server_id);
+      channels = channels.filter(c => 
+        c.name.toLowerCase().includes(q.toLowerCase())
+      ).slice(0, 5);
+    }
+    
+    res.json({
+      users,
+      channels
+    });
+  } catch (error) {
+    console.error('Suggestions error:', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
 // ==================== SOCKET.IO ====================
 
 // Track user connections - Map<userId, Set<socketId>>
@@ -1941,6 +2317,27 @@ function getUserSocket(userId) {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   
+  // Security: Socket Rate Limiting (BUG-003)
+  const socketRateLimits = new Map();
+
+  function checkSocketRateLimit(eventName, maxRequests = 30, windowMs = 60000) {
+    const key = `${socket.id}:${eventName}`;
+    const now = Date.now();
+    if (!socketRateLimits.has(key)) {
+      socketRateLimits.set(key, { count: 1, resetTime: now + windowMs });
+      return true;
+    }
+    const limit = socketRateLimits.get(key);
+    if (now > limit.resetTime) {
+      limit.count = 1; limit.resetTime = now + windowMs; return true;
+    }
+    if (limit.count >= maxRequests) {
+      socket.emit('rate_limited', { event: eventName, message: 'Too many requests' });
+      return false;
+    }
+    limit.count++; return true;
+  }
+  
   socket.on('authenticate', async (token) => {
     console.log('🔐 Authenticate attempt from socket:', socket.id);
     try {
@@ -1969,9 +2366,28 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('join_channel', (channelId) => {
-    socket.join(channelId);
-    console.log(`Socket ${socket.id} joined channel ${channelId}`);
+  // Security: Socket Auth & Membership (BUG-004, BUG-005)
+  socket.on('join_channel', async (channelId) => {
+    if (!socket.userId) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+    try {
+      const channel = await channelDB.getById(channelId);
+      if (!channel) {
+        socket.emit('error', { message: 'Channel not found' });
+        return;
+      }
+      const isMember = await serverDB.isMember(channel.server_id, socket.userId);
+      if (!isMember) {
+        socket.emit('error', { message: 'Not authorized' });
+        return;
+      }
+      socket.join(channelId);
+      console.log(`Socket ${socket.id} joined channel ${channelId}`);
+    } catch (error) {
+      socket.emit('error', { message: 'Failed to join channel' });
+    }
   });
   
   socket.on('leave_channel', (channelId) => {
@@ -1979,30 +2395,45 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} left channel ${channelId}`);
   });
   
+  // Security: Socket Auth & Membership with Rate Limiting (BUG-003, BUG-004, BUG-005, BUG-022)
   socket.on('send_message', async (data) => {
-    console.log('📨 send_message received:', JSON.stringify(data));
-    console.log('👤 socket.userId:', socket.userId);
+    if (!checkSocketRateLimit('send_message', 30, 60000)) {
+      socket.emit('message_error', createErrorResponse('send_message', 'Rate limit exceeded'));
+      return;
+    }
+    log('📨 send_message received:', JSON.stringify(data));
+    log('👤 socket.userId:', socket.userId);
     
     try {
       if (!socket.userId) {
-        console.error('❌ User not authenticated');
-        socket.emit('error', { message: 'Not authenticated' });
+        logError('❌ User not authenticated');
+        socket.emit('message_error', createErrorResponse('send_message', 'Not authenticated'));
         return;
       }
       
       const { channelId, content, replyTo, attachments } = data;
       
       if (!channelId) {
-        console.error('❌ No channelId provided');
-        socket.emit('error', { message: 'Channel ID required' });
+        logError('❌ No channelId provided');
+        socket.emit('message_error', createErrorResponse('send_message', 'Channel ID required'));
         return;
       }
       
-      console.log('💾 Creating message for channel:', channelId);
+      // Security: Check channel membership
+      const channel = await channelDB.getById(channelId);
+      if (!channel || !(await serverDB.isMember(channel.server_id, socket.userId))) {
+        socket.emit('message_error', createErrorResponse('send_message', 'Not authorized'));
+        return;
+      }
+      
+      // Security: Sanitize content
+      const sanitizedContent = sanitizeInput(content);
+      
+      log('💾 Creating message for channel:', channelId);
       const message = await messageDB.create(
         channelId, 
         socket.userId, 
-        content, 
+        sanitizedContent, 
         replyTo?.id || null,
         attachments || null
       );
@@ -2015,32 +2446,73 @@ io.on('connection', (socket) => {
         avatar: user.avatar
       };
       
-      console.log('✅ Message created:', message.id);
+      log('✅ Message created:', message.id);
       io.to(channelId).emit('new_message', message);
-      console.log('📢 Message broadcasted to channel:', channelId);
+      socket.emit('message_sent', createSuccessResponse({ messageId: message.id }, 'Message sent successfully'));
+      log('📢 Message broadcasted to channel:', channelId);
+      
+      // Send push notifications for mentions
+      try {
+        const mentionRegex = /@(\w+)/g;
+        const mentions = sanitizedContent.match(mentionRegex) || [];
+        
+        for (const mention of mentions) {
+          const username = mention.substring(1);
+          const mentionedUser = await userDB.findByUsername(username);
+          
+          if (mentionedUser && mentionedUser.id !== socket.userId) {
+            // Check if user has an active socket (is online)
+            const targetSocket = Array.from(io.sockets.sockets.values())
+              .find(s => s.userId === mentionedUser.id);
+            
+            if (!targetSocket && pushService.isConfigured()) {
+              await pushService.sendMentionNotification(
+                mentionedUser.id,
+                user.username,
+                channel.name,
+                sanitizedContent,
+                `/channels/${channel.server_id}/${channelId}`
+              );
+            }
+          }
+        }
+      } catch (pushError) {
+        logError('❌ Push notification error:', pushError);
+        // Don't fail the message send if push fails
+      }
     } catch (error) {
-      console.error('❌ Send message error:', error);
-      socket.emit('error', { message: 'Failed to send message', error: error.message });
+      logError('❌ Send message error:', error);
+      socket.emit('message_error', createErrorResponse('send_message', error.message || 'Failed to send message'));
     }
   });
   
+  // Security: Typing Rate Limit (BUG-015)
   socket.on('typing', async (data) => {
-    const { channelId } = data;
-    if (!socket.userId || !channelId) return;
-    
-    // Get user info for typing indicator
-    const user = await userDB.findById(socket.userId);
-    if (user) {
-      socket.to(channelId).emit('user_typing', {
-        userId: socket.userId,
-        username: user.username,
-        channelId
-      });
+    if (!checkSocketRateLimit('typing', 20, 10000)) {
+      socket.emit('error', { message: 'Typing rate limit exceeded' });
+      return;
+    }
+    try {
+      const { channelId } = data;
+      if (!socket.userId || !channelId) return;
+      
+      // Get user info for typing indicator
+      const user = await userDB.findById(socket.userId);
+      if (user) {
+        socket.to(channelId).emit('user_typing', {
+          userId: socket.userId,
+          username: user.username,
+          channelId
+        });
+      }
+    } catch (error) {
+      handleSocketError(socket, error, 'typing');
     }
   });
   
-  // Handle add reaction via socket
+  // Security: Rate Limiting for add reaction (BUG-003)
   socket.on('add_reaction', async (data) => {
+    if (!checkSocketRateLimit('add_reaction', 50, 60000)) return;
     try {
       const { messageId, emoji } = data;
       if (!socket.userId || !messageId || !emoji) return;
@@ -2063,13 +2535,22 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Handle remove reaction via socket
+  // Security: Reaction Ownership with Rate Limiting (BUG-003, BUG-010)
   socket.on('remove_reaction', async (data) => {
+    if (!checkSocketRateLimit('remove_reaction', 50, 60000)) return;
     try {
       const { messageId, emoji } = data;
       if (!socket.userId || !messageId || !emoji) return;
       
+      // Security: Check reaction ownership
+      const ownsReaction = await reactionDB.checkOwnership(messageId, socket.userId, emoji);
+      if (!ownsReaction) {
+        socket.emit('reaction_error', { message: 'Can only remove your own reactions' });
+        return;
+      }
+      
       await reactionDB.remove(messageId, socket.userId, emoji);
+      socket.emit('reaction_removed_success', { messageId, emoji });
       
       // Get message to find channel for targeted broadcast
       const message = await messageDB.getById(messageId);
@@ -2087,15 +2568,22 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Handle edit message via socket
+  // Handle edit message via socket (BUG-023: Edit Time Limit)
+  const EDIT_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
   socket.on('edit_message', async (data) => {
     try {
       const { messageId, content } = data;
-      if (!socket.userId || !messageId || !content) return;
+      if (!socket.userId || !messageId || !content) {
+        socket.emit('error', { message: 'Missing required fields' });
+        return;
+      }
       
       // Get message first to check ownership
       const message = await messageDB.getById(messageId);
-      if (!message) return;
+      if (!message) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
       
       // Only allow editing by message owner
       if (message.userId !== socket.userId) {
@@ -2103,13 +2591,23 @@ io.on('connection', (socket) => {
         return;
       }
       
+      // BUG-023: Check time limit
+      const messageAge = Date.now() - new Date(message.created_at || message.timestamp).getTime();
+      if (messageAge > EDIT_TIME_LIMIT) {
+        socket.emit('error', { message: 'Message can only be edited within 15 minutes' });
+        return;
+      }
+      
+      // Security: Sanitize content
+      const sanitizedContent = sanitizeInput(content);
+      
       // Update the message
-      const updatedMessage = await messageDB.update(messageId, content);
+      const updatedMessage = await messageDB.update(messageId, sanitizedContent);
       
       // Broadcast update to channel
       io.to(message.channelId).emit('message_edited', updatedMessage);
     } catch (error) {
-      console.error('Socket edit_message error:', error);
+      handleSocketError(socket, error, 'edit_message');
     }
   });
   
@@ -2152,7 +2650,7 @@ io.on('connection', (socket) => {
       // Broadcast deletion to channel
       io.to(message.channelId).emit('message_deleted', { messageId });
     } catch (error) {
-      console.error('Socket delete_message error:', error);
+      handleSocketError(socket, error, 'delete_message');
     }
   });
   
@@ -2166,14 +2664,18 @@ io.on('connection', (socket) => {
       
       // Emit to target user if online
       const targetSocket = getUserSocket(friendId);
+      const sender = await userDB.findById(socket.userId);
+      
       if (targetSocket) {
-        const sender = await userDB.findById(socket.userId);
         targetSocket.emit('friend_request_received', {
           requestId: request.id,
           userId: sender.id,
           username: sender.username,
           avatar: sender.avatar
         });
+      } else if (pushService.isConfigured()) {
+        // Send push notification if user is offline
+        await pushService.sendFriendRequestNotification(friendId, sender.username);
       }
       
       socket.emit('friend_request_sent', { success: true, requestId: request.id });
@@ -2298,10 +2800,10 @@ io.on('connection', (socket) => {
       return;
     }
     socket.join(`dm:${channelId}`);
-    console.log(`✅ Socket ${socket.id} (user ${socket.userId}) joined DM channel ${channelId}`);
+    console.log(`✅ Socket ${socket.id} (user ${socket.userId}) joined DM room: dm:${channelId}`);
     // Debug: Check room members
     const room = io.sockets.adapter.rooms.get(`dm:${channelId}`);
-    console.log(`Room dm:${channelId} now has ${room ? room.size : 0} members`);
+    console.log(`Room dm:${channelId} now has ${room ? room.size : 0} member(s)`);
     socket.emit('joined-dm-channel', { channelId, success: true });
   });
 

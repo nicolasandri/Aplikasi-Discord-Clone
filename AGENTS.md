@@ -2,26 +2,26 @@
 
 ## Project Overview
 
-**WorkGrid** is a Discord-like real-time team collaboration platform with web, mobile (Android), and desktop (Electron) support. The application features user authentication, server/channel management, real-time messaging with Socket.IO, file sharing, message reactions, reply functionality, message editing/deletion, direct messages, voice channels with WebRTC, and a Discord-inspired UI.
+**WorkGrid** adalah platform kolaborasi tim real-time mirip Discord dengan dukungan multi-platform: web, mobile (Android), dan desktop (Electron). Aplikasi ini memiliki fitur autentikasi JWT, manajemen server/channel, messaging real-time dengan Socket.IO, file sharing, reaksi pesan, reply, edit/hapus pesan, direct messages, voice channels dengan WebRTC, dan UI yang terinspirasi dari Discord.
 
-**Project Language:** User interface uses Indonesian (Bahasa Indonesia) for user-facing text.
+**Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
 
 ---
 
 ## Technology Stack
 
 ### Frontend (`/app`)
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 19.2.0 | UI framework with TypeScript |
-| Vite | 7.2.4 | Build tool and dev server |
+| Teknologi | Versi | Tujuan |
+|-----------|-------|--------|
+| React | 19.2.0 | UI framework dengan TypeScript |
+| Vite | 7.2.4 | Build tool dan dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
-| shadcn/ui | - | UI component library (New York style) |
+| shadcn/ui | - | UI component library (style: New York) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
-| Simple-Peer | 9.11.1 | WebRTC for voice |
+| Simple-Peer | 9.11.1 | WebRTC untuk voice |
 | Zod | 4.3.5 | Schema validation |
 | React Hook Form | 7.70.0 | Form handling |
 | Capacitor | 8.1.0 | Mobile (Android) builds |
@@ -29,13 +29,13 @@
 | Recharts | 2.15.4 | Data visualization |
 
 ### Backend (`/server`)
-| Technology | Version | Purpose |
-|------------|---------|---------|
+| Teknologi | Versi | Tujuan |
+|-----------|-------|--------|
 | Node.js | 18+ | Runtime |
 | Express | 4.18.2 | Web framework |
 | Socket.IO | 4.7.2 | Real-time WebSocket |
-| PostgreSQL | 15+ | Primary database (production) |
-| SQLite3 | 5.1.7 | Development database |
+| PostgreSQL | 15+ | Database utama (production) |
+| SQLite3 | 5.1.7 | Database development |
 | JWT | 9.0.3 | Authentication |
 | bcryptjs | 3.0.3 | Password hashing |
 | Multer | 2.0.2 | File uploads |
@@ -43,8 +43,8 @@
 | pg | 8.13.3 | PostgreSQL driver |
 
 ### Infrastructure
-| Technology | Purpose |
-|------------|---------|
+| Teknologi | Tujuan |
+|-----------|--------|
 | Docker | Containerization |
 | Docker Compose | Multi-container orchestration |
 | Nginx | Reverse proxy, load balancer |
@@ -59,7 +59,7 @@
 ├── app/                          # Frontend React application
 │   ├── src/
 │   │   ├── components/           # React components
-│   │   │   ├── ui/              # shadcn/ui components (50+)
+│   │   │   ├── ui/              # shadcn/ui components (53+)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display
 │   │   │   ├── ChannelList.tsx  # Server channels sidebar
@@ -74,7 +74,6 @@
 │   │   │   ├── TitleBar.tsx     # Electron custom title bar
 │   │   │   ├── Login.tsx        # Login page
 │   │   │   ├── Register.tsx     # Registration
-│   │   │   ├── FriendsPage.tsx  # Friends management
 │   │   │   ├── DMList.tsx       # Direct message channels
 │   │   │   ├── DMChatArea.tsx   # DM chat interface
 │   │   │   ├── MobileHeader.tsx # Mobile navigation
@@ -93,10 +92,11 @@
 │   │   │   ├── useBreakpoint.ts # Responsive breakpoints
 │   │   │   └── useNotification.ts # Notifications
 │   │   ├── types/
-│   │   │   ├── index.ts         # TypeScript interfaces
-│   │   │   └── voice.ts         # Voice channel types
+│   │   │   └── index.ts         # TypeScript interfaces
 │   │   ├── lib/
 │   │   │   └── utils.ts         # Utility functions (cn helper)
+│   │   ├── pages/
+│   │   │   └── InvitePage.tsx   # Invite acceptance page
 │   │   ├── App.tsx              # Root component
 │   │   ├── main.tsx             # Entry point
 │   │   ├── index.css            # Global styles (Discord theme)
@@ -112,6 +112,7 @@
 │   ├── tailwind.config.js       # Tailwind CSS config
 │   ├── vite.config.ts           # Vite configuration
 │   ├── tsconfig.json            # TypeScript config
+│   ├── Dockerfile               # Frontend Docker image
 │   └── package.json             # Dependencies
 │
 ├── server/                      # Backend Express server
@@ -120,7 +121,7 @@
 │   ├── database-postgres.js     # PostgreSQL database module
 │   ├── database-sqlite-backup.js
 │   ├── config/
-│   │   └── database.js          # PostgreSQL connection
+│   │   └── database.js          # PostgreSQL connection pool
 │   ├── middleware/
 │   │   └── permissions.js       # RBAC middleware
 │   ├── webrtc/
@@ -129,10 +130,6 @@
 │   │   ├── 001_initial_schema.sql
 │   │   ├── 002_migrate_sqlite_to_postgres.js
 │   │   └── setup-postgres.js
-│   ├── scripts/                 # Migration scripts
-│   │   ├── backup-sqlite.ps1
-│   │   ├── switch-to-postgres.ps1
-│   │   └── rollback-to-sqlite.ps1
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image
 │   └── package.json
@@ -158,6 +155,26 @@
 ---
 
 ## Build and Development Commands
+
+### Root Project (Docker Operations)
+
+```bash
+# Docker development
+npm run docker:up          # Start containers
+npm run docker:down        # Stop containers
+npm run docker:build       # Build images
+npm run docker:logs        # View logs
+npm run docker:ps          # Container status
+npm run docker:restart     # Restart containers
+npm run docker:clean       # Clean up volumes
+
+# Deployment
+npm run deploy             # Full deployment
+npm run backup             # Backup database
+npm run restore            # Restore database
+npm run update             # Update deployment
+npm run health             # Check health endpoint
+```
 
 ### Frontend (`/app`)
 
@@ -220,18 +237,6 @@ docker-compose up --build -d
 
 # Production (with load balancing)
 docker-compose -f docker-compose.prod.yml up -d
-
-# Using npm scripts from root
-npm run docker:up          # Start containers
-npm run docker:down        # Stop containers
-npm run docker:logs        # View logs
-npm run docker:clean       # Clean up volumes
-
-# Deployment
-npm run deploy             # Full deployment
-npm run backup             # Backup database
-npm run restore            # Restore database
-npm run update             # Update deployment
 ```
 
 ### Android APK Build
@@ -267,9 +272,6 @@ FRONTEND_URL=http://localhost
 
 # Node Environment
 NODE_ENV=production
-
-# Optional: Redis URL
-# REDIS_URL=redis://redis:6379
 ```
 
 ### Server `.env`
@@ -310,22 +312,22 @@ VITE_SOCKET_URL=https://your-domain.com
 ### TypeScript
 - **Target:** ES2022
 - **Strict mode:** Enabled
-- **Path aliases:** Use `@/` prefix for imports
+- **Path aliases:** Use `@/` prefix untuk imports
 
 ### Component Structure
-- Functional components with TypeScript interfaces
-- Props interfaces defined inline or in `types/index.ts`
-- shadcn/ui components follow: `src/components/ui/[component].tsx`
+- Functional components dengan TypeScript interfaces
+- Props interfaces didefinisikan inline atau di `types/index.ts`
+- shadcn/ui components mengikuti: `src/components/ui/[component].tsx`
 
 ### Styling
 - **Primary:** Tailwind CSS utility classes
-- **Custom:** CSS variables in `index.css` (Discord color scheme)
+- **Custom:** CSS variables di `index.css` (Discord color scheme)
 - **Variants:** Use `class-variance-authority` (cva)
-- **Utility:** Use `cn()` helper from `@/lib/utils`
+- **Utility:** Use `cn()` helper dari `@/lib/utils`
 
 ### Naming Conventions
 - Components: PascalCase (e.g., `ChatLayout.tsx`)
-- Hooks: camelCase with `use` prefix (e.g., `useSocket.ts`)
+- Hooks: camelCase dengan `use` prefix (e.g., `useSocket.ts`)
 - Utilities: camelCase (e.g., `utils.ts`)
 - Types/Interfaces: PascalCase (e.g., `User`, `Message`)
 
@@ -477,22 +479,22 @@ const Permissions = {
 
 ## Testing Strategy
 
-⚠️ **No test framework is currently configured**. Consider adding:
-- Vitest for unit testing
-- React Testing Library for component tests
-- Playwright or Cypress for E2E testing
+⚠️ **Belum ada test framework yang dikonfigurasi**. Pertimbangkan untuk menambahkan:
+- Vitest untuk unit testing
+- React Testing Library untuk component tests
+- Playwright atau Cypress untuk E2E testing
 
 ### Manual Testing Checklist
-- [ ] Register with valid email
-- [ ] Login with correct credentials
+- [ ] Register dengan email valid
+- [ ] Login dengan kredensial benar
 - [ ] Create new server
 - [ ] Create channels (text & voice)
 - [ ] Send text messages
 - [ ] Upload file attachments
-- [ ] Edit and delete messages
+- [ ] Edit dan delete messages
 - [ ] Add emoji reactions
 - [ ] Reply to messages
-- [ ] Add friend and accept request
+- [ ] Add friend dan accept request
 - [ ] Send DMs
 - [ ] Create channel categories
 - [ ] Test mobile viewport
@@ -500,19 +502,20 @@ const Permissions = {
 ### Test Real-time (2 Browser Test)
 1. Open http://localhost:5173 in Chrome
 2. Open http://localhost:5173 in Firefox/Chrome Incognito
-3. Login with 2 different accounts
-4. Send messages and verify real-time updates
+3. Login dengan 2 akun berbeda
+4. Send messages dan verify real-time updates
 
 ---
 
 ## Security Considerations
 
 ### Current Implementation
-- **Authentication:** JWT with Bearer token stored in localStorage (expires in 7 days)
-- **Password Hashing:** bcryptjs with 10 salt rounds
+- **Authentication:** JWT dengan Bearer token disimpan di localStorage (expires in 7 days)
+- **Password Hashing:** bcryptjs dengan 10 salt rounds
 - **File Uploads:** Limited to 10MB, MIME type filtering
-- **CORS:** Enabled for all origins (development-friendly)
+- **CORS:** Enabled untuk semua origins (development-friendly)
 - **Role-based Permissions:** Discord-like permission bitfield
+- **Input Validation:** Username (3-30 chars, alphanumeric + underscore), email format, password min 6 chars
 
 ### File Upload Restrictions
 Allowed MIME types:
@@ -520,7 +523,7 @@ Allowed MIME types:
 - Documents: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
 - Other: `text/plain`, `application/zip`
 
-### Known Security Issues (See docs/BUG_REPORT.md)
+### Known Security Issues (Lihat docs/BUG_REPORT.md)
 
 **Critical (Open):**
 - No rate limiting on API endpoints (brute force vulnerable)
@@ -533,11 +536,11 @@ Allowed MIME types:
 - No input sanitization (XSS risk)
 
 ### Production Recommendations
-1. Change default JWT secret to secure random string
+1. Change default JWT secret ke secure random string
 2. Implement HTTPS
 3. Add rate limiting (express-rate-limit)
-4. Review CORS policy for specific origins
-5. Add input validation middleware (zod or joi)
+4. Review CORS policy untuk specific origins
+5. Add input validation middleware (zod atau joi)
 6. Add file upload virus scanning
 7. Add socket event authorization checks
 
@@ -545,7 +548,7 @@ Allowed MIME types:
 
 ## shadcn/ui Components
 
-The project has 50+ shadcn/ui components installed in `app/src/components/ui/`:
+Project ini memiliki 53+ shadcn/ui components di `app/src/components/ui/`:
 
 ### Available Components
 - **Layout:** accordion, card, collapsible, resizable, scroll-area, separator, sheet, sidebar
@@ -572,10 +575,10 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 ```
 
 ### API URL Resolution
-- **Web:** Uses relative URLs or `VITE_API_URL` env var
+- **Web:** Uses relative URLs atau `VITE_API_URL` env var
 - **Electron:** Uses absolute URL `http://localhost:3001/api`
 
-This pattern is used in `AuthContext.tsx`, `useSocket.ts`, and `ChatLayout.tsx`.
+Pattern ini digunakan di `AuthContext.tsx`, `useSocket.ts`, dan `ChatLayout.tsx`.
 
 ---
 
@@ -586,7 +589,7 @@ This pattern is used in `AuthContext.tsx`, `useSocket.ts`, and `ChatLayout.tsx`.
 1. **Setup environment:**
    ```bash
    cp .env.example .env
-   # Edit .env with production values
+   # Edit .env dengan production values
    ```
 
 2. **Run deployment script:**
@@ -616,7 +619,7 @@ npm run restore
 
 ## Default Seed Data
 
-On first server start, the following seed data is created:
+Pada server pertama kali start, data berikut akan dibuat:
 - **Admin User:** `admin@workgrid.com` / `admin123`
 - **Default Server:** "WorkGrid Official"
 - **Default Channels:**
@@ -633,7 +636,6 @@ On first server start, the following seed data is created:
 - `docs/BUG_REPORT.md` - Detailed bug tracking
 - `docs/CHANGELOG.md` - Version history
 - `DOCKER_DEPLOYMENT_GUIDE.md` - Docker deployment instructions
-- `server/MIGRATION_GUIDE.md` - PostgreSQL migration guide
 - `AGENTS.md` - This file
 
 ---
@@ -644,22 +646,22 @@ On first server start, the following seed data is created:
 
 1. **Database connection errors:**
    - Check `.env` configuration
-   - Ensure PostgreSQL container is running: `docker-compose ps`
+   - Ensure PostgreSQL container running: `docker-compose ps`
    - Check logs: `docker-compose logs db`
 
 2. **Socket.IO connection issues:**
    - Verify `VITE_SOCKET_URL` environment variable
-   - Check firewall settings for port 3001
+   - Check firewall settings untuk port 3001
 
 3. **File upload failures:**
-   - Ensure `uploads` directory has proper permissions
+   - Ensure `uploads` directory memiliki proper permissions
    - Check file size limits (10MB default)
 
 4. **Electron build issues:**
    - Ensure `dist` folder exists: `npm run build`
-   - Check electron-builder configuration in `package.json`
+   - Check electron-builder configuration di `package.json`
 
 ### Getting Help
-- Check `docs/BUG_REPORT.md` for known issues
+- Check `docs/BUG_REPORT.md` untuk known issues
 - Review Docker logs: `docker-compose logs -f`
-- Check server logs in `server/` directory
+- Check server logs di `server/` directory

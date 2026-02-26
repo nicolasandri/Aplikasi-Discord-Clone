@@ -4,6 +4,7 @@ export interface User {
   email: string;
   avatar: string;
   status: 'online' | 'offline' | 'idle' | 'dnd';
+  displayName?: string;
 }
 
 export interface Server {

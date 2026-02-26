@@ -3,6 +3,9 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
+// BUG-024: Increase Salt Rounds for better security
+const SALT_ROUNDS = 12;
+
 const dbPath = path.join(__dirname, 'workgrid.db');
 const db = new sqlite3.Database(dbPath);
 
@@ -214,6 +217,13 @@ function initDatabase() {
       status TEXT DEFAULT 'offline',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Add display_name column if not exists (ignore error if already exists)
+    db.run(`ALTER TABLE users ADD COLUMN display_name TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding display_name column:', err);
+      }
+    });
 
     // Servers table
     db.run(`CREATE TABLE IF NOT EXISTS servers (
@@ -378,6 +388,18 @@ function initDatabase() {
       FOREIGN KEY (sender_id) REFERENCES users(id)
     )`);
 
+    // Push Subscriptions table
+    db.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(user_id, endpoint)
+    )`);
+
     console.log('✅ Database initialized');
     
     // Run migrations
@@ -438,7 +460,7 @@ function createDefaultRolesForServer(serverId) {
 // User operations
 const userDB = {
   async create(username, email, password) {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const id = uuidv4();
     const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
     
@@ -472,9 +494,12 @@ const userDB = {
     });
   },
 
-  async findById(id) {
+  async findById(id, includePassword = false) {
     return new Promise((resolve, reject) => {
-      db.get('SELECT id, username, email, avatar, status, created_at FROM users WHERE id = ?', [id], (err, row) => {
+      const fields = includePassword 
+        ? 'id, username, display_name, email, password, avatar, status, created_at'
+        : 'id, username, display_name, email, avatar, status, created_at';
+      db.get(`SELECT ${fields} FROM users WHERE id = ?`, [id], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -489,6 +514,10 @@ const userDB = {
       fields.push('username = ?');
       values.push(updates.username);
     }
+    if (updates.displayName !== undefined) {
+      fields.push('display_name = ?');
+      values.push(updates.displayName);
+    }
     if (updates.avatar) {
       fields.push('avatar = ?');
       values.push(updates.avatar);
@@ -497,6 +526,8 @@ const userDB = {
       fields.push('status = ?');
       values.push(updates.status);
     }
+    
+    if (fields.length === 0) return true;
     
     values.push(id);
     
@@ -513,7 +544,7 @@ const userDB = {
   },
 
   async updatePassword(id, newPassword) {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
     return new Promise((resolve, reject) => {
       db.run(
         'UPDATE users SET password = ? WHERE id = ?',
@@ -579,7 +610,7 @@ const serverDB = {
   async getMembers(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.avatar, u.status, sm.role, sm.role_id,
+        `SELECT u.id, u.username, u.display_name, u.avatar, u.status, sm.role, sm.role_id,
                 COALESCE(sr.name, sm.role) as role_name, 
                 COALESCE(sr.color, CASE 
                   WHEN sm.role = 'owner' THEN '#ffd700'
@@ -594,7 +625,14 @@ const serverDB = {
         [serverId],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else {
+            // Map display_name to displayName for frontend
+            rows.forEach(row => {
+              row.displayName = row.display_name;
+              delete row.display_name;
+            });
+            resolve(rows);
+          }
         }
       );
     });
@@ -610,6 +648,15 @@ const serverDB = {
           else resolve(row);
         }
       );
+    });
+  },
+
+  async isMember(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT 1 FROM server_members WHERE server_id = ? AND user_id = ?', 
+        [serverId, userId], (err, row) => {
+        if (err) reject(err); else resolve(!!row);
+      });
     });
   }
 };
@@ -932,6 +979,14 @@ const channelDB = {
     });
   },
 
+  async getById(channelId) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT * FROM channels WHERE id = ?', [channelId], (err, row) => {
+        if (err) reject(err); else resolve(row);
+      });
+    });
+  },
+
   async getUncategorized(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
@@ -1053,9 +1108,9 @@ const messageDB = {
   async getById(id) {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT m.*, u.id as user_id, u.username, u.avatar,
+        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
                 rm.id as reply_id, rm.content as reply_content,
-                ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
+                ru.id as reply_user_id, ru.username as reply_username, ru.display_name as reply_display_name, ru.avatar as reply_user_avatar
          FROM messages m
          JOIN users u ON m.user_id = u.id
          LEFT JOIN messages rm ON m.reply_to_id = rm.id
@@ -1073,10 +1128,11 @@ const messageDB = {
                   row.attachments = [];
                 }
               }
-              // Format user object
+              // Format user object with displayName
               row.user = {
                 id: row.user_id,
                 username: row.username,
+                displayName: row.display_name,
                 avatar: row.avatar
               };
               // Format replyTo object if exists
@@ -1087,6 +1143,7 @@ const messageDB = {
                   user: {
                     id: row.reply_user_id,
                     username: row.reply_username,
+                    displayName: row.reply_display_name,
                     avatar: row.reply_user_avatar
                   }
                 };
@@ -1099,6 +1156,7 @@ const messageDB = {
               // Clean up temp fields
               delete row.user_id;
               delete row.username;
+              delete row.display_name;
               delete row.avatar;
               delete row.channel_id;
               delete row.reply_to_id;
@@ -1107,6 +1165,7 @@ const messageDB = {
               delete row.reply_content;
               delete row.reply_user_id;
               delete row.reply_username;
+              delete row.reply_display_name;
               delete row.reply_user_avatar;
             }
             resolve(row);
@@ -1119,9 +1178,9 @@ const messageDB = {
   async getByChannel(channelId, limit = 50, offset = 0) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT m.*, u.id as user_id, u.username, u.avatar,
+        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
                 rm.id as reply_id, rm.content as reply_content,
-                ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar,
+                ru.id as reply_user_id, ru.username as reply_username, ru.display_name as reply_display_name, ru.avatar as reply_user_avatar,
                 (SELECT GROUP_CONCAT(emoji || ':' || COUNT || ':' || user_ids, ';')
                  FROM (
                    SELECT emoji, COUNT(*) as COUNT, GROUP_CONCAT(user_id) as user_ids
@@ -1168,10 +1227,11 @@ const messageDB = {
               }
               delete row.reactions_data;
               
-              // Format user object
+              // Format user object with displayName
               row.user = {
                 id: row.user_id,
                 username: row.username,
+                displayName: row.display_name,
                 avatar: row.avatar
               };
               // Format replyTo object if exists
@@ -1182,6 +1242,7 @@ const messageDB = {
                   user: {
                     id: row.reply_user_id,
                     username: row.reply_username,
+                    displayName: row.reply_display_name,
                     avatar: row.reply_user_avatar
                   }
                 };
@@ -1194,6 +1255,7 @@ const messageDB = {
               // Clean up temp fields
               delete row.user_id;
               delete row.username;
+              delete row.display_name;
               delete row.avatar;
               delete row.channel_id;
               delete row.reply_to_id;
@@ -1202,6 +1264,7 @@ const messageDB = {
               delete row.reply_content;
               delete row.reply_user_id;
               delete row.reply_username;
+              delete row.reply_display_name;
               delete row.reply_user_avatar;
             };
             resolve(rows.reverse());
@@ -1388,6 +1451,168 @@ const reactionDB = {
           }
         }
       );
+    });
+  },
+
+  async checkOwnership(messageId, userId, emoji) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT 1 FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?',
+        [messageId, userId, emoji], (err, row) => {
+        if (err) reject(err); else resolve(!!row);
+      });
+    });
+  },
+
+  // Message Search Feature
+  async searchMessages(options) {
+    const {
+      serverId = null,
+      channelId = null,
+      userId = null,
+      query = '',
+      dateFrom = null,
+      dateTo = null,
+      hasAttachments = null,
+      limit = 50,
+      offset = 0
+    } = options;
+    
+    return new Promise((resolve, reject) => {
+      let sql = `
+        SELECT 
+          m.id,
+          m.content,
+          m.created_at,
+          m.reply_to_id,
+          m.attachments,
+          u.id as user_id,
+          u.username,
+          u.avatar,
+          c.id as channel_id,
+          c.name as channel_name,
+          c.server_id
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        JOIN channels c ON m.channel_id = c.id
+        WHERE 1=1
+      `;
+      const params = [];
+      
+      // Search by content (case-insensitive)
+      if (query) {
+        sql += ` AND m.content LIKE ?`;
+        params.push(`%${query}%`);
+      }
+      
+      // Filter by server
+      if (serverId) {
+        sql += ` AND c.server_id = ?`;
+        params.push(serverId);
+      }
+      
+      // Filter by channel
+      if (channelId) {
+        sql += ` AND m.channel_id = ?`;
+        params.push(channelId);
+      }
+      
+      // Filter by user
+      if (userId) {
+        sql += ` AND m.user_id = ?`;
+        params.push(userId);
+      }
+      
+      // Date range
+      if (dateFrom) {
+        sql += ` AND m.created_at >= ?`;
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        sql += ` AND m.created_at <= ?`;
+        params.push(dateTo);
+      }
+      
+      // Has attachments
+      if (hasAttachments !== null) {
+        sql += hasAttachments 
+          ? ` AND m.attachments IS NOT NULL AND m.attachments != ''`
+          : ` AND (m.attachments IS NULL OR m.attachments = '')`;
+      }
+      
+      // Order by date (newest first)
+      sql += ` ORDER BY m.created_at DESC`;
+      
+      // Pagination
+      sql += ` LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+      
+      db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  async getSearchResultCount(options) {
+    const {
+      serverId = null,
+      channelId = null,
+      userId = null,
+      query = '',
+      dateFrom = null,
+      dateTo = null,
+      hasAttachments = null
+    } = options;
+    
+    return new Promise((resolve, reject) => {
+      let sql = `
+        SELECT COUNT(*) as count
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        JOIN channels c ON m.channel_id = c.id
+        WHERE 1=1
+      `;
+      const params = [];
+      
+      if (query) {
+        sql += ` AND m.content LIKE ?`;
+        params.push(`%${query}%`);
+      }
+      
+      if (serverId) {
+        sql += ` AND c.server_id = ?`;
+        params.push(serverId);
+      }
+      
+      if (channelId) {
+        sql += ` AND m.channel_id = ?`;
+        params.push(channelId);
+      }
+      
+      if (userId) {
+        sql += ` AND m.user_id = ?`;
+        params.push(userId);
+      }
+      
+      if (dateFrom) {
+        sql += ` AND m.created_at >= ?`;
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        sql += ` AND m.created_at <= ?`;
+        params.push(dateTo);
+      }
+      
+      if (hasAttachments !== null) {
+        sql += hasAttachments 
+          ? ` AND m.attachments IS NOT NULL AND m.attachments != ''`
+          : ` AND (m.attachments IS NULL OR m.attachments = '')`;
+      }
+      
+      db.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row?.count || 0);
+      });
     });
   }
 };
@@ -1976,12 +2201,71 @@ const dmDB = {
   }
 };
 
+// Push Subscriptions database operations
+const subscriptionDB = {
+  async create(userId, subscription) {
+    const id = uuidv4();
+    const { endpoint, keys } = subscription;
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT OR REPLACE INTO push_subscriptions (id, user_id, endpoint, p256dh, auth) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, userId, endpoint, keys.p256dh, keys.auth],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, userId, endpoint });
+        }
+      );
+    });
+  },
+
+  async remove(userId, endpoint) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?',
+        [userId, endpoint],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  async getByUser(userId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM push_subscriptions WHERE user_id = ?',
+        [userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  async removeAllByUser(userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM push_subscriptions WHERE user_id = ?',
+        [userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true });
+        }
+      );
+    });
+  }
+};
+
 // Dummy pool for compatibility with PostgreSQL interface
 const pool = { query: () => Promise.resolve({ rows: [] }) };
 
 module.exports = {
   pool,
   db,
+  subscriptionDB,
   initDatabase,
   userDB,
   serverDB,

@@ -235,8 +235,10 @@ export function ServerList({
   }
 
   return (
-    <div className="w-[72px] bg-[#202225] flex flex-col items-center py-3 gap-2 overflow-y-auto">
-      {/* Direct Messages / Friends Button */}
+    <div className="w-[72px] bg-[#202225] flex flex-col h-full">
+      {/* Scrollable Server Area */}
+      <div className="flex-1 flex flex-col items-center py-3 gap-2 overflow-y-auto min-h-0">
+        {/* Direct Messages / Friends Button */}
       <div className="relative group">
         <button
           onClick={handleDMClick}
@@ -370,6 +372,7 @@ export function ServerList({
       <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#3ba55d] flex items-center justify-center transition-all duration-200 group">
         <Download className="w-6 h-6 text-[#3ba55d] group-hover:text-white transition-colors" />
       </button>
+      </div>
     </div>
   );
 }

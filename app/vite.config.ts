@@ -6,6 +6,19 @@ import { defineConfig } from "vite"
 export default defineConfig({
   base: './',
   plugins: [react()],
+  optimizeDeps: {
+    include: [
+      '@tiptap/react',
+      '@tiptap/starter-kit',
+      '@tiptap/extension-mention',
+      '@tiptap/extension-placeholder',
+      '@tiptap/suggestion',
+      'tippy.js',
+      'emoji-mart',
+      '@emoji-mart/data'
+    ],
+    exclude: []
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -3,6 +3,12 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Message } from '@/types';
 
+// BUG-021: Conditional logging
+const DEBUG = process.env.NODE_ENV !== 'production';
+function log(...args: any[]) {
+  if (DEBUG) console.log(...args);
+}
+
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
@@ -41,6 +47,26 @@ export function useSocket(
   // Track timeout IDs for cleanup
   const typingTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // BUG-020: Use ref for callbacks to prevent stale closure
+  const callbacksRef = useRef({
+    onMessage,
+    onReactionUpdate,
+    onMessageEdit,
+    onMessageDelete,
+    onStatusChange
+  });
+
+  // Update ref when callbacks change
+  useEffect(() => {
+    callbacksRef.current = {
+      onMessage,
+      onReactionUpdate,
+      onMessageEdit,
+      onMessageDelete,
+      onStatusChange
+    };
+  }, [onMessage, onReactionUpdate, onMessageEdit, onMessageDelete, onStatusChange]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -56,7 +82,7 @@ export function useSocket(
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket.id);
+      log('✅ Socket connected:', socket.id);
       setIsConnected(true);
       socket.emit('authenticate', token);
       // Expose socket to window for DMChatArea and other components
@@ -80,21 +106,22 @@ export function useSocket(
     });
 
     socket.on('new_message', (message: Message) => {
-      if (onMessage) {
-        onMessage(message);
+      // BUG-020: Use callbacksRef to prevent stale closure
+      if (callbacksRef.current.onMessage) {
+        callbacksRef.current.onMessage(message);
       }
     });
 
     // Listen for reaction updates
     socket.on('reaction_added', (data: { messageId: string; reactions: any[] }) => {
-      if (onReactionUpdate) {
-        onReactionUpdate(data);
+      if (callbacksRef.current.onReactionUpdate) {
+        callbacksRef.current.onReactionUpdate(data);
       }
     });
 
     socket.on('reaction_removed', (data: { messageId: string; reactions: any[] }) => {
-      if (onReactionUpdate) {
-        onReactionUpdate(data);
+      if (callbacksRef.current.onReactionUpdate) {
+        callbacksRef.current.onReactionUpdate(data);
       }
     });
 
@@ -114,28 +141,28 @@ export function useSocket(
 
     // Listen for message edits
     socket.on('message_edited', (message: Message) => {
-      if (onMessageEdit) {
-        onMessageEdit(message);
+      if (callbacksRef.current.onMessageEdit) {
+        callbacksRef.current.onMessageEdit(message);
       }
     });
 
     // Listen for message deletions
     socket.on('message_deleted', (data: { messageId: string }) => {
-      if (onMessageDelete) {
-        onMessageDelete(data);
+      if (callbacksRef.current.onMessageDelete) {
+        callbacksRef.current.onMessageDelete(data);
       }
     });
 
     // Listen for user status changes
     socket.on('user_status_changed', (data: { userId: string; status: string }) => {
-      console.log('useSocket: User status changed:', data);
+      log('useSocket: User status changed:', data);
       setUserStatuses(prev => {
         const newMap = new Map(prev);
         newMap.set(data.userId, data.status);
         return newMap;
       });
-      if (onStatusChange) {
-        onStatusChange(data);
+      if (callbacksRef.current.onStatusChange) {
+        callbacksRef.current.onStatusChange(data);
       }
     });
 
@@ -152,7 +179,7 @@ export function useSocket(
       // Disconnect socket
       socket.disconnect();
     };
-  }, [token, onMessage, onReactionUpdate, onMessageEdit, onMessageDelete]);
+  }, [token]); // BUG-020: Only depend on token, callbacks are accessed via ref
 
   const joinChannel = useCallback((channelId: string) => {
     if (socketRef.current) {

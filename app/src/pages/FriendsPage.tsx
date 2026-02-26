@@ -138,40 +138,84 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     loadData();
   }, [fetchFriends, fetchPendingRequests, fetchBlockedUsers]);
 
-  // Listen for socket events
+  // Polling for sync between desktop and web (every 5 seconds)
   useEffect(() => {
-    const socket = (window as any).socket;
-    if (!socket) return;
+    const interval = setInterval(() => {
+      if (!isLoading) {
+        Promise.all([fetchFriends(), fetchPendingRequests()]);
+      }
+    }, 5000);
 
-    const handleFriendRequestReceived = (data: { requestId: string; userId: string; username: string; avatar: string }) => {
-      toast({
-        title: 'Permintaan Pertemanan Baru',
-        description: `${data.username} ingin berteman dengan Anda`,
-      });
-      fetchPendingRequests();
+    return () => clearInterval(interval);
+  }, [fetchFriends, fetchPendingRequests, isLoading]);
+
+  // Listen for socket events - with retry mechanism for Electron
+  useEffect(() => {
+    let socket = (window as any).socket;
+    let retryInterval: ReturnType<typeof setInterval> | null = null;
+    let isSubscribed = false;
+
+    const setupListeners = (s: any) => {
+      if (!s || isSubscribed) return;
+      isSubscribed = true;
+
+      const handleFriendRequestReceived = (data: { requestId: string; userId: string; username: string; avatar: string }) => {
+        toast({
+          title: 'Permintaan Pertemanan Baru',
+          description: `${data.username} ingin berteman dengan Anda`,
+        });
+        fetchPendingRequests();
+      };
+
+      const handleFriendRequestAccepted = (data: { friendId: string; username: string }) => {
+        toast({
+          title: 'Permintaan Diterima',
+          description: `${data.username} menerima permintaan pertemanan Anda`,
+        });
+        fetchFriends();
+        fetchPendingRequests();
+      };
+
+      const handleFriendRemoved = (_data: { friendId: string }) => {
+        fetchFriends();
+      };
+
+      s.on('friend_request_received', handleFriendRequestReceived);
+      s.on('friend_request_accepted', handleFriendRequestAccepted);
+      s.on('friend_removed', handleFriendRemoved);
+
+      console.log('✅ FriendsPage: Socket listeners attached');
+
+      return () => {
+        s.off('friend_request_received', handleFriendRequestReceived);
+        s.off('friend_request_accepted', handleFriendRequestAccepted);
+        s.off('friend_removed', handleFriendRemoved);
+        isSubscribed = false;
+      };
     };
 
-    const handleFriendRequestAccepted = (data: { friendId: string; username: string }) => {
-      toast({
-        title: 'Permintaan Diterima',
-        description: `${data.username} menerima permintaan pertemanan Anda`,
-      });
-      fetchFriends();
-      fetchPendingRequests();
-    };
+    // Try to setup immediately
+    let cleanup = setupListeners(socket);
 
-    const handleFriendRemoved = (_data: { friendId: string }) => {
-      fetchFriends();
-    };
-
-    socket.on('friend_request_received', handleFriendRequestReceived);
-    socket.on('friend_request_accepted', handleFriendRequestAccepted);
-    socket.on('friend_removed', handleFriendRemoved);
+    // If socket not available, retry every 1 second (for Electron)
+    if (!socket) {
+      console.log('⏳ FriendsPage: Socket not ready, retrying...');
+      retryInterval = setInterval(() => {
+        socket = (window as any).socket;
+        if (socket) {
+          console.log('✅ FriendsPage: Socket found, attaching listeners');
+          cleanup = setupListeners(socket);
+          if (retryInterval) {
+            clearInterval(retryInterval);
+            retryInterval = null;
+          }
+        }
+      }, 1000);
+    }
 
     return () => {
-      socket.off('friend_request_received', handleFriendRequestReceived);
-      socket.off('friend_request_accepted', handleFriendRequestAccepted);
-      socket.off('friend_removed', handleFriendRemoved);
+      if (cleanup) cleanup();
+      if (retryInterval) clearInterval(retryInterval);
     };
   }, [fetchFriends, fetchPendingRequests, toast]);
 

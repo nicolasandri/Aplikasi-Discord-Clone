@@ -197,3 +197,213 @@
 .status-offline {
   background-color: #747f8d;
 }
+
+/* Message highlight animation for search jump-to */
+@keyframes highlightPulse {
+  0% { background-color: rgba(88, 101, 242, 0.3); }
+  50% { background-color: rgba(88, 101, 242, 0.5); }
+  100% { background-color: transparent; }
+}
+
+.highlight-message {
+  animation: highlightPulse 2s ease-out;
+  border-radius: 4px;
+}
+
+/* Lightbox styles */
+.lightbox-image {
+  transition: transform 0.2s ease-out;
+}
+
+.lightbox-image.grabbing {
+  cursor: grabbing;
+}
+
+/* Video play button triangle */
+.border-l-12 {
+  border-left-width: 12px;
+}
+
+/* Smooth transitions for lightbox */
+.lightbox-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.lightbox-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.lightbox-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.lightbox-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+/* Thumbnail scrollbar styling */
+.lightbox-thumbnails::-webkit-scrollbar {
+  height: 4px;
+}
+
+.lightbox-thumbnails::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lightbox-thumbnails::-webkit-scrollbar-thumb {
+  background: #5865f2;
+  border-radius: 2px;
+}
+
+/* Rich Text Editor Styles */
+.ProseMirror {
+  outline: none;
+  min-height: 20px;
+}
+
+.ProseMirror p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #6b7280;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Markdown styles */
+.ProseMirror strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror code {
+  background: #2B2D31;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #b9bbbe;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid #5865F2;
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: #b9bbbe;
+  font-style: italic;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ProseMirror li {
+  margin: 0.25em 0;
+}
+
+.ProseMirror li > p {
+  margin: 0;
+}
+
+/* Mention styles */
+.ProseMirror .mention {
+  background: rgba(88, 101, 242, 0.2);
+  color: #5865F2;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ProseMirror .mention:hover {
+  background: rgba(88, 101, 242, 0.3);
+}
+
+/* Editor focus styles */
+.ProseMirror-focused {
+  outline: none;
+}
+
+/* Editor scrollbar */
+.ProseMirror::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ProseMirror::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ProseMirror::-webkit-scrollbar-thumb {
+  background: #404249;
+  border-radius: 3px;
+}
+
+.ProseMirror::-webkit-scrollbar-thumb:hover {
+  background: #4f545c;
+}
+
+/* Tippy.js styles for mention dropdown */
+.tippy-box {
+  background: transparent;
+}
+
+.tippy-content {
+  padding: 0;
+}
+
+/* Strike through styles */
+.ProseMirror s,
+.ProseMirror strike {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+/* Selection styles */
+.ProseMirror ::selection {
+  background: rgba(88, 101, 242, 0.3);
+  color: #ffffff;
+}
+
+/* Editor disabled state */
+.ProseMirror-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Tippy.js styles */
+@import 'tippy.js/dist/tippy.css';
+
+.tippy-box {
+  background-color: #2B2D31;
+  border: 1px solid #1E1F22;
+}
+
+.tippy-content {
+  padding: 0;
+}
+
+.tippy-arrow {
+  color: #2B2D31;
+}
