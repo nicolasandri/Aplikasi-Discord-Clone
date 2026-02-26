@@ -123,7 +123,7 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
                   alt={user.displayName || user.username}
                   className="w-16 h-16 rounded-full object-cover border-4 border-[#18191c] bg-[#36393f]"
                   onError={(e) => {
-                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+                    (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
                   }}
                 />
                 {/* Status Badge */}

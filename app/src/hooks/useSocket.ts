@@ -1,10 +1,11 @@
+/// <reference types="node" />
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Message } from '@/types';
 
 // BUG-021: Conditional logging
-const DEBUG = process.env.NODE_ENV !== 'production';
+const DEBUG = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 function log(...args: any[]) {
   if (DEBUG) console.log(...args);
 }

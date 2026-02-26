@@ -434,12 +434,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       }
     };
     
-    const handleAvatarUpdated = (e: CustomEvent) => {
+    const handleAvatarUpdated = () => {
       // Force update avatar version when avatar is updated
       setAvatarVersion(Date.now());
     };
     
-    const handleDisplayNameUpdated = (e: CustomEvent) => {
+    const handleDisplayNameUpdated = () => {
       // Force re-render when display name is updated
       setAvatarVersion(Date.now()); // Using avatarVersion as a general refresh trigger
     };

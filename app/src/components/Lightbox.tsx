@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, FileText } from 'lucide-react';
+import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 
 interface Attachment {
   id: string;

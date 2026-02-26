@@ -1,3 +1,5 @@
+@import 'tippy.js/dist/tippy.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -393,8 +395,6 @@
 }
 
 /* Tippy.js styles */
-@import 'tippy.js/dist/tippy.css';
-
 .tippy-box {
   background-color: #2B2D31;
   border: 1px solid #1E1F22;

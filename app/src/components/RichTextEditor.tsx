@@ -176,9 +176,9 @@ export function RichTextEditor({
                   getReferenceClientRect: props.clientRect as () => DOMRect
                 });
               },
-              onKeyDown: (props: SuggestionProps) => {
+              onKeyDown: (props): boolean => {
                 if (props.event.key === 'Escape') {
-                  popup[0].hide();
+                  popup?.[0]?.hide();
                   return true;
                 }
                 return component.ref?.onKeyDown?.(props.event) || false;
@@ -201,7 +201,7 @@ export function RichTextEditor({
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[20px] max-h-[200px] overflow-y-auto px-3 py-2'
       },
-      handleKeyDown: (view, event) => {
+      handleKeyDown: (_view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault();
           onSubmit?.();

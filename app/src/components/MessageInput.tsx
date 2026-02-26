@@ -32,7 +32,7 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>(
-  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId, channelId }, ref) => {
+  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId, channelId: _channelId }, ref) => {
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -93,7 +93,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
 
   const handleEmojiSelect = (emoji: string) => {
     setMessage(prev => prev + emoji);
-    textareaRef.current?.focus();
+    // Focus will be handled by RichTextEditor
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
