@@ -21,6 +21,7 @@ export function usePush() {
     isSubscribed: false,
     permission: 'default'
   });
+  const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function usePush() {
     }
 
     try {
+      setError(null);
       // Request permission
       const permissionResult = await Notification.requestPermission();
       setState(prev => ({ ...prev, permission: permissionResult }));
@@ -65,6 +67,10 @@ export function usePush() {
       });
       
       if (!response.ok) {
+        if (response.status === 503 || response.status === 500) {
+          setError('Push notifications not configured on server');
+          return { success: false, error: 'Push notifications not configured on server' };
+        }
         const error = await response.json();
         return { success: false, error: error.error || 'Failed to get VAPID key' };
       }
@@ -72,6 +78,7 @@ export function usePush() {
       const { publicKey } = await response.json();
       
       if (!publicKey) {
+        setError('Push notifications not configured on server');
         return { success: false, error: 'Push notifications not configured on server' };
       }
 
@@ -97,10 +104,15 @@ export function usePush() {
       }
 
       setState(prev => ({ ...prev, isSubscribed: true }));
+      setError(null);
       return { success: true };
     } catch (error) {
       console.error('Subscribe error:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMsg.includes('not configured')) {
+        setError('Push notifications not configured on server');
+      }
+      return { success: false, error: errorMsg };
     }
   }, [token]);
 
@@ -160,6 +172,7 @@ export function usePush() {
 
   return {
     ...state,
+    error,
     subscribe,
     unsubscribe,
     testNotification
