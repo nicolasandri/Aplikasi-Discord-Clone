@@ -88,16 +88,21 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
       if (!response.ok) throw new Error('Search failed');
       
       const data = await response.json();
+      console.log('Search response:', data);
+      
+      // Handle both old and new response format
+      const messages = data.messages || data.results || [];
+      const pagination = data.pagination || { total: messages.length, hasMore: false };
       
       if (resetOffset) {
-        setResults(data.messages);
+        setResults(messages);
       } else {
-        setResults(prev => [...prev, ...data.messages]);
+        setResults(prev => [...prev, ...messages]);
       }
       
-      setHasMore(data.pagination.hasMore);
-      setTotal(data.pagination.total);
-      setOffset(newOffset + data.messages.length);
+      setHasMore(pagination.hasMore);
+      setTotal(pagination.total);
+      setOffset(newOffset + messages.length);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
@@ -109,12 +114,13 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.trim() || filters.userId) {
+        console.log('Searching with:', { query, serverId, channelId });
         search(true);
       }
     }, 300);
     
     return () => clearTimeout(timer);
-  }, [query, filters]);
+  }, [query, filters, serverId, channelId]);
   
   // Focus input when modal opens
   useEffect(() => {

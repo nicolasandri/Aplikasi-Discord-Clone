@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CategoryItem } from './CategoryItem';
 import { CreateCategoryModal } from './CreateCategoryModal';
 import { RenameCategoryModal } from './RenameCategoryModal';
+import { CreateChannelModal } from './CreateChannelModal';
 import type { Channel, Server, Category } from '@/types';
 
 interface ChannelListProps {
@@ -31,6 +32,8 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [canManage, setCanManage] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateChannelModalOpen, setIsCreateChannelModalOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [renameCategory, setRenameCategory] = useState<Category | null>(null);
   const { user } = useAuth();
   const token = localStorage.getItem('token');
@@ -124,8 +127,8 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   };
 
   const handleCreateChannel = (categoryId: string) => {
-    // TODO: Implement create channel modal
-    console.log('Create channel in category:', categoryId);
+    setSelectedCategoryId(categoryId);
+    setIsCreateChannelModalOpen(true);
   };
 
   if (!server) {
@@ -145,7 +148,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
           <div className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#34373c] cursor-pointer">
             <img
               src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
-              alt={user?.username}
+              alt={user?.displayName || user?.username}
               className="w-8 h-8 rounded-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -153,7 +156,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
               }}
             />
             <div className="flex flex-col">
-              <span className="text-white text-sm font-medium truncate max-w-[100px]">{user?.username}</span>
+              <span className="text-white text-sm font-medium truncate max-w-[100px]">{user?.displayName || user?.username}</span>
               <span className="text-[#b9bbbe] text-xs">Online</span>
             </div>
           </div>
@@ -217,13 +220,25 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
         ))}
 
         {/* Uncategorized Channels */}
-        {uncategorizedChannels.length > 0 && (
+        {(uncategorizedChannels.length > 0 || canManage) && (
           <div className="mb-2">
-            <div className="flex items-center px-2 py-1 text-[#96989d]">
+            <div className="flex items-center px-2 py-1 text-[#96989d] group">
               <ChevronDown className="w-3 h-3 mr-1" />
               <span className="text-xs font-semibold uppercase tracking-wide flex-1">
                 LAINNYA
               </span>
+              {canManage && (
+                <button
+                  onClick={() => {
+                    setSelectedCategoryId(null);
+                    setIsCreateChannelModalOpen(true);
+                  }}
+                  className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Buat Channel"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
             </div>
             <div className="mt-0.5">
               {uncategorizedChannels.map((channel) => (
@@ -271,7 +286,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
         >
           <img
             src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
-            alt={user?.username}
+            alt={user?.displayName || user?.username}
             className="w-8 h-8 rounded-full object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
@@ -279,7 +294,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             }}
           />
           <div className="flex flex-col min-w-0">
-            <span className="text-white text-sm font-medium truncate">{user?.username}</span>
+            <span className="text-white text-sm font-medium truncate">{user?.displayName || user?.username}</span>
             <span className="text-[#b9bbbe] text-xs">Online</span>
           </div>
         </div>
@@ -305,6 +320,17 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
         onClose={() => setIsCreateModalOpen(false)}
         serverId={server.id}
         onCategoryCreated={fetchCategories}
+      />
+
+      <CreateChannelModal
+        isOpen={isCreateChannelModalOpen}
+        onClose={() => {
+          setIsCreateChannelModalOpen(false);
+          setSelectedCategoryId(null);
+        }}
+        serverId={server.id}
+        categoryId={selectedCategoryId}
+        onChannelCreated={fetchCategories}
       />
 
       {renameCategory && (

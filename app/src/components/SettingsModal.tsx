@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
   X, User, Bell, Shield, LogOut, Camera,
-  Search, Star, Database, Link, Smartphone, Gift, CreditCard, Brush, Check, Eye, EyeOff
+  Search, Star, Database, Link, Smartphone, Gift, CreditCard, Brush, Check, Eye, EyeOff,
+  ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { NotificationSettings } from './NotificationSettings';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 const API_URL = isElectron 
@@ -23,7 +25,9 @@ type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'con
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, logout, updateUser } = useAuth();
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
+  const [showMobileMenu, setShowMobileMenu] = useState(true);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +50,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   // Update displayName when user changes
   useEffect(() => {
     setDisplayName(user?.displayName || user?.username || '');
-  }, [user]);
+  }, [user?.displayName, user?.username]);
+
+  // Listen for display name and avatar updates from other components
+  useEffect(() => {
+    const handleDisplayNameUpdate = (e: CustomEvent<{ displayName: string }>) => {
+      if (e.detail.displayName && user) {
+        updateUser({ ...user, displayName: e.detail.displayName });
+        setDisplayName(e.detail.displayName);
+      }
+    };
+
+    const handleAvatarUpdate = (e: CustomEvent<{ avatar: string }>) => {
+      if (e.detail.avatar) {
+        setAvatarVersion(Date.now());
+        if (user) {
+          updateUser({ ...user, avatar: e.detail.avatar });
+        }
+      }
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' && e.newValue) {
+        try {
+          const updatedUser = JSON.parse(e.newValue);
+          if (user && updatedUser.id === user.id) {
+            updateUser(updatedUser);
+            setDisplayName(updatedUser.displayName || updatedUser.username || '');
+            if (updatedUser.avatar !== user.avatar) {
+              setAvatarVersion(Date.now());
+            }
+          }
+        } catch (err) {
+          console.error('Failed to parse user from storage:', err);
+        }
+      }
+    };
+
+    window.addEventListener('displayname-updated', handleDisplayNameUpdate as EventListener);
+    window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('displayname-updated', handleDisplayNameUpdate as EventListener);
+      window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [user, updateUser]);
 
   // Extract username from email (part before @)
   const getUsernameFromEmail = (email: string | undefined) => {
@@ -76,17 +126,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       });
 
       if (response.ok) {
+        const updatedDisplayName = displayName.trim();
+        
+        // Update localStorage first
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        storedUser.displayName = displayName.trim();
+        storedUser.displayName = updatedDisplayName;
         localStorage.setItem('user', JSON.stringify(storedUser));
         
+        // Update auth context
         if (user) {
-          updateUser({ ...user, displayName: displayName.trim() });
+          updateUser({ ...user, displayName: updatedDisplayName });
         }
+        
         setSuccess('Display name updated successfully!');
         setEditingDisplayName(false);
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new CustomEvent('displayname-updated', { detail: { displayName: displayName.trim() } }));
+        
+        // Dispatch custom event to notify all components
+        window.dispatchEvent(new CustomEvent('displayname-updated', { 
+          detail: { displayName: updatedDisplayName } 
+        }));
+        
         setTimeout(() => setSuccess(''), 3000);
       } else {
         const errData = await response.json().catch(() => ({}));
@@ -182,17 +241,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Update localStorage first
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
         storedUser.avatar = data.avatar;
         localStorage.setItem('user', JSON.stringify(storedUser));
         
+        // Update auth context
         if (user) {
           updateUser({ ...user, avatar: data.avatar });
         }
+        
         // Update avatar version to force reload
         setAvatarVersion(Date.now());
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new CustomEvent('avatar-updated', { detail: { avatar: data.avatar } }));
+        
+        // Dispatch custom event to notify all components
+        window.dispatchEvent(new CustomEvent('avatar-updated', { 
+          detail: { avatar: data.avatar } 
+        }));
+        
         setSuccess('Avatar updated successfully!');
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -237,6 +304,182 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   if (!isOpen) return null;
 
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[100] w-full h-full bg-[#36393f] flex flex-col overflow-hidden">
+        {/* Mobile Header */}
+        <div className="h-14 px-4 flex items-center justify-between border-b border-[#202225] bg-[#2f3136] flex-shrink-0">
+          {showMobileMenu ? (
+            <>
+              <div className="flex items-center gap-3">
+                <img
+                  src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+                  alt={user?.displayName || user?.username}
+                  className="w-9 h-9 rounded-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`;
+                  }}
+                />
+                <div>
+                  <p className="text-white font-semibold text-base">{user?.displayName || user?.username}</p>
+                  <p className="text-[#b9bbbe] text-xs">Pengaturan</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-10 h-10 flex items-center justify-center text-[#b9bbbe] hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowMobileMenu(true)}
+                className="flex items-center gap-2 text-[#b9bbbe] hover:text-white"
+              >
+                <ChevronLeft className="w-5 h-5" />
+                <span className="text-sm">Kembali</span>
+              </button>
+              <h2 className="text-white font-semibold text-base">
+                {activeTab === 'account' && 'Akun Saya'}
+                {activeTab === 'notifications' && 'Notifikasi'}
+                {activeTab === 'privacy' && 'Privasi'}
+                {activeTab === 'appearance' && 'Tampilan'}
+                {activeTab === 'connections' && 'Koneksi'}
+                {activeTab === 'devices' && 'Perangkat'}
+              </h2>
+              <button
+                onClick={onClose}
+                className="w-10 h-10 flex items-center justify-center text-[#b9bbbe] hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Mobile Content */}
+        {showMobileMenu ? (
+          <div className="flex-1 overflow-y-auto py-2 bg-[#36393f]">
+            {menuSections.map((section, idx) => (
+              <div key={idx} className="px-3 mb-4">
+                <p className="px-3 py-1 text-[#96989d] text-xs font-bold uppercase tracking-wider">
+                  {section.label}
+                </p>
+                <div className="mt-1 space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.label}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setShowMobileMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-3.5 rounded-lg text-sm transition-colors text-left text-[#b9bbbe] hover:bg-[#40444b] hover:text-white active:bg-[#3c3f45]"
+                      >
+                        <Icon className="w-5 h-5 flex-shrink-0" />
+                        <span className="font-medium">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {/* Log Out */}
+            <div className="p-3 border-t border-[#202225] mt-4">
+              <button
+                onClick={logout}
+                className="w-full flex items-center gap-3 px-3 py-3.5 rounded-lg text-sm text-[#ed4245] hover:bg-[#ed4245]/10 transition-colors active:bg-[#ed4245]/20"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Log Out</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 bg-[#36393f]">
+            {activeTab === 'account' && (
+              <div className="space-y-4 max-w-lg mx-auto">
+                {/* Banner */}
+                <div className="bg-[#5865f2] h-20 rounded-t-lg relative">
+                  <div className="absolute -bottom-8 left-4">
+                    <div className="relative">
+                      <img
+                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `http://localhost:3001${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
+                        alt={user?.displayName || user?.username}
+                        className="w-16 h-16 rounded-full border-4 border-[#36393f] bg-[#36393f] object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`;
+                        }}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={loading}
+                        className="absolute bottom-0 right-0 w-6 h-6 bg-[#5865f2] rounded-full flex items-center justify-center hover:bg-[#4752c4] border-2 border-[#36393f]"
+                      >
+                        <Camera className="w-3 h-3 text-white" />
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* User Info */}
+                <div className="pt-8">
+                  <h3 className="text-white text-lg font-bold">{user?.displayName || user?.username}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-[#5865f2] text-white text-xs rounded font-semibold">VIP</span>
+                    <span>👑</span>
+                    <span className="text-[#43b581]">✓</span>
+                  </div>
+                </div>
+
+                {/* Info Cards */}
+                <div className="space-y-3 mt-4">
+                  <div className="bg-[#2f3136] rounded-lg p-3">
+                    <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Display Name</Label>
+                    <p className="text-white mt-1">{user?.displayName || user?.username}</p>
+                  </div>
+                  <div className="bg-[#2f3136] rounded-lg p-3">
+                    <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Username</Label>
+                    <p className="text-white mt-1">{getUsernameFromEmail(user?.email)}</p>
+                  </div>
+                  <div className="bg-[#2f3136] rounded-lg p-3">
+                    <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Email</Label>
+                    <p className="text-white mt-1">{user?.email}</p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={() => setShowChangePassword(true)}
+                  className="w-full bg-[#5865f2] hover:bg-[#4752c4] text-white mt-4"
+                >
+                  Ubah Password
+                </Button>
+              </div>
+            )}
+            {activeTab === 'notifications' && <NotificationSettings />}
+            {activeTab !== 'account' && activeTab !== 'notifications' && (
+              <p className="text-[#b9bbbe] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
       {/* Modal Container */}
@@ -248,7 +491,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="flex items-center gap-3 mb-4">
               <img
                 src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
-                alt={user?.username}
+                alt={user?.displayName || user?.username}
                 className="w-10 h-10 rounded-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;

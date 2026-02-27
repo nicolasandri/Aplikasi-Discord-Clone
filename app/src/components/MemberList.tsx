@@ -37,6 +37,15 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
+// Get base URL for backend (without /api)
+const BASE_URL = (() => {
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  // For relative API URL in dev mode, use localhost:3001
+  return 'http://localhost:3001';
+})();
+
 const statusColors = {
   online: 'bg-[#3ba55d]',
   offline: 'bg-[#747f8d]',
@@ -413,8 +422,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         return member.avatar;
       }
       // Add cache-busting to force reload when avatar changes
-      const baseUrl = API_URL.replace('/api', '');
-      return `${baseUrl}${member.avatar}${member.avatar.includes('?') ? '&' : '?'}_v=${avatarVersion}`;
+      return `${BASE_URL}${member.avatar}${member.avatar.includes('?') ? '&' : '?'}_v=${avatarVersion}`;
     };
 
     const memberContent = (

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**WorkGrid** adalah platform kolaborasi tim real-time mirip Discord dengan dukungan multi-platform: web, mobile (Android), dan desktop (Electron). Aplikasi ini memiliki fitur autentikasi JWT, manajemen server/channel, messaging real-time dengan Socket.IO, file sharing, reaksi pesan, reply, edit/hapus pesan, direct messages, voice channels dengan WebRTC, dan UI yang terinspirasi dari Discord.
+**WorkGrid** adalah platform kolaborasi tim real-time mirip Discord dengan dukungan multi-platform: web, mobile (Android), dan desktop (Electron). Aplikasi ini memiliki fitur autentikasi JWT, manajemen server/channel, messaging real-time dengan Socket.IO, file sharing, reaksi pesan, reply, edit/hapus pesan, direct messages, voice channels dengan WebRTC, custom roles dengan permission system, dan UI yang terinspirasi dari Discord.
 
 **Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
 
@@ -17,16 +17,17 @@
 | Vite | 7.2.4 | Build tool dan dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
-| shadcn/ui | - | UI component library (style: New York) |
+| shadcn/ui | - | UI component library (53+ components) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
-| Simple-Peer | 9.11.1 | WebRTC untuk voice |
+| Simple-Peer | 9.11.1 | WebRTC untuk voice chat |
 | Zod | 4.3.5 | Schema validation |
 | React Hook Form | 7.70.0 | Form handling |
+| TipTap | 3.20.0 | Rich text editor |
+| Recharts | 2.15.4 | Data visualization |
 | Capacitor | 8.1.0 | Mobile (Android) builds |
 | Electron | 40.6.0 | Desktop application |
-| Recharts | 2.15.4 | Data visualization |
 
 ### Backend (`/server`)
 | Teknologi | Versi | Tujuan |
@@ -36,11 +37,14 @@
 | Socket.IO | 4.7.2 | Real-time WebSocket |
 | PostgreSQL | 15+ | Database utama (production) |
 | SQLite3 | 5.1.7 | Database development |
-| JWT | 9.0.3 | Authentication |
-| bcryptjs | 3.0.3 | Password hashing |
-| Multer | 2.0.2 | File uploads |
+| JWT | 9.0.3 | Authentication (expires in 7 days) |
+| bcryptjs | 3.0.3 | Password hashing (12 salt rounds) |
+| Multer | 2.0.2 | File uploads (10MB limit) |
 | CORS | 2.8.5 | Cross-origin requests |
+| express-rate-limit | 8.2.1 | Rate limiting |
+| express-validator | 7.3.1 | Input validation |
 | pg | 8.13.3 | PostgreSQL driver |
+| web-push | 3.6.7 | Push notifications |
 
 ### Infrastructure
 | Teknologi | Tujuan |
@@ -49,6 +53,7 @@
 | Docker Compose | Multi-container orchestration |
 | Nginx | Reverse proxy, load balancer |
 | Redis | Session store, rate limiting |
+| PostgreSQL | Primary database |
 
 ---
 
@@ -61,28 +66,37 @@
 │   │   ├── components/           # React components
 │   │   │   ├── ui/              # shadcn/ui components (53+)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
-│   │   │   ├── ChatArea.tsx     # Message display
+│   │   │   ├── ChatArea.tsx     # Message display area
 │   │   │   ├── ChannelList.tsx  # Server channels sidebar
 │   │   │   ├── ServerList.tsx   # Server list sidebar
 │   │   │   ├── MemberList.tsx   # Server members display
-│   │   │   ├── MessageInput.tsx # Message input
+│   │   │   ├── MessageInput.tsx # Message input with rich text
+│   │   │   ├── MessageContent.tsx # Render message content
 │   │   │   ├── EmojiPicker.tsx  # Emoji selection
 │   │   │   ├── ImageViewer.tsx  # Image preview modal
+│   │   │   ├── Lightbox.tsx     # Full-screen image viewer
 │   │   │   ├── SettingsModal.tsx # User settings
 │   │   │   ├── MessageContextMenu.tsx # Right-click menu
-│   │   │   ├── UserProfilePopup.tsx # User profile
+│   │   │   ├── UserProfilePopup.tsx # User profile popup
+│   │   │   ├── UserProfileButton.tsx # User avatar button
 │   │   │   ├── TitleBar.tsx     # Electron custom title bar
 │   │   │   ├── Login.tsx        # Login page
 │   │   │   ├── Register.tsx     # Registration
 │   │   │   ├── DMList.tsx       # Direct message channels
 │   │   │   ├── DMChatArea.tsx   # DM chat interface
-│   │   │   ├── MobileHeader.tsx # Mobile navigation
-│   │   │   ├── MobileBottomNav.tsx # Mobile bottom nav
+│   │   │   ├── MobileHeader.tsx # Mobile navigation header
+│   │   │   ├── MobileBottomNav.tsx # Mobile bottom navigation
 │   │   │   ├── MobileDrawer.tsx # Mobile drawers
 │   │   │   ├── VoiceChannelPanel.tsx # Voice channel UI
 │   │   │   ├── CategoryItem.tsx # Channel category
 │   │   │   ├── CreateCategoryModal.tsx
-│   │   │   └── RenameCategoryModal.tsx
+│   │   │   ├── RenameCategoryModal.tsx
+│   │   │   ├── InviteModal.tsx  # Server invite modal
+│   │   │   ├── SearchModal.tsx  # Global search
+│   │   │   ├── RoleManagerModal.tsx # Role management
+│   │   │   ├── NotificationSettings.tsx # Notification preferences
+│   │   │   ├── RichTextEditor.tsx # TipTap editor wrapper
+│   │   │   └── VoiceChannelPanel.tsx # Voice channel UI
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/
@@ -90,7 +104,8 @@
 │   │   │   ├── useVoiceChannel.ts # WebRTC voice hook
 │   │   │   ├── use-mobile.ts    # Mobile detection
 │   │   │   ├── useBreakpoint.ts # Responsive breakpoints
-│   │   │   └── useNotification.ts # Notifications
+│   │   │   ├── useNotification.ts # Browser notifications
+│   │   │   └── usePush.ts       # Push notifications
 │   │   ├── types/
 │   │   │   └── index.ts         # TypeScript interfaces
 │   │   ├── lib/
@@ -119,13 +134,14 @@
 │   ├── server.js                # Main server file
 │   ├── database.js              # SQLite database module
 │   ├── database-postgres.js     # PostgreSQL database module
-│   ├── database-sqlite-backup.js
 │   ├── config/
 │   │   └── database.js          # PostgreSQL connection pool
 │   ├── middleware/
 │   │   └── permissions.js       # RBAC middleware
 │   ├── webrtc/
 │   │   └── signaling.js         # Voice signaling server
+│   ├── services/
+│   │   └── push.js              # Push notification service
 │   ├── migrations/              # Database migrations
 │   │   ├── 001_initial_schema.sql
 │   │   ├── 002_migrate_sqlite_to_postgres.js
@@ -368,10 +384,14 @@ VITE_SOCKET_URL=https://your-domain.com
 | POST | `/api/servers` | Create server | Yes |
 | DELETE | `/api/servers/:id` | Delete server | Yes (Owner) |
 | GET | `/api/servers/:id/channels` | Get channels | Yes |
-| POST | `/api/servers/:id/channels` | Create channel | Yes |
+| POST | `/api/servers/:id/channels` | Create channel | Yes (Manage Channels) |
 | GET | `/api/servers/:id/members` | Get members | Yes |
 | POST | `/api/servers/:id/categories` | Create category | Yes |
 | PUT | `/api/servers/:id/categories/reorder` | Reorder categories | Yes |
+| GET | `/api/servers/:serverId/roles` | Get server roles | Yes |
+| POST | `/api/servers/:serverId/roles` | Create role | Yes (Manage Roles) |
+| PUT | `/api/servers/:serverId/roles/:roleId` | Update role | Yes (Manage Roles) |
+| DELETE | `/api/servers/:serverId/roles/:roleId` | Delete role | Yes (Manage Roles) |
 
 #### Channels & Messages
 | Method | Endpoint | Description | Auth |
@@ -395,6 +415,15 @@ VITE_SOCKET_URL=https://your-domain.com
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | POST | `/api/upload` | Upload file (10MB limit) | Yes |
+
+#### Permissions
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/servers/:serverId/permissions` | Get user permissions | Yes |
+| PUT | `/api/servers/:serverId/members/:userId/role` | Update member role | Yes |
+| PUT | `/api/servers/:serverId/members/:userId/custom-role` | Assign custom role | Yes |
+| DELETE | `/api/servers/:serverId/members/:userId` | Kick member | Yes |
+| POST | `/api/servers/:serverId/bans/:userId` | Ban member | Yes |
 
 ### WebSocket Events
 
@@ -440,7 +469,7 @@ VITE_SOCKET_URL=https://your-domain.com
 |-------|-------------|
 | `users` | User accounts (id, username, email, password, avatar, status) |
 | `servers` | Discord-like servers (id, name, icon, owner_id) |
-| `server_members` | Server membership (server_id, user_id, role) |
+| `server_members` | Server membership (server_id, user_id, role, role_id) |
 | `categories` | Channel categories (server_id, name, position) |
 | `channels` | Text/voice channels (server_id, category_id, type) |
 | `messages` | Channel messages (channel_id, user_id, content, reply_to_id) |
@@ -451,13 +480,14 @@ VITE_SOCKET_URL=https://your-domain.com
 | `invites` | Server invite codes |
 | `bans` | Server bans |
 | `voice_participants` | Voice channel participants |
+| `roles` | Custom server roles dengan permissions |
 
 ### Role Hierarchy
 ```
-owner > admin > moderator > member
+owner > admin > moderator > member > custom
 ```
 
-### Permissions Bitfield
+### Permissions Bitfield (Discord-like)
 ```javascript
 const Permissions = {
   VIEW_CHANNEL: 1 << 0,
@@ -497,6 +527,8 @@ const Permissions = {
 - [ ] Add friend dan accept request
 - [ ] Send DMs
 - [ ] Create channel categories
+- [ ] Create dan assign custom roles
+- [ ] Test voice channels
 - [ ] Test mobile viewport
 
 ### Test Real-time (2 Browser Test)
@@ -511,11 +543,13 @@ const Permissions = {
 
 ### Current Implementation
 - **Authentication:** JWT dengan Bearer token disimpan di localStorage (expires in 7 days)
-- **Password Hashing:** bcryptjs dengan 10 salt rounds
+- **Password Hashing:** bcryptjs dengan 12 salt rounds
 - **File Uploads:** Limited to 10MB, MIME type filtering
-- **CORS:** Enabled untuk semua origins (development-friendly)
+- **CORS:** Strict origin checking dengan ALLOWED_ORIGINS
+- **Rate Limiting:** express-rate-limit (10 req/15min auth, 100 req/min API)
+- **XSS Prevention:** Input sanitization untuk HTML tags
 - **Role-based Permissions:** Discord-like permission bitfield
-- **Input Validation:** Username (3-30 chars, alphanumeric + underscore), email format, password min 6 chars
+- **Input Validation:** express-validator
 
 ### File Upload Restrictions
 Allowed MIME types:
@@ -523,26 +557,21 @@ Allowed MIME types:
 - Documents: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
 - Other: `text/plain`, `application/zip`
 
-### Known Security Issues (Lihat docs/BUG_REPORT.md)
-
-**Critical (Open):**
-- No rate limiting on API endpoints (brute force vulnerable)
-- Socket join channel needs auth check
-- Socket send message needs channel verification
-- Socket remove reaction needs ownership check
-
-**Medium Priority:**
-- CORS allows all origins
-- No input sanitization (XSS risk)
+### Nginx Security Headers
+- X-Frame-Options: SAMEORIGIN
+- X-Content-Type-Options: nosniff
+- X-XSS-Protection: 1; mode=block
+- Referrer-Policy: strict-origin-when-cross-origin
+- Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 ### Production Recommendations
-1. Change default JWT secret ke secure random string
-2. Implement HTTPS
-3. Add rate limiting (express-rate-limit)
-4. Review CORS policy untuk specific origins
-5. Add input validation middleware (zod atau joi)
-6. Add file upload virus scanning
-7. Add socket event authorization checks
+1. Change default JWT secret ke secure random string (64+ chars)
+2. Implement HTTPS dengan valid SSL certificate
+3. Use environment-specific CORS origins
+4. Enable PostgreSQL SSL connections
+5. Add file upload virus scanning
+6. Implement audit logging
+7. Add request signing untuk sensitive endpoints
 
 ---
 
@@ -579,6 +608,12 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 - **Electron:** Uses absolute URL `http://localhost:3001/api`
 
 Pattern ini digunakan di `AuthContext.tsx`, `useSocket.ts`, dan `ChatLayout.tsx`.
+
+### Mobile Detection
+```typescript
+import { useIsMobile } from '@/hooks/use-mobile';
+const isMobile = useIsMobile(); // true untuk screens < 768px
+```
 
 ---
 
@@ -630,16 +665,6 @@ Pada server pertama kali start, data berikut akan dibuat:
 
 ---
 
-## Documentation Files
-
-- `README.md` - User-facing documentation (Indonesian)
-- `docs/BUG_REPORT.md` - Detailed bug tracking
-- `docs/CHANGELOG.md` - Version history
-- `DOCKER_DEPLOYMENT_GUIDE.md` - Docker deployment instructions
-- `AGENTS.md` - This file
-
----
-
 ## Troubleshooting
 
 ### Common Issues
@@ -652,6 +677,7 @@ Pada server pertama kali start, data berikut akan dibuat:
 2. **Socket.IO connection issues:**
    - Verify `VITE_SOCKET_URL` environment variable
    - Check firewall settings untuk port 3001
+   - Check CORS origins di server
 
 3. **File upload failures:**
    - Ensure `uploads` directory memiliki proper permissions
@@ -661,7 +687,22 @@ Pada server pertama kali start, data berikut akan dibuat:
    - Ensure `dist` folder exists: `npm run build`
    - Check electron-builder configuration di `package.json`
 
+5. **Voice channel not working:**
+   - Check WebRTC STUN/TURN servers
+   - Verify browser permissions untuk microphone
+   - Check signaling server logs
+
 ### Getting Help
 - Check `docs/BUG_REPORT.md` untuk known issues
 - Review Docker logs: `docker-compose logs -f`
 - Check server logs di `server/` directory
+
+---
+
+## Documentation Files
+
+- `README.md` - User-facing documentation (Indonesian)
+- `docs/BUG_REPORT.md` - Detailed bug tracking
+- `docs/CHANGELOG.md` - Version history
+- `DOCKER_DEPLOYMENT_GUIDE.md` - Docker deployment instructions
+- `AGENTS.md` - This file

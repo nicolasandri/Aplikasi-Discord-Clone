@@ -14,7 +14,25 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 // Use absolute URL for Electron, relative for web
 const API_URL = isElectron 
   ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+  : (import.meta.env.VITE_API_URL || '/api');
+
+// Get base URL for backend (without /api)
+const BASE_URL = (() => {
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  // For relative API URL in dev mode, use localhost:3001
+  return 'http://localhost:3001';
+})();
+
+// Helper to get full file URL
+const getFileUrl = (url: string): string => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  // Ensure url starts with /
+  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${BASE_URL}${normalizedUrl}`;
+};
 
 interface ChatAreaProps {
   channel: Channel | null;
@@ -154,7 +172,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
     if (isOwnMessage && currentUser?.avatar) {
       const avatarUrl = currentUser.avatar.startsWith('http') 
         ? currentUser.avatar 
-        : `${API_URL.replace('/api', '')}${currentUser.avatar}`;
+        : `${BASE_URL}${currentUser.avatar}`;
       return `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}v=${avatarVersion}`;
     }
     // For other users, use the avatar from message data
@@ -164,7 +182,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
     }
     return otherAvatar.startsWith('http') 
       ? otherAvatar 
-      : `${API_URL.replace('/api', '')}${otherAvatar}`;
+      : `${BASE_URL}${otherAvatar}`;
   };
   
   // Get timestamp from either timestamp or createdAt field
@@ -207,7 +225,10 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
               // Prevent infinite loop by checking if we've already tried fallback
               if (!target.dataset.fallbackApplied) {
                 target.dataset.fallbackApplied = 'true';
-                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username || 'User'}`;
+                const fallbackName = isOwnMessage 
+                  ? (currentUser?.username || 'You')
+                  : (message.user?.username || 'User');
+                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${fallbackName}`;
               }
             }}
           />
@@ -249,7 +270,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
               <div className="flex items-center gap-1.5 text-xs">
                 {message.replyTo?.user?.avatar ? (
                   <img 
-                    src={message.replyTo.user.avatar.startsWith('http') ? message.replyTo.user.avatar : `${API_URL.replace('/api', '')}${message.replyTo.user.avatar}`}
+                    src={message.replyTo.user.avatar.startsWith('http') ? message.replyTo.user.avatar : `${BASE_URL}${message.replyTo.user.avatar}`}
                     alt={message.replyTo.user?.displayName || message.replyTo.user?.username || 'User'}
                     className="w-4 h-4 rounded-full"
                     onError={(e) => {
@@ -276,30 +297,42 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
           <div className={`mt-2 ${
-            message.attachments.length === 1 ? 'space-y-2' :
-            message.attachments.length === 2 ? 'grid grid-cols-2 gap-2' :
-            'grid grid-cols-3 gap-2'
+            isMobile 
+              ? message.attachments.length === 1 
+                ? 'space-y-2' 
+                : 'grid grid-cols-2 gap-1.5'
+              : message.attachments.length === 1 
+                ? 'space-y-2' :
+                message.attachments.length === 2 
+                  ? 'grid grid-cols-2 gap-2' 
+                  : 'grid grid-cols-3 gap-2'
           }`}>
             {message.attachments.map((file, index) => (
               <div 
                 key={index}
-                className="cursor-pointer"
+                className={`cursor-pointer ${isMobile ? 'w-full' : ''}`}
                 onClick={() => onAttachmentClick?.(message, index)}
               >
                 {file.mimetype.startsWith('image/') ? (
-                  <div className="block max-w-md">
+                  <div className={`block ${isMobile ? 'w-full' : 'max-w-md'}`}>
                     <img 
-                      src={`${API_URL.replace('/api', '')}${file.url}`} 
+                      src={getFileUrl(file.url)} 
                       alt={file.originalName}
-                      className="max-w-full max-h-[300px] rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#2f3136]"
+                      className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#2f3136] ${
+                        isMobile ? 'max-h-[200px]' : 'max-h-[300px]'
+                      }`}
                       loading="lazy"
+                      onError={(e) => {
+                        console.error('Image failed to load:', getFileUrl(file.url));
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
                   </div>
                 ) : file.mimetype.startsWith('video/') ? (
-                  <div className="relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center max-w-md">
+                  <div className={`relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center ${isMobile ? 'w-full' : 'max-w-md'}`}>
                     <video
-                      src={`${API_URL.replace('/api', '')}${file.url}`}
-                      className="max-w-full max-h-[200px]"
+                      src={getFileUrl(file.url)}
+                      className={`w-full ${isMobile ? 'max-h-[150px]' : 'max-h-[200px]'}`}
                       preload="metadata"
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors">
@@ -309,9 +342,9 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 bg-[#2f3136] hover:bg-[#36393f] rounded-lg p-3 max-w-md transition-colors">
-                    <div className="w-10 h-10 bg-[#5865f2] rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 text-white" />
+                  <div className={`flex items-center gap-2 bg-[#2f3136] hover:bg-[#36393f] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-md'}`}>
+                    <div className={`bg-[#5865f2] rounded-lg flex items-center justify-center flex-shrink-0 ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
+                      <FileText className={`text-white ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm truncate">{file.originalName}</p>
@@ -577,7 +610,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     // Convert attachments to Lightbox format
     const attachments = message.attachments.map((att, i) => ({
       id: `${message.id}-${i}`,
-      url: att.url.startsWith('http') ? att.url : `${API_URL.replace('/api', '')}${att.url}`,
+      url: att.url.startsWith('http') ? att.url : `${BASE_URL}${att.url}`,
       filename: att.originalName || `file-${i}`,
       mimetype: att.mimetype || 'application/octet-stream',
       size: att.size || 0
@@ -645,47 +678,55 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   // Text channel view
   return (
     <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
-      {/* Header */}
-      <div className="h-12 px-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
-          <Hash className="w-6 h-6 text-[#8e9297]" />
-          <h2 className="text-white font-semibold">{channel.name}</h2>
+      {/* Header - Simplified for mobile */}
+      <div className={`${isMobile ? 'h-11 px-3' : 'h-12 px-4'} flex items-center justify-between shadow-md bg-[#36393f] border-b border-[#202225] flex-shrink-0`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <Hash className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-[#8e9297] flex-shrink-0`} />
+          <h2 className="text-white font-semibold truncate">{channel.name}</h2>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Phone className="w-5 h-5" />
-          </button>
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Video className="w-5 h-5" />
-          </button>
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Pin className="w-5 h-5" />
-          </button>
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Users className="w-5 h-5" />
-          </button>
+        <div className="flex items-center gap-2">
+          {!isMobile && (
+            <>
+              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+                <Phone className="w-5 h-5" />
+              </button>
+              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+                <Video className="w-5 h-5" />
+              </button>
+              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+                <Pin className="w-5 h-5" />
+              </button>
+              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+                <Users className="w-5 h-5" />
+              </button>
+            </>
+          )}
           <button 
             onClick={onOpenSearch}
-            className="relative flex items-center bg-[#202225] hover:bg-[#2f3136] text-[#72767d] hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
+            className={`relative flex items-center bg-[#202225] hover:bg-[#2f3136] text-[#72767d] hover:text-white text-sm rounded-md transition-all group ${isMobile ? 'px-2 py-1.5 w-28' : 'px-3 py-1.5 w-36'}`}
             title="Cari pesan (Ctrl+K)"
           >
             <Search className="w-4 h-4 mr-2" />
-            <span>Cari</span>
-            <kbd className="ml-auto text-xs bg-[#36393f] px-1.5 py-0.5 rounded text-[#72767d] group-hover:text-[#b9bbbe]">Ctrl+K</kbd>
+            <span className={isMobile ? 'hidden' : ''}>Cari</span>
+            {!isMobile && <kbd className="ml-auto text-xs bg-[#36393f] px-1.5 py-0.5 rounded text-[#72767d] group-hover:text-[#b9bbbe]">Ctrl+K</kbd>}
           </button>
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Inbox className="w-5 h-5" />
-          </button>
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <HelpCircle className="w-5 h-5" />
-          </button>
+          {!isMobile && (
+            <>
+              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+                <Inbox className="w-5 h-5" />
+              </button>
+              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+                <HelpCircle className="w-5 h-5" />
+              </button>
+            </>
+          )}
           {onRefresh && (
             <button 
               onClick={onRefresh}
-              className="text-[#b9bbbe] hover:text-white transition-colors"
+              className="text-[#b9bbbe] hover:text-white transition-colors p-1"
               title="Refresh"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
           )}
         </div>
@@ -694,7 +735,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       {/* Messages */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-2 py-4"
+        className={`flex-1 overflow-y-auto ${isMobile ? 'px-2 py-2 pb-20' : 'px-2 py-4'}`}
         onScroll={handleScroll}
       >
         {groupedMessages.length === 0 ? (

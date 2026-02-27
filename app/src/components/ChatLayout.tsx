@@ -646,7 +646,7 @@ export function ChatLayout() {
                 onOpenMembers={() => {}}
                 showBack={true}
               />
-              <div className="flex-1 flex flex-col min-h-0 pb-14">
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <DMChatArea
                   channel={selectedDMChannel}
                   currentUser={user}
@@ -663,7 +663,7 @@ export function ChatLayout() {
                 onOpenMembers={() => setIsMemberDrawerOpen(true)}
                 isChannelsOpen={isChannelDrawerOpen}
               />
-              <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
                 <ChatArea
                   channel={selectedChannel}
                   messages={messages}
@@ -692,12 +692,14 @@ export function ChatLayout() {
           )}
         </div>
 
-        {/* Bottom Navigation */}
-        <MobileBottomNav
-          currentView={mobileView}
-          onViewChange={handleMobileViewChange}
-          unreadDMCount={totalDMUnread}
-        />
+        {/* Bottom Navigation - Fixed at bottom */}
+        <div className="h-[60px] bg-[#202225] border-t border-[#1a1a1a] flex-shrink-0 z-50">
+          <MobileBottomNav
+            currentView={mobileView}
+            onViewChange={handleMobileViewChange}
+            unreadDMCount={totalDMUnread}
+          />
+        </div>
 
         {/* Mobile Drawers */}
         <MobileDrawer

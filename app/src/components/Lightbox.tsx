@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 
+// Helper to get full file URL (same as ChatArea)
+const getFileUrl = (url: string): string => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const baseUrl = 'http://localhost:3001';
+  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${normalizedUrl}`;
+};
+
 interface Attachment {
   id: string;
   url: string;
@@ -245,7 +254,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
         {/* Image Preview */}
         {isImage && !error && (
           <img
-            src={currentAttachment.url}
+            src={getFileUrl(currentAttachment.url)}
             alt={currentAttachment.filename}
             className="max-w-full max-h-full object-contain transition-transform duration-200 ease-out"
             style={{
@@ -269,7 +278,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
         {/* Video Preview */}
         {isVideo && !error && (
           <video
-            src={currentAttachment.url}
+            src={getFileUrl(currentAttachment.url)}
             controls
             className="max-w-full max-h-full"
             onLoadedData={() => setIsLoading(false)}
@@ -325,7 +334,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
             >
               {att.mimetype?.startsWith('image/') ? (
                 <img
-                  src={att.url}
+                  src={getFileUrl(att.url)}
                   alt={att.filename}
                   className="w-full h-full object-cover"
                 />

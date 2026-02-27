@@ -17,12 +17,21 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
+// Get base URL for backend (without /api)
+const BASE_URL = (() => {
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  // For relative API URL in dev mode, use localhost:3001
+  return 'http://localhost:3001';
+})();
+
 interface UserProfileButtonProps {
   onOpenSettings: () => void;
 }
 
 export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   // Voice state (for future use)
@@ -36,6 +45,49 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
   useEffect(() => {
     setAvatarVersion(Date.now());
   }, [user?.avatar]);
+
+  // Listen for display name and avatar updates from SettingsModal
+  useEffect(() => {
+    const handleDisplayNameUpdate = (e: CustomEvent<{ displayName: string }>) => {
+      if (user && e.detail.displayName) {
+        updateUser({ ...user, displayName: e.detail.displayName });
+      }
+    };
+
+    const handleAvatarUpdate = (e: CustomEvent<{ avatar: string }>) => {
+      if (user && e.detail.avatar) {
+        setAvatarVersion(Date.now());
+        updateUser({ ...user, avatar: e.detail.avatar });
+      }
+    };
+
+    // Listen for localStorage changes (from other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' && e.newValue) {
+        try {
+          const updatedUser = JSON.parse(e.newValue);
+          if (user && updatedUser.id === user.id) {
+            updateUser(updatedUser);
+            if (updatedUser.avatar !== user.avatar) {
+              setAvatarVersion(Date.now());
+            }
+          }
+        } catch (err) {
+          console.error('Failed to parse user from storage:', err);
+        }
+      }
+    };
+
+    window.addEventListener('displayname-updated', handleDisplayNameUpdate as EventListener);
+    window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('displayname-updated', handleDisplayNameUpdate as EventListener);
+      window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [user, updateUser]);
 
   // Close popup when clicking outside
   useEffect(() => {
@@ -85,7 +137,7 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
         {/* Avatar */}
         <div className="relative flex-shrink-0">
           <img
-            src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${API_URL.replace('/api', '')}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+            src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
             alt={user.displayName || user.username}
             className="w-10 h-10 rounded-full object-cover bg-[#36393f]"
             onError={(e) => {
@@ -119,7 +171,7 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
             <div className="absolute -bottom-6 left-4">
               <div className="relative">
                 <img
-                  src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${API_URL.replace('/api', '')}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+                  src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
                   alt={user.displayName || user.username}
                   className="w-16 h-16 rounded-full object-cover border-4 border-[#18191c] bg-[#36393f]"
                   onError={(e) => {

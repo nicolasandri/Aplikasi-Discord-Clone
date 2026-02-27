@@ -13,11 +13,8 @@ export default defineConfig({
       '@tiptap/extension-mention',
       '@tiptap/extension-placeholder',
       '@tiptap/suggestion',
-      'tippy.js',
-      'emoji-mart',
-      '@emoji-mart/data'
-    ],
-    exclude: []
+      'tippy.js'
+    ]
   },
   resolve: {
     alias: {

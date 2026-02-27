@@ -1498,9 +1498,9 @@ const reactionDB = {
       `;
       const params = [];
       
-      // Search by content (case-insensitive)
+      // Search by content (case-insensitive using LOWER)
       if (query) {
-        sql += ` AND m.content LIKE ?`;
+        sql += ` AND LOWER(m.content) LIKE LOWER(?)`;
         params.push(`%${query}%`);
       }
       
@@ -1546,9 +1546,19 @@ const reactionDB = {
       sql += ` LIMIT ? OFFSET ?`;
       params.push(limit, offset);
       
+      // Debug log
+      console.log('Search SQL:', sql);
+      console.log('Search params:', params);
+      
       db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
+        if (err) {
+          console.error('Search SQL error:', err);
+          reject(err);
+        }
+        else {
+          console.log('Search results:', rows.length);
+          resolve(rows);
+        }
       });
     });
   },
@@ -1574,8 +1584,9 @@ const reactionDB = {
       `;
       const params = [];
       
+      // Search by content (case-insensitive using LOWER)
       if (query) {
-        sql += ` AND m.content LIKE ?`;
+        sql += ` AND LOWER(m.content) LIKE LOWER(?)`;
         params.push(`%${query}%`);
       }
       

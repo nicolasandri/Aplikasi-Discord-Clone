@@ -89,14 +89,14 @@ export function VoiceChannelPanel({ channelId, channelName }: VoiceChannelPanelP
           <div className="relative">
             <Avatar className="h-8 w-8">
               <AvatarImage src={user?.avatar} />
-              <AvatarFallback>{user?.username?.[0]?.toUpperCase()}</AvatarFallback>
+              <AvatarFallback>{(user?.displayName || user?.username)?.[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
           </div>
           
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">
-              {user?.username} <span className="text-muted-foreground">(Anda)</span>
+              {user?.displayName || user?.username} <span className="text-muted-foreground">(Anda)</span>
             </p>
           </div>
 

@@ -582,7 +582,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       </div>
 
       {/* Input Area */}
-      <div className="px-4 pb-4">
+      <div className="px-3 pb-3 pt-2 bg-[#36393f]">
         <div className="bg-[#40444b] rounded-lg flex items-end gap-2 p-2">
           <div className="flex items-center gap-1">
             <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors">

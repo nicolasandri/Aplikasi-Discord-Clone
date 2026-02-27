@@ -47,6 +47,8 @@ export function useSocket(
   const { token } = useAuth();
   // Track timeout IDs for cleanup
   const typingTimeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // BUG-FIX: Track last typing time to throttle
+  // (moved above sendTyping)
 
   // BUG-020: Use ref for callbacks to prevent stale closure
   const callbacksRef = useRef({
@@ -200,9 +202,17 @@ export function useSocket(
     }
   }, []);
 
+  // BUG-FIX: Throttle typing to avoid rate limit
+  const lastTypingRef = useRef<number>(0);
+  const TYPING_THROTTLE_MS = 2000; // Only send typing every 2 seconds
+  
   const sendTyping = useCallback((channelId: string) => {
     if (socketRef.current) {
-      socketRef.current.emit('typing', { channelId });
+      const now = Date.now();
+      if (now - lastTypingRef.current > TYPING_THROTTLE_MS) {
+        socketRef.current.emit('typing', { channelId });
+        lastTypingRef.current = now;
+      }
     }
   }, []);
 

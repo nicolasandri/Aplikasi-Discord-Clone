@@ -19,7 +19,7 @@ const dbModule = usePostgres ? require('./database-postgres') : require('./datab
 // Security: Allowed origins for CORS
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:5173', 'http://localhost:3000', 'https://xoqeprkp54f74.ok.kimi.link'];
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://xoqeprkp54f74.ok.kimi.link'];
 
 const { db, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, Permissions } = dbModule;
 
@@ -246,7 +246,13 @@ const upload = multer({
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../app/dist')));
-app.use('/uploads', express.static(uploadsDir));
+
+// Serve uploads with CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(uploadsDir));
 
 // JWT Middleware
 function authenticateToken(req, res, next) {
@@ -2222,7 +2228,8 @@ app.get('/api/search/messages', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Search error:', error);
-    res.status(500).json({ error: 'Search failed' });
+    console.error('Search error stack:', error.stack);
+    res.status(500).json({ error: 'Search failed', details: error.message });
   }
 });
 

@@ -266,7 +266,23 @@
 /* Rich Text Editor Styles */
 .ProseMirror {
   outline: none;
-  min-height: 20px;
+  min-height: 44px;
+  cursor: text;
+  color: #dcddde;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-user-modify: read-write;
+}
+
+/* Fix for Edge browser contentEditable */
+.ProseMirror[contenteditable="true"] {
+  -webkit-user-modify: read-write;
+  user-modify: read-write;
+}
+
+/* Ensure focus works on all browsers */
+.ProseMirror:focus {
+  outline: none;
 }
 
 .ProseMirror p {

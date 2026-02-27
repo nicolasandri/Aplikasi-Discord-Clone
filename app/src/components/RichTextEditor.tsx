@@ -199,7 +199,7 @@ export function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[20px] max-h-[200px] overflow-y-auto px-3 py-2'
+        class: 'prose prose-invert max-w-none focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-3 py-2.5 cursor-text'
       },
       handleKeyDown: (_view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -218,6 +218,16 @@ export function RichTextEditor({
       editor.commands.setContent(value);
     }
   }, [value, editor]);
+
+  // Auto-focus editor on mount for Edge compatibility
+  useEffect(() => {
+    if (editor && !disabled) {
+      const timer = setTimeout(() => {
+        editor.chain().focus().run();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [editor, disabled]);
 
   // Insert emoji
   const insertEmoji = (emoji: string) => {
@@ -373,7 +383,18 @@ export function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <div className="bg-[#383A40] rounded-b-lg">
+      <div 
+        className="bg-[#383A40] rounded-b-lg min-h-[44px] cursor-text"
+        onClick={() => editor?.chain().focus().run()}
+        onMouseDown={(e) => {
+          // Fix for Edge: prevent default to ensure focus works
+          if (!editor?.isFocused) {
+            e.preventDefault();
+            editor?.chain().focus().run();
+          }
+        }}
+        style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
+      >
         <EditorContent editor={editor} />
       </div>
 
