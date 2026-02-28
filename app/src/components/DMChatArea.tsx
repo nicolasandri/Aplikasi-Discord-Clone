@@ -99,8 +99,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   const [socketReady, setSocketReady] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const token = localStorage.getItem('token');
+  // Track scroll state for smart auto-scroll
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Update avatar version when currentUser changes
   useEffect(() => {
@@ -123,20 +127,47 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
     return () => clearInterval(interval);
   }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // Smart auto-scroll - only scroll if user is near bottom or initial load
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Always scroll to bottom on initial load/refresh
+    if (isInitialLoad && messages.length > 0) {
+      scrollToBottom('auto');
+      setIsInitialLoad(false);
+      return;
+    }
+
+    // Only auto-scroll if user is near bottom (within 100px) or not manually scrolling
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    
+    if (!isUserScrolling || isNearBottom) {
+      scrollToBottom();
+    }
+  }, [messages, isUserScrolling, isInitialLoad]);
 
   // Fetch messages when channel changes
   useEffect(() => {
     if (channel) {
+      setIsInitialLoad(true);
+      setIsUserScrolling(false);
       fetchMessages();
     }
   }, [channel?.id]);
+
+  // Handle scroll event to detect user scrolling
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    setIsUserScrolling(!isNearBottom);
+  };
 
   // Join/Leave DM channel when channel or socket changes
   useEffect(() => {
@@ -458,7 +489,11 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-4"
+        onScroll={handleScroll}
+      >
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />

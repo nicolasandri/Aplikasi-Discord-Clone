@@ -6,6 +6,7 @@ import { Lightbox } from './Lightbox';
 import { MessageContent } from './MessageContent';
 import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
+import { ReactionTooltip } from './ReactionTooltip';
 import type { Channel, Message, User } from '@/types';
 
 // Detect if running in Electron
@@ -146,9 +147,10 @@ interface MessageItemProps {
   onCopy?: (content: string) => void;
   isMobile?: boolean;
   avatarVersion?: number;
+  userMap?: Map<string, string>;
 }
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onAttachmentClick, onForward, onCopy, isMobile = false, avatarVersion = 0 }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onAttachmentClick, onForward, onCopy, isMobile = false, avatarVersion = 0, userMap = new Map() }: MessageItemProps) {
   const [showActions, setShowActions] = useState(false);
   
   // Default handlers
@@ -363,27 +365,48 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             {message.reactions.map((reaction, index) => {
               const hasReacted = reaction.users?.includes(currentUser?.id || '');
               const count = reaction.count || reaction.users?.length || 0;
+              
+              // Get usernames for tooltip using userMap
+              const getUsernames = (): string[] => {
+                if (!reaction.users || reaction.users.length === 0) return [];
+                return reaction.users.map((userId: string) => {
+                  // Check userMap first
+                  const mappedName = userMap.get(userId);
+                  if (mappedName) return mappedName;
+                  
+                  // Fallback to current user
+                  if (userId === currentUser?.id) {
+                    return currentUser?.displayName || currentUser?.username || 'You';
+                  }
+                  return 'User';
+                });
+              };
+              
               return (
-                <button
+                <ReactionTooltip
                   key={`${reaction.emoji}-${index}`}
-                  onClick={() => handleReaction(reaction.emoji)}
-                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-sm transition-all ${
-                    hasReacted
-                      ? 'bg-[#5865f2]/20 border border-[#5865f2] hover:bg-[#5865f2]/30'
-                      : 'bg-[#2f3136] border border-[#40444b] hover:border-[#5865f2]/50 hover:bg-[#40444b]'
-                  }`}
-                  title={`${count} reactions`}
+                  emoji={reaction.emoji}
+                  usernames={getUsernames()}
                 >
-                  <span 
-                    className="text-base leading-none"
-                    style={{ fontFamily: '"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", sans-serif' }}
+                  <button
+                    onClick={() => handleReaction(reaction.emoji)}
+                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-sm transition-all ${
+                      hasReacted
+                        ? 'bg-[#5865f2]/20 border border-[#5865f2] hover:bg-[#5865f2]/30'
+                        : 'bg-[#2f3136] border border-[#40444b] hover:border-[#5865f2]/50 hover:bg-[#40444b]'
+                    }`}
                   >
-                    {reaction.emoji}
-                  </span>
-                  <span className={`text-xs font-semibold ${hasReacted ? 'text-[#5865f2]' : 'text-[#b9bbbe]'}`}>
-                    {count}
-                  </span>
-                </button>
+                    <span 
+                      className="text-base leading-none"
+                      style={{ fontFamily: '"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", sans-serif' }}
+                    >
+                      {reaction.emoji}
+                    </span>
+                    <span className={`text-xs font-semibold ${hasReacted ? 'text-[#5865f2]' : 'text-[#b9bbbe]'}`}>
+                      {count}
+                    </span>
+                  </button>
+                </ReactionTooltip>
               );
             })}
           </div>
@@ -452,6 +475,10 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   // BUG-018: Track user scroll position
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  // Track initial load to always scroll to bottom on first load/refresh
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  // User map for reaction usernames
+  const [userMap, setUserMap] = useState<Map<string, string>>(new Map());
 
   // Update avatar version when currentUser avatar changes
   useEffect(() => {
@@ -498,8 +525,27 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     return () => clearInterval(interval);
   }, [currentUser?.avatar]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Build userMap from messages for reaction usernames
+  useEffect(() => {
+    const newUserMap = new Map<string, string>();
+    
+    // Add current user
+    if (currentUser) {
+      newUserMap.set(currentUser.id, currentUser.displayName || currentUser.username || 'You');
+    }
+    
+    // Add users from messages
+    messages.forEach(msg => {
+      if (msg.userId && msg.user) {
+        newUserMap.set(msg.userId, msg.user.displayName || msg.user.username || 'User');
+      }
+    });
+    
+    setUserMap(newUserMap);
+  }, [messages, currentUser]);
+
+  const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   // BUG-018: Smart auto-scroll - only scroll if user is near bottom
@@ -507,13 +553,20 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     const container = scrollContainerRef.current;
     if (!container) return;
     
+    // Always scroll to bottom on initial load/refresh (use 'auto' for instant scroll)
+    if (isInitialLoad && messages.length > 0) {
+      scrollToBottom('auto');
+      setIsInitialLoad(false);
+      return;
+    }
+    
     // Only auto-scroll if user is near bottom (within 100px) or not manually scrolling
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
     
     if (!isUserScrolling || isNearBottom) {
       scrollToBottom();
     }
-  }, [messages, isUserScrolling]);
+  }, [messages, isUserScrolling, isInitialLoad]);
 
   // BUG-018: Event listener untuk detect user scroll
   const handleScroll = () => {
@@ -530,6 +583,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       fetchUserPermissions();
     }
   }, [serverId]);
+
+  // Reset initial load state when channel changes (so it scrolls to bottom on new channel)
+  useEffect(() => {
+    setIsInitialLoad(true);
+    setIsUserScrolling(false);
+  }, [channel?.id]);
 
   const fetchUserPermissions = async () => {
     if (!serverId) return;
@@ -787,6 +846,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           onAttachmentClick={handleAttachmentClick}
                           isMobile={isMobile}
                           avatarVersion={avatarVersion}
+                          userMap={userMap}
                         />
                       </div>
                     );

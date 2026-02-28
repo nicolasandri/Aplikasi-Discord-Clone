@@ -21,7 +21,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://xoqeprkp54f74.ok.kimi.link'];
 
-const { db, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, Permissions } = dbModule;
+const { db, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, Permissions } = dbModule;
 
 // BUG-021: Conditional Logging
 const DEBUG = process.env.NODE_ENV !== 'production';
@@ -735,6 +735,25 @@ app.delete('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req
   }
 });
 
+// Get member count for a role
+app.get('/api/servers/:serverId/roles/:roleId/members/count', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    
+    // Check if user is a member of the server
+    const isMember = await serverDB.isMember(serverId, req.userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    const count = await roleDB.getMemberCount(roleId, serverId);
+    res.json({ count });
+  } catch (error) {
+    console.error('Get role member count error:', error);
+    res.status(500).json({ error: 'Failed to get member count' });
+  }
+});
+
 // Assign custom role to member
 app.put('/api/servers/:serverId/members/:userId/custom-role', authenticateToken, async (req, res) => {
   try {
@@ -904,6 +923,68 @@ app.post('/api/servers', authenticateToken, async (req, res) => {
   }
 });
 
+// Update server (owner and admin only)
+app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const { name, icon } = req.body;
+    const requesterId = req.userId;
+    
+    // Check if requester is owner or admin
+    const isOwner = await permissionDB.isServerOwner(requesterId, serverId);
+    const userRole = await permissionDB.getUserRole(requesterId, serverId);
+    const isAdmin = userRole === 'admin';
+    
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'You do not have permission to update this server' });
+    }
+    
+    // Update server
+    const updates = [];
+    const params = [];
+    
+    if (name !== undefined) {
+      updates.push('name = ?');
+      params.push(name);
+    }
+    
+    if (icon !== undefined) {
+      updates.push('icon = ?');
+      params.push(icon);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    params.push(serverId);
+    
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE servers SET ${updates.join(', ')} WHERE id = ?`,
+        params,
+        function(err) {
+          if (err) reject(err);
+          else resolve(true);
+        }
+      );
+    });
+    
+    // Get updated server
+    const updatedServer = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM servers WHERE id = ?', [serverId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    res.json(updatedServer);
+  } catch (error) {
+    console.error('Update server error:', error);
+    res.status(500).json({ error: 'Failed to update server' });
+  }
+});
+
 // Delete server (owner only)
 app.delete('/api/servers/:serverId', authenticateToken, requireServerOwner, async (req, res) => {
   try {
@@ -998,13 +1079,29 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
 app.post('/api/servers/:serverId/channels', authenticateToken, checkPermission(Permissions.MANAGE_CHANNELS), async (req, res) => {
   try {
     const { serverId } = req.params;
-    const { name, type } = req.body;
+    const { name, type, categoryId } = req.body;
+    const userId = req.userId;
     
     if (!name) {
       return res.status(400).json({ error: 'Channel name is required' });
     }
     
-    const channel = await channelDB.create(serverId, name, type || 'text');
+    const channel = await channelDB.create(serverId, name, type || 'text', categoryId || null);
+    
+    // Log audit event
+    const user = await userDB.findById(userId);
+    await auditLogDB.create(
+      serverId,
+      userId,
+      `created a ${type || 'text'} channel`,
+      'create_channel',
+      channel.id,
+      `#${name}`,
+      'channel',
+      null,
+      null
+    );
+    
     res.json(channel);
   } catch (error) {
     console.error('Create channel error:', error);
@@ -1292,6 +1389,30 @@ app.get('/api/servers/:serverId/members', authenticateToken, async (req, res) =>
     res.json(members);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get members' });
+  }
+});
+
+// Get specific server member details
+app.get('/api/servers/:serverId/members/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const requesterId = req.userId;
+    
+    // Check if requester is a member
+    const isMember = await serverDB.isMember(serverId, requesterId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    // Get member details
+    const member = await serverDB.getMemberDetails(serverId, userId);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    res.json(member);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get member details' });
   }
 });
 
@@ -1980,7 +2101,7 @@ app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
     }
     
     // Add user to server
-    await serverDB.addMember(invite.server_id, userId);
+    await serverDB.addMember(invite.server_id, userId, 'member', 'Invite');
     await inviteDB.incrementUses(code);
     
     // Get server info
@@ -2027,7 +2148,7 @@ app.get('/api/servers/:serverId/invites', authenticateToken, async (req, res) =>
   }
 });
 
-// Delete invite
+// Delete invite by code
 app.delete('/api/invites/:code', authenticateToken, async (req, res) => {
   try {
     const { code } = req.params;
@@ -2055,6 +2176,35 @@ app.delete('/api/invites/:code', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Delete invite error:', error);
     res.status(500).json({ error: 'Failed to delete invite' });
+  }
+});
+
+// ==================== AUDIT LOG ROUTES ====================
+
+// Get server audit logs
+app.get('/api/servers/:serverId/audit-log', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const userId = req.userId;
+    
+    // Check if user is member and has admin/owner permissions
+    const members = await serverDB.getMembers(serverId);
+    const member = members.find(m => m.id === userId);
+    
+    if (!member) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    // Only owners and admins can view audit logs
+    if (!['owner', 'admin'].includes(member.role)) {
+      return res.status(403).json({ error: 'Only server owners and admins can view audit logs' });
+    }
+    
+    const logs = await auditLogDB.getServerLogs(serverId);
+    res.json(logs);
+  } catch (error) {
+    console.error('Get audit logs error:', error);
+    res.status(500).json({ error: 'Failed to get audit logs' });
   }
 });
 

@@ -2,9 +2,22 @@
 
 ## Project Overview
 
-**WorkGrid** adalah platform kolaborasi tim real-time mirip Discord dengan dukungan multi-platform: web, mobile (Android), dan desktop (Electron). Aplikasi ini memiliki fitur autentikasi JWT, manajemen server/channel, messaging real-time dengan Socket.IO, file sharing, reaksi pesan, reply, edit/hapus pesan, direct messages, voice channels dengan WebRTC, custom roles dengan permission system, dan UI yang terinspirasi dari Discord.
+**WorkGrid** adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
 
 **Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
+
+### Fitur Utama
+- Autentikasi JWT dengan durasi 7 hari
+- Manajemen server dan channel (text & voice)
+- Messaging real-time dengan Socket.IO
+- File sharing (maksimal 10MB)
+- Reaksi pesan, reply, edit/hapus pesan
+- Direct Messages (DM) antar pengguna
+- Voice channels dengan WebRTC
+- Custom roles dengan permission system (Discord-like)
+- Friend system dengan friend requests
+- Push notifications
+- UI responsif untuk mobile, tablet, dan desktop
 
 ---
 
@@ -95,8 +108,7 @@
 │   │   │   ├── SearchModal.tsx  # Global search
 │   │   │   ├── RoleManagerModal.tsx # Role management
 │   │   │   ├── NotificationSettings.tsx # Notification preferences
-│   │   │   ├── RichTextEditor.tsx # TipTap editor wrapper
-│   │   │   └── VoiceChannelPanel.tsx # Voice channel UI
+│   │   │   └── RichTextEditor.tsx # TipTap editor wrapper
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/
@@ -111,7 +123,8 @@
 │   │   ├── lib/
 │   │   │   └── utils.ts         # Utility functions (cn helper)
 │   │   ├── pages/
-│   │   │   └── InvitePage.tsx   # Invite acceptance page
+│   │   │   ├── InvitePage.tsx   # Invite acceptance page
+│   │   │   └── FriendsPage.tsx  # Friends management page
 │   │   ├── App.tsx              # Root component
 │   │   ├── main.tsx             # Entry point
 │   │   ├── index.css            # Global styles (Discord theme)

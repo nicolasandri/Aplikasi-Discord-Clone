@@ -20,6 +20,21 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
+// Get base URL for backend (without /api)
+const BASE_URL = (() => {
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  return 'http://localhost:3001';
+})();
+
+// Helper to get full icon URL
+const getServerIconUrl = (icon: string | null): string | null => {
+  if (!icon) return null;
+  if (icon.startsWith('http')) return icon;
+  return `${BASE_URL}${icon}`;
+};
+
 interface ServerListProps {
   servers: Server[];
   selectedServerId: string | null;
@@ -172,11 +187,21 @@ export function ServerList({
                 }`}
               >
                 <div className="w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center overflow-hidden">
-                  {server.icon?.startsWith('http') ? (
-                    <img src={server.icon} alt={server.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl">{server.icon || '🌐'}</span>
-                  )}
+                  {(() => {
+                    const iconUrl = getServerIconUrl(server.icon);
+                    return iconUrl ? (
+                      <img 
+                        src={iconUrl} 
+                        alt={server.name} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <span className="text-2xl">🌐</span>
+                    );
+                  })()}
                 </div>
                 <span className="font-medium truncate flex-1 text-left">{server.name}</span>
               </button>
@@ -289,19 +314,22 @@ export function ServerList({
               : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
           }`}
         >
-          {server.icon?.startsWith('http') ? (
-            <img 
-              src={server.icon} 
-              alt={server.name} 
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-xl">🌐</span>';
-              }}
-            />
-          ) : (
-            <span className="text-2xl">{server.icon || '🌐'}</span>
-          )}
+          {(() => {
+            const iconUrl = getServerIconUrl(server.icon);
+            return iconUrl ? (
+              <img 
+                src={iconUrl} 
+                alt={server.name} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-xl">🌐</span>';
+                }}
+              />
+            ) : (
+              <span className="text-2xl">🌐</span>
+            );
+          })()}
           
           {/* Selected indicator */}
           {selectedServerId === server.id && !isFriendsOpen && (

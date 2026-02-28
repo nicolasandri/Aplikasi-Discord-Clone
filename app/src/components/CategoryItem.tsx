@@ -13,6 +13,7 @@ interface CategoryItemProps {
   onCreateChannel: () => void;
   onDeleteCategory: () => void;
   onRenameCategory: () => void;
+  onDeleteChannel?: (channelId: string) => void;
 }
 
 export function CategoryItem({
@@ -26,6 +27,7 @@ export function CategoryItem({
   onCreateChannel,
   onDeleteCategory,
   onRenameCategory,
+  onDeleteChannel,
 }: CategoryItemProps) {
   const [_showMenu, _setShowMenu] = useState(false);
 
@@ -95,22 +97,42 @@ export function CategoryItem({
       {isExpanded && (
         <div className="mt-0.5">
           {channels.map((channel) => (
-            <button
+            <div
               key={channel.id}
-              onClick={() => onSelectChannel(channel.id)}
-              className={`w-full flex items-center gap-2 px-6 py-1.5 rounded group ${
+              className={`group flex items-center gap-2 px-2 py-1.5 rounded ${
                 selectedChannelId === channel.id
                   ? 'bg-[#40444b] text-white'
                   : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
               }`}
             >
-              {channel.type === 'voice' ? (
-                <Volume2 className="w-4 h-4 text-[#72767d]" />
-              ) : (
-                <Hash className="w-4 h-4 text-[#72767d]" />
+              <button
+                onClick={() => onSelectChannel(channel.id)}
+                className="flex-1 flex items-center gap-2 min-w-0"
+              >
+                {channel.type === 'voice' ? (
+                  <Volume2 className="w-4 h-4 text-[#72767d]" />
+                ) : (
+                  <Hash className="w-4 h-4 text-[#72767d]" />
+                )}
+                <span className="text-sm truncate">{channel.name}</span>
+              </button>
+              
+              {/* Delete Channel Button (hover) */}
+              {canManage && onDeleteChannel && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Hapus channel "#${channel.name}"?`)) {
+                      onDeleteChannel(channel.id);
+                    }
+                  }}
+                  className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Hapus Channel"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               )}
-              <span className="text-sm truncate">{channel.name}</span>
-            </button>
+            </div>
           ))}
         </div>
       )}

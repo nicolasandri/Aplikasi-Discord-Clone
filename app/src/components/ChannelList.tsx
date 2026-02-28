@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, Headphones, UserPlus } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, Headphones, UserPlus, Trash2, Edit2, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CategoryItem } from './CategoryItem';
 import { CreateCategoryModal } from './CreateCategoryModal';
@@ -35,6 +35,8 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   const [isCreateChannelModalOpen, setIsCreateChannelModalOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [renameCategory, setRenameCategory] = useState<Category | null>(null);
+  const [showServerMenu, setShowServerMenu] = useState(false);
+  const serverMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const token = localStorage.getItem('token');
 
@@ -100,6 +102,20 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
     };
   }, [server, fetchCategories]);
 
+  // Close server menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (serverMenuRef.current && !serverMenuRef.current.contains(event.target as Node)) {
+        setShowServerMenu(false);
+      }
+    };
+
+    if (showServerMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showServerMenu]);
+
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -129,6 +145,61 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   const handleCreateChannel = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
     setIsCreateChannelModalOpen(true);
+  };
+
+  const handleDeleteChannel = async (channelId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/channels/${channelId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        fetchCategories();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal menghapus channel');
+      }
+    } catch (error) {
+      console.error('Failed to delete channel:', error);
+      alert('Terjadi kesalahan saat menghapus channel');
+    }
+  };
+
+  const handleConvertToCategory = async (categoryName: string) => {
+    if (!server || uncategorizedChannels.length === 0) return;
+    
+    try {
+      // Create new category
+      const response = await fetch(`${API_URL}/servers/${server.id}/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: categoryName }),
+      });
+
+      if (response.ok) {
+        const newCategory = await response.json();
+        
+        // Move all uncategorized channels to new category
+        for (const channel of uncategorizedChannels) {
+          await fetch(`${API_URL}/channels/${channel.id}/move`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ categoryId: newCategory.id }),
+          });
+        }
+        
+        fetchCategories();
+      }
+    } catch (error) {
+      console.error('Failed to convert to category:', error);
+      alert('Terjadi kesalahan saat mengubah nama kategori');
+    }
   };
 
   if (!server) {
@@ -182,7 +253,11 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   return (
     <div className="w-60 bg-[#2f3136] flex flex-col">
       {/* Server Header */}
-      <div className="h-12 px-4 flex items-center justify-between shadow-md cursor-pointer hover:bg-[#34373c] transition-colors group">
+      <div 
+        className="h-12 px-4 flex items-center justify-between shadow-md cursor-pointer hover:bg-[#34373c] transition-colors group relative"
+        onClick={() => setShowServerMenu(!showServerMenu)}
+        ref={serverMenuRef}
+      >
         <h2 className="text-white font-semibold truncate">{server.name}</h2>
         <div className="flex items-center gap-2">
           {/* Invite Button */}
@@ -196,8 +271,89 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
           >
             <UserPlus className="w-4 h-4" />
           </button>
-          <ChevronDown className="w-5 h-5 text-white" />
+          <ChevronDown className={`w-5 h-5 text-white transition-transform ${showServerMenu ? 'rotate-180' : ''}`} />
         </div>
+
+        {/* Server Dropdown Menu */}
+        {showServerMenu && (
+          <div className="absolute top-full left-0 right-0 mt-1 mx-2 bg-[#18191c] rounded-lg shadow-lg border border-[#2f3136] z-50 overflow-hidden">
+            {/* Server Settings - Owner/Admin only */}
+            {canManage && (
+              <>
+                <button
+                  onClick={() => {
+                    onOpenSettings?.();
+                    setShowServerMenu(false);
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+                >
+                  <span>Server Settings</span>
+                  <Settings className="w-4 h-4" />
+                </button>
+                <div className="h-px bg-[#2f3136] mx-2" />
+              </>
+            )}
+
+            {/* Create Channel */}
+            {canManage && (
+              <button
+                onClick={() => {
+                  setSelectedCategoryId(null);
+                  setIsCreateChannelModalOpen(true);
+                  setShowServerMenu(false);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              >
+                <span>Create Channel</span>
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Create Category */}
+            {canManage && (
+              <button
+                onClick={() => {
+                  setIsCreateModalOpen(true);
+                  setShowServerMenu(false);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              >
+                <span>Create Category</span>
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Invite People */}
+            <button
+              onClick={() => {
+                onOpenInvite?.();
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>Invite People</span>
+              <UserPlus className="w-4 h-4" />
+            </button>
+
+            {/* Divider */}
+            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+
+            {/* Leave Server */}
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to leave this server?')) {
+                  // Handle leave server
+                  window.location.href = '/';
+                }
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#ed4245] hover:text-white hover:bg-[#ed4245] transition-colors text-sm"
+            >
+              <span>Leave Server</span>
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Channels */}
@@ -216,6 +372,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             onCreateChannel={() => handleCreateChannel(category.id)}
             onDeleteCategory={() => handleDeleteCategory(category.id)}
             onRenameCategory={() => setRenameCategory(category)}
+            onDeleteChannel={handleDeleteChannel}
           />
         ))}
 
@@ -228,39 +385,73 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 LAINNYA
               </span>
               {canManage && (
-                <button
-                  onClick={() => {
-                    setSelectedCategoryId(null);
-                    setIsCreateChannelModalOpen(true);
-                  }}
-                  className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Buat Channel"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
+                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setSelectedCategoryId(null);
+                      setIsCreateChannelModalOpen(true);
+                    }}
+                    className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white transition-opacity"
+                    title="Buat Channel"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newName = prompt('Nama kategori baru:', 'LAINNYA');
+                      if (newName && newName.trim()) {
+                        handleConvertToCategory(newName.trim());
+                      }
+                    }}
+                    className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white transition-opacity"
+                    title="Ubah Nama Kategori"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                </div>
               )}
             </div>
             <div className="mt-0.5">
               {uncategorizedChannels.map((channel) => (
-                <button
+                <div
                   key={channel.id}
-                  onClick={() => {
-                  onSelectChannel(channel.id);
-                  if (isMobile) onClose?.();
-                }}
-                  className={`w-full flex items-center gap-2 px-6 py-1.5 rounded group ${
+                  className={`group flex items-center gap-2 px-2 py-1.5 rounded ${
                     selectedChannelId === channel.id
                       ? 'bg-[#40444b] text-white'
                       : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
                   }`}
                 >
-                  {channel.type === 'voice' ? (
-                    <Volume2 className="w-4 h-4 text-[#72767d]" />
-                  ) : (
-                    <Hash className="w-4 h-4 text-[#72767d]" />
+                  <button
+                    onClick={() => {
+                      onSelectChannel(channel.id);
+                      if (isMobile) onClose?.();
+                    }}
+                    className="flex-1 flex items-center gap-2 min-w-0"
+                  >
+                    {channel.type === 'voice' ? (
+                      <Volume2 className="w-4 h-4 text-[#72767d]" />
+                    ) : (
+                      <Hash className="w-4 h-4 text-[#72767d]" />
+                    )}
+                    <span className="text-sm truncate">{channel.name}</span>
+                  </button>
+                  
+                  {/* Delete Channel Button (hover) */}
+                  {canManage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Hapus channel "#${channel.name}"?`)) {
+                          handleDeleteChannel(channel.id);
+                        }
+                      }}
+                      className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Hapus Channel"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   )}
-                  <span className="text-sm truncate">{channel.name}</span>
-                </button>
+                </div>
               ))}
             </div>
           </div>

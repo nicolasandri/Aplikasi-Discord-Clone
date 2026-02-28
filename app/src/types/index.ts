@@ -13,6 +13,16 @@ export interface Server {
   icon: string;
 }
 
+export interface ServerRole {
+  id: string;
+  serverId: string;
+  name: string;
+  color: string;
+  permissions: number;
+  position: number;
+  isDefault?: boolean;
+}
+
 export interface Category {
   id: string;
   serverId: string;
@@ -62,6 +72,10 @@ export interface ServerMember extends User {
   role_id?: string | null;
   role_name?: string;
   role_color?: string;
+  joinedAt?: string;
+  joinMethod?: string;
+  isBot?: boolean;
+  createdAt?: string;
 }
 
 export interface AuthState {

@@ -30,7 +30,7 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>(
-  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId, channelId: _channelId, placeholder }, ref) => {
+  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId: _serverId, channelId: _channelId, placeholder }, ref) => {
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);

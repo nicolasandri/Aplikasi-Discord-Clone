@@ -122,13 +122,81 @@ const permissionDB = {
     
     if (!managerRole || !targetRole) return false;
 
-    const managerHierarchy = RoleHierarchy[managerRole];
-    const targetHierarchy = RoleHierarchy[targetRole];
+    // Get custom role positions if any
+    const managerCustomRole = await this.getUserCustomRole(managerId, serverId);
+    const targetCustomRole = await this.getUserCustomRole(targetId, serverId);
+    
+    // If manager is owner, they can manage anyone except other owners
+    if (managerRole === 'owner') {
+      return targetRole !== 'owner';
+    }
+    
+    // If target is owner, nobody can manage them (except owner, handled above)
+    if (targetRole === 'owner') {
+      return false;
+    }
+    
+    // If manager is admin, they can manage moderator and member
+    if (managerRole === 'admin') {
+      // Admin can manage moderators and members
+      if (targetRole === 'moderator' || targetRole === 'member') {
+        return true;
+      }
+      // Admin can also manage users with custom roles
+      if (targetCustomRole) {
+        return true;
+      }
+      return false;
+    }
+    
+    // If manager is moderator, they can manage members
+    if (managerRole === 'moderator') {
+      // Moderator can manage regular members
+      if (targetRole === 'member' && !targetCustomRole) {
+        return true;
+      }
+      return false;
+    }
+    
+    // For users with custom roles, check if they have KICK_MEMBERS permission
+    if (managerCustomRole) {
+      const managerPerms = managerCustomRole.permissions || 0;
+      // Check if has KICK_MEMBERS permission (bit 4)
+      const hasKickPermission = (managerPerms & (1 << 4)) !== 0;
+      if (!hasKickPermission) return false;
+      
+      // Can manage members with lower position or no custom role
+      if (targetCustomRole) {
+        return managerCustomRole.position > targetCustomRole.position;
+      }
+      // Can manage regular members
+      if (targetRole === 'member') {
+        return true;
+      }
+      return false;
+    }
 
-    // Owner can manage everyone except other owners (but can manage admins, mods, members)
-    // Admin can manage moderator and member only
-    // Moderator can manage member only
+    const managerHierarchy = RoleHierarchy[managerRole] || 0;
+    const targetHierarchy = RoleHierarchy[targetRole] || 0;
+
     return managerHierarchy > targetHierarchy;
+  },
+  
+  // Get user's custom role details
+  async getUserCustomRole(userId, serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT sr.id, sr.name, sr.color, sr.permissions, sr.position
+         FROM server_members sm
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
+         WHERE sm.server_id = ? AND sm.user_id = ? AND sm.role_id IS NOT NULL`,
+        [serverId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        }
+      );
+    });
   },
 
   // Update member role
@@ -242,6 +310,7 @@ function initDatabase() {
       user_id TEXT NOT NULL,
       role TEXT DEFAULT 'member',
       joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      join_method TEXT DEFAULT 'Unknown',
       FOREIGN KEY (server_id) REFERENCES servers(id),
       FOREIGN KEY (user_id) REFERENCES users(id),
       UNIQUE(server_id, user_id)
@@ -362,6 +431,23 @@ function initDatabase() {
       UNIQUE(server_id, user_id)
     )`);
 
+    // Audit log table for tracking server changes
+    db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      server_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      target_id TEXT,
+      target_name TEXT,
+      target_type TEXT,
+      old_value TEXT,
+      new_value TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (server_id) REFERENCES servers(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
+
     // DM Channels table for 1-on-1 direct messages
     db.run(`CREATE TABLE IF NOT EXISTS dm_channels (
       id TEXT PRIMARY KEY,
@@ -423,6 +509,18 @@ function runMigrations() {
           console.error('Failed to add role_id column:', err);
         } else {
           console.log('✅ Migration: Added role_id column to server_members');
+        }
+      });
+    }
+    
+    // Migration: Add join_method column
+    const hasJoinMethod = rows.some(row => row.name === 'join_method');
+    if (!hasJoinMethod) {
+      db.run('ALTER TABLE server_members ADD COLUMN join_method TEXT DEFAULT "Unknown"', (err) => {
+        if (err) {
+          console.error('Failed to add join_method column:', err);
+        } else {
+          console.log('✅ Migration: Added join_method column to server_members');
         }
       });
     }
@@ -593,12 +691,12 @@ const serverDB = {
     });
   },
 
-  async addMember(serverId, userId, role = 'member') {
+  async addMember(serverId, userId, role = 'member', joinMethod = 'Manual') {
     const id = uuidv4();
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT OR IGNORE INTO server_members (id, server_id, user_id, role) VALUES (?, ?, ?, ?)',
-        [id, serverId, userId, role],
+        'INSERT OR IGNORE INTO server_members (id, server_id, user_id, role, join_method) VALUES (?, ?, ?, ?, ?)',
+        [id, serverId, userId, role, joinMethod],
         function(err) {
           if (err) reject(err);
           else resolve(true);
@@ -617,7 +715,8 @@ const serverDB = {
                   WHEN sm.role = 'admin' THEN '#ed4245'
                   WHEN sm.role = 'moderator' THEN '#43b581'
                   ELSE '#99aab5'
-                END) as role_color
+                END) as role_color,
+                sm.joined_at, u.created_at, sm.join_method
          FROM users u
          JOIN server_members sm ON u.id = sm.user_id
          LEFT JOIN server_roles sr ON sm.role_id = sr.id
@@ -629,9 +728,56 @@ const serverDB = {
             // Map display_name to displayName for frontend
             rows.forEach(row => {
               row.displayName = row.display_name;
+              row.joinedAt = row.joined_at;
+              row.createdAt = row.created_at;
               delete row.display_name;
+              delete row.joined_at;
+              delete row.created_at;
             });
             resolve(rows);
+          }
+        }
+      );
+    });
+  },
+
+  async getMemberDetails(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT u.id, u.username, u.display_name, u.avatar, u.status, u.email, u.created_at,
+                sm.role, sm.role_id, sm.joined_at, sm.join_method,
+                COALESCE(sr.name, sm.role) as role_name, 
+                COALESCE(sr.color, CASE 
+                  WHEN sm.role = 'owner' THEN '#ffd700'
+                  WHEN sm.role = 'admin' THEN '#ed4245'
+                  WHEN sm.role = 'moderator' THEN '#43b581'
+                  ELSE '#99aab5'
+                END) as role_color
+         FROM users u
+         JOIN server_members sm ON u.id = sm.user_id
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
+         WHERE sm.server_id = ? AND u.id = ?`,
+        [serverId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else if (!row) resolve(null);
+          else {
+            // Map to frontend format
+            resolve({
+              id: row.id,
+              username: row.username,
+              displayName: row.display_name,
+              avatar: row.avatar,
+              status: row.status,
+              email: row.email,
+              createdAt: row.created_at,
+              role: row.role,
+              role_id: row.role_id,
+              role_name: row.role_name,
+              role_color: row.role_color,
+              joinedAt: row.joined_at,
+              joinMethod: row.join_method || 'Unknown'
+            });
           }
         }
       );
@@ -689,7 +835,20 @@ const roleDB = {
         [serverId],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else {
+            // Map snake_case to camelCase for frontend
+            const mapped = rows.map(row => ({
+              id: row.id,
+              serverId: row.server_id,
+              name: row.name,
+              color: row.color,
+              permissions: row.permissions,
+              position: row.position,
+              isDefault: row.is_default === 1,
+              createdAt: row.created_at
+            }));
+            resolve(mapped);
+          }
         }
       );
     });
@@ -738,6 +897,22 @@ const roleDB = {
         function(err) {
           if (err) reject(err);
           else resolve({ deleted: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Get member count for a role
+  async getMemberCount(roleId, serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COUNT(*) as count 
+         FROM server_members 
+         WHERE server_id = ? AND role_id = ?`,
+        [serverId, roleId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row?.count || 0);
         }
       );
     });
@@ -1354,7 +1529,7 @@ const inviteDB = {
   async getServerInvites(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT i.*, u.username as created_by_username
+        `SELECT i.*, u.username as created_by_username, u.avatar as created_by_avatar
          FROM invites i
          JOIN users u ON i.created_by = u.id
          WHERE i.server_id = ?
@@ -1362,7 +1537,23 @@ const inviteDB = {
         [serverId],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else {
+            // Map to frontend format
+            const mapped = rows.map(row => ({
+              id: row.id,
+              code: row.code,
+              serverId: row.server_id,
+              createdBy: row.created_by,
+              createdByUsername: row.created_by_username,
+              createdByAvatar: row.created_by_avatar,
+              uses: row.uses,
+              maxUses: row.max_uses,
+              expiresAt: row.expires_at,
+              createdAt: row.created_at,
+              roleId: row.role_id,
+            }));
+            resolve(mapped);
+          }
         }
       );
     });
@@ -1376,6 +1567,72 @@ const inviteDB = {
         function(err) {
           if (err) reject(err);
           else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  async deleteInviteById(id) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM invites WHERE id = ?',
+        [id],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  }
+};
+
+// Audit log operations
+const auditLogDB = {
+  async create(serverId, userId, action, actionType, targetId = null, targetName = null, targetType = null, oldValue = null, newValue = null) {
+    const id = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO audit_logs (id, server_id, user_id, action, action_type, target_id, target_name, target_type, old_value, new_value) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, serverId, userId, action, actionType, targetId, targetName, targetType, oldValue, newValue],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id });
+        }
+      );
+    });
+  },
+
+  async getServerLogs(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT al.*, u.username as user_name, u.avatar as user_avatar
+         FROM audit_logs al
+         JOIN users u ON al.user_id = u.id
+         WHERE al.server_id = ?
+         ORDER BY al.created_at DESC
+         LIMIT 100`,
+        [serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            const mapped = rows.map(row => ({
+              id: row.id,
+              serverId: row.server_id,
+              userId: row.user_id,
+              userName: row.user_name,
+              userAvatar: row.user_avatar,
+              action: row.action,
+              actionType: row.action_type,
+              targetId: row.target_id,
+              targetName: row.target_name,
+              targetType: row.target_type,
+              oldValue: row.old_value,
+              newValue: row.new_value,
+              createdAt: row.created_at,
+            }));
+            resolve(mapped);
+          }
         }
       );
     });
@@ -2289,6 +2546,7 @@ module.exports = {
   permissionDB,
   friendDB,
   dmDB,
+  auditLogDB,
   Permissions,
   RolePermissions,
   RoleHierarchy

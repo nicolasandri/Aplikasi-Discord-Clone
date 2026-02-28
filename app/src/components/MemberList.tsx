@@ -408,7 +408,9 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
   const MemberItem = ({ member }: { member: ServerMember }) => {
     const display = getMemberDisplay(member);
     const canManage = canManageUser(member.role, member.id);
-    const showContextMenu = canManage || customRoles.length > 0;
+    // Only show context menu for admins, moderators, and owners
+    const isStaff = currentUserRole === 'owner' || currentUserRole === 'admin' || currentUserRole === 'moderator';
+    const showContextMenu = isStaff && canManage;
 
     // Get display name for member
     const displayName = member.displayName || member.username;
@@ -477,7 +479,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           </div>
           <ContextMenuSeparator className="bg-[#2f3136]" />
           
-          {/* Standard Roles Submenu */}
+          {/* Standard Roles Submenu - Only for Owner and Admin */}
           {(isOwner || currentUserRole === 'admin') && (
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
@@ -502,8 +504,8 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
             </ContextMenuSub>
           )}
 
-          {/* Custom Roles Submenu */}
-          {customRoles.length > 0 && (
+          {/* Custom Roles Submenu - Only for Owner, Admin, and Moderator */}
+          {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && customRoles.length > 0 && (
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
                 Role Custom ({customRoles.length})
@@ -530,23 +532,27 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
             </ContextMenuSub>
           )}
 
-          {((isOwner || currentUserRole === 'admin') || customRoles.length > 0) && (
-            <ContextMenuSeparator className="bg-[#2f3136]" />
+          {/* Kick/Ban - Only for Owner, Admin, and Moderator */}
+          {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && (
+            <>
+              <ContextMenuSeparator className="bg-[#2f3136]" />
+              <ContextMenuItem
+                className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
+                onClick={() => handleKickMember(member.id, displayName)}
+                disabled={!canManage}
+              >
+                Kick Member
+              </ContextMenuItem>
+
+              <ContextMenuItem
+                className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
+                onClick={() => handleBanMember(member.id, displayName)}
+                disabled={!canManage}
+              >
+                Ban Member
+              </ContextMenuItem>
+            </>
           )}
-
-          <ContextMenuItem
-            className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
-            onClick={() => handleKickMember(member.id, displayName)}
-          >
-            Kick Member
-          </ContextMenuItem>
-
-          <ContextMenuItem
-            className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
-            onClick={() => handleBanMember(member.id, displayName)}
-          >
-            Ban Member
-          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
     );

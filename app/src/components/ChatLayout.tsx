@@ -5,6 +5,7 @@ import { ChatArea } from './ChatArea';
 import { MessageInput } from './MessageInput';
 import { MemberList } from './MemberList';
 import { SettingsModal } from './SettingsModal';
+import { ServerSettingsModal } from './ServerSettingsModal';
 import { InviteModal } from './InviteModal';
 import { SearchModal } from './SearchModal';
 import { FriendsPage } from '@/pages/FriendsPage';
@@ -46,6 +47,7 @@ export function ChatLayout() {
   const [totalDMUnread, setTotalDMUnread] = useState(0);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -733,7 +735,7 @@ export function ChatLayout() {
             channels={channels}
             selectedChannelId={selectedChannelId}
             onSelectChannel={handleSelectChannel}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => setIsServerSettingsOpen(true)}
             onOpenInvite={() => setIsInviteOpen(true)}
             isMobile={true}
             onClose={() => setIsChannelDrawerOpen(false)}
@@ -757,6 +759,15 @@ export function ChatLayout() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
         />
+
+        {/* Server Settings Modal */}
+        {selectedServer && (
+          <ServerSettingsModal
+            isOpen={isServerSettingsOpen}
+            onClose={() => setIsServerSettingsOpen(false)}
+            server={selectedServer}
+          />
+        )}
 
         {/* Invite Modal */}
         {selectedServer && (
@@ -799,7 +810,7 @@ export function ChatLayout() {
           channels={channels}
           selectedChannelId={selectedChannelId}
           onSelectChannel={handleSelectChannel}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={() => setIsServerSettingsOpen(true)}
           onOpenInvite={() => setIsInviteOpen(true)}
         />
       )}
@@ -809,7 +820,7 @@ export function ChatLayout() {
           selectedChannelId={selectedDMChannelId}
           onSelectChannel={handleSelectDMChannel}
           onOpenFriends={() => setViewMode('friends')}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={() => setIsServerSettingsOpen(true)}
           unreadCounts={dmUnreadCounts}
         />
       )}
@@ -876,6 +887,15 @@ export function ChatLayout() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+
+      {/* Server Settings Modal */}
+      {selectedServer && (
+        <ServerSettingsModal
+          isOpen={isServerSettingsOpen}
+          onClose={() => setIsServerSettingsOpen(false)}
+          server={selectedServer}
+        />
+      )}
 
       {/* Invite Modal */}
       {selectedServer && (
