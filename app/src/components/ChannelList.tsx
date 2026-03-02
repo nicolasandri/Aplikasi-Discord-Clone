@@ -16,6 +16,7 @@ interface ChannelListProps {
   onOpenServerSettings?: () => void;
   onOpenUserSettings?: () => void;
   onOpenInvite?: () => void;
+  onLeaveServer?: () => void;
   isMobile?: boolean;
   onClose?: () => void;
 }
@@ -28,7 +29,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, isMobile = false, onClose }: ChannelListProps) {
+export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, onLeaveServer, isMobile = false, onClose }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -452,9 +453,35 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
 
             {/* Leave Server */}
             <button
-              onClick={() => {
+              onClick={async () => {
+                if (!server?.id) {
+                  alert('Server not found');
+                  return;
+                }
                 if (confirm('Are you sure you want to leave this server?')) {
-                  window.location.href = '/';
+                  try {
+                    console.log('[LEAVE] Sending request to:', `${API_URL}/servers/${server.id}/leave`);
+                    const response = await fetch(`${API_URL}/servers/${server.id}/leave`, {
+                      method: 'POST',
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    
+                    console.log('[LEAVE] Response status:', response.status);
+                    
+                    if (response.ok) {
+                      onLeaveServer?.();
+                    } else {
+                      const error = await response.text();
+                      console.error('[LEAVE] Error:', error);
+                      alert('Failed to leave server. Please try again.');
+                    }
+                  } catch (error) {
+                    console.error('Leave server error:', error);
+                    alert('Failed to leave server. Please try again.');
+                  }
                 }
                 setShowServerMenu(false);
               }}

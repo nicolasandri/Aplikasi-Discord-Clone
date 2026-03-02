@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
   X, User, Bell, Shield, LogOut, Camera,
-  Search, Star, Database, Smartphone, Gift, CreditCard, Brush, Check, Eye, EyeOff,
+  Search, Brush, Check, Eye, EyeOff,
   ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { NotificationSettings } from './NotificationSettings';
-import { DevicesSettings } from './DevicesSettings';
+
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -22,7 +22,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance' | 'devices';
+type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance';
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, logout, updateUser } = useAuth();
@@ -281,17 +281,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       items: [
         { id: 'account' as SettingsTab, label: 'My Account', icon: User },
 
-        { id: 'devices' as SettingsTab, label: 'Devices', icon: Smartphone },
+
         { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
-      ]
-    },
-    {
-      label: 'Billing Settings',
-      items: [
-        { id: 'privacy' as SettingsTab, label: 'Nitro', icon: Star },
-        { id: 'privacy' as SettingsTab, label: 'Server Boost', icon: Gift },
-        { id: 'privacy' as SettingsTab, label: 'Subscriptions', icon: CreditCard },
-        { id: 'privacy' as SettingsTab, label: 'Billing', icon: Database },
       ]
     },
     {
@@ -350,7 +341,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {activeTab === 'privacy' && 'Privasi'}
                 {activeTab === 'appearance' && 'Tampilan'}
 
-                {activeTab === 'devices' && 'Perangkat'}
+    
               </h2>
               <button
                 onClick={onClose}
@@ -471,8 +462,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
             {activeTab === 'notifications' && <NotificationSettings />}
-            {activeTab === 'devices' && <DevicesSettings />}
-            {activeTab !== 'account' && activeTab !== 'notifications' && activeTab !== 'devices' && (
+
+            {activeTab !== 'account' && activeTab !== 'notifications' && (
               <p className="text-[#b9bbbe] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
             )}
           </div>
@@ -568,7 +559,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {activeTab === 'privacy' && 'Privacy & Security'}
               {activeTab === 'appearance' && 'Appearance'}
 
-              {activeTab === 'devices' && 'Devices'}
+  
             </h2>
             <button
               onClick={onClose}
@@ -728,7 +719,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <NotificationSettings />
               </div>
             )}
-            {activeTab !== 'account' && activeTab !== 'notifications' && activeTab !== 'devices' && (
+            {activeTab !== 'account' && activeTab !== 'notifications' && (
               <div className="max-w-3xl">
                 <p className="text-[#b9bbbe] text-center py-12">This section is under development.</p>
               </div>

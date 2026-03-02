@@ -965,6 +965,11 @@ export function ChatLayout() {
           onOpenServerSettings={() => setIsServerSettingsOpen(true)}
             onOpenUserSettings={() => setIsSettingsOpen(true)}
           onOpenInvite={() => setIsInviteOpen(true)}
+          onLeaveServer={() => {
+            setServers(prev => prev.filter(s => s.id !== selectedServerId));
+            setSelectedServerId(null);
+            setViewMode('dm');
+          }}
         />
       )}
       

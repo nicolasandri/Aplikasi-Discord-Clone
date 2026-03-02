@@ -697,6 +697,169 @@ app.get('/api/servers/:serverId/members/:userId', authenticateToken, async (req,
   }
 });
 
+// Leave server (self-removal)
+app.post('/api/servers/:serverId/leave', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { serverId } = req.params;
+    
+    console.log(`[LEAVE SERVER] User ${userId} trying to leave server ${serverId}`);
+    
+    // Check if server exists
+    const server = await serverDB.findById(serverId);
+    if (!server) {
+      console.log(`[LEAVE SERVER] Server ${serverId} not found`);
+      return res.status(404).json({ error: 'Server not found' });
+    }
+    
+    // Cannot leave if you're the owner
+    if (server.owner_id === userId) {
+      return res.status(403).json({ error: 'Server owner cannot leave. Transfer ownership or delete the server.' });
+    }
+    
+    // Check if user is a member
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    // Remove member from server
+    await serverDB.removeMember(serverId, userId);
+    
+    // Emit socket event to notify server members
+    io.to(`server:${serverId}`).emit('member_left', {
+      serverId,
+      userId
+    });
+    
+    res.json({ success: true, message: 'Left server successfully' });
+  } catch (error) {
+    console.error('[LEAVE SERVER] Error details:', error.message);
+    console.error('[LEAVE SERVER] Stack:', error.stack);
+    res.status(500).json({ error: 'Failed to leave server', details: error.message });
+  }
+});
+
+// ==================== SERVER ROLES ROUTES ====================
+
+// Get all roles for a server
+app.get('/api/servers/:serverId/roles', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const userId = req.userId;
+    
+    // Check if user is a member
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    const roles = await roleDB.getServerRoles(serverId);
+    res.json(roles);
+  } catch (error) {
+    console.error('Get roles error:', error);
+    res.status(500).json({ error: 'Failed to get roles' });
+  }
+});
+
+// Create a new role
+app.post('/api/servers/:serverId/roles', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const userId = req.userId;
+    const { name, color } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Role name is required' });
+    }
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Get current roles count for position
+    const existingRoles = await roleDB.getServerRoles(serverId);
+    const position = existingRoles.length;
+    
+    const role = await roleDB.createRole(serverId, name, color || '#5865f2', 0, position);
+    res.status(201).json(role);
+  } catch (error) {
+    console.error('Create role error:', error);
+    res.status(500).json({ error: 'Failed to create role' });
+  }
+});
+
+// Update a role
+app.put('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const userId = req.userId;
+    const { name, color } = req.body;
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Check if role exists and belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Cannot modify default role name
+    if (role.is_default && name && name !== role.name) {
+      return res.status(403).json({ error: 'Cannot change default role name' });
+    }
+    
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (color !== undefined) updates.color = color;
+    
+    await roleDB.updateRole(roleId, updates);
+    
+    const updatedRole = await roleDB.getRoleById(roleId);
+    res.json(updatedRole);
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+// Delete a role
+app.delete('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Check if role exists and belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Cannot delete default role
+    if (role.is_default) {
+      return res.status(403).json({ error: 'Cannot delete default role' });
+    }
+    
+    await roleDB.deleteRole(roleId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete role error:', error);
+    res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
 // ==================== FRIEND ROUTES ====================
 
 // Send friend request

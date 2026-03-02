@@ -1,0 +1,13 @@
+[dotenv@17.3.1] injecting env (7) from .env -- tip: ⚙️  override existing env vars with { override: true }
+📦 Using database: SQLite
+✅ Database initialized
+Server running on port 3001
+🔌 Client connected for voice: xvvG3SplgRsSIYIXAAAC
+🔌 Client connected: xvvG3SplgRsSIYIXAAAC
+✅ Socket authenticated: xvvG3SplgRsSIYIXAAAC User: be97eaa0-ec14-45c8-9b40-9af3ebcd3327
+🔌 Client connected for voice: fxT84J0gLRUcS4c8AAAD
+🔌 Client connected: fxT84J0gLRUcS4c8AAAD
+✅ Socket authenticated: fxT84J0gLRUcS4c8AAAD User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
+📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
+📥 User joined channel room: be97eaa0-ec14-45c8-9b40-9af3ebcd3327 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
+👋 Client disconnected: xvvG3SplgRsSIYIXAAAC
