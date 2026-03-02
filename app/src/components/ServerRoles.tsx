@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Shield, Pencil, MoreVertical, Plus, Users, ChevronRight, Trash2, Crown, Lock } from 'lucide-react';
+import { Search, Shield, Pencil, MoreVertical, Plus, Users, Trash2, Lock } from 'lucide-react';
 import type { ServerRole } from '@/types';
 
 interface ServerRolesProps {

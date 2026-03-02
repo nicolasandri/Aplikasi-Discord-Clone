@@ -10,6 +10,7 @@ class VoiceSignalingServer {
     this.io = io;
     this.rooms = new Map(); // channelId -> Map(userId -> socketId)
     this.socketToUser = new Map(); // socketId -> { userId, channelId }
+    this.screenShares = new Map(); // channelId -> { userId, streamId, socketId }
     
     this.setupEventHandlers();
   }
@@ -31,6 +32,19 @@ class VoiceSignalingServer {
       // Voice state updates (mute/deafen)
       socket.on('voice-state-change', async (data) => {
         await this.handleVoiceStateChange(socket, data);
+      });
+      
+      // Screen sharing events
+      socket.on('start-screen-share', async (data) => {
+        await this.handleStartScreenShare(socket, data);
+      });
+      
+      socket.on('stop-screen-share', async (data) => {
+        await this.handleStopScreenShare(socket, data);
+      });
+      
+      socket.on('screen-share-signal', async (data) => {
+        await this.handleScreenShareSignal(socket, data);
       });
       
       // Leave voice channel
@@ -193,6 +207,120 @@ class VoiceSignalingServer {
     await this.removeFromVoiceChannel(socket, channelId);
   }
 
+  // Handle start screen share
+  async handleStartScreenShare(socket, { channelId }) {
+    try {
+      const userId = socket.userId;
+      if (!userId) return;
+
+      // Verify user is in the channel
+      const isInChannel = await voiceDB.isUserInVoiceChannel(channelId, userId);
+      if (!isInChannel) {
+        socket.emit('voice-error', { message: 'Not in voice channel' });
+        return;
+      }
+
+      // Get user info
+      const { userDB } = require('../database-postgres');
+      const user = await userDB.findById(userId);
+
+      // Check if someone else is already sharing
+      const existingShare = this.screenShares.get(channelId);
+      if (existingShare && existingShare.userId !== userId) {
+        socket.emit('voice-error', { message: 'Someone else is already sharing their screen' });
+        return;
+      }
+
+      // Track screen share
+      const shareData = { 
+        userId, 
+        streamId: `screen-${userId}-${Date.now()}`,
+        socketId: socket.id,
+        username: user?.username
+      };
+      this.screenShares.set(channelId, shareData);
+
+      // Log event
+      await voiceDB.logSignalingEvent(channelId, userId, 'start-screen-share', { socketId: socket.id });
+
+      // Notify others in the channel
+      socket.to(`voice:${channelId}`).emit('user-started-screen-share', {
+        userId,
+        username: user?.username,
+        streamId: shareData.streamId
+      });
+
+      // Confirm to the sharer
+      socket.emit('screen-share-started', {
+        streamId: shareData.streamId,
+        channelId
+      });
+
+      console.log(`🖥️  User ${user?.username} (${userId}) started screen sharing in channel ${channelId}`);
+    } catch (error) {
+      console.error('❌ Error starting screen share:', error);
+      socket.emit('voice-error', { message: 'Failed to start screen sharing' });
+    }
+  }
+
+  // Handle stop screen share
+  async handleStopScreenShare(socket, { channelId }) {
+    try {
+      const userId = socket.userId;
+      if (!userId) return;
+
+      // Check if this user is currently sharing
+      const shareData = this.screenShares.get(channelId);
+      if (shareData && shareData.userId === userId) {
+        this.screenShares.delete(channelId);
+
+        // Log event
+        await voiceDB.logSignalingEvent(channelId, userId, 'stop-screen-share', { socketId: socket.id });
+
+        // Notify others
+        socket.to(`voice:${channelId}`).emit('user-stopped-screen-share', {
+          userId,
+          streamId: shareData.streamId
+        });
+
+        console.log(`🖥️  User ${userId} stopped screen sharing in channel ${channelId}`);
+      }
+    } catch (error) {
+      console.error('❌ Error stopping screen share:', error);
+    }
+  }
+
+  // Handle screen share WebRTC signaling
+  async handleScreenShareSignal(socket, { to, signal, channelId, streamId }) {
+    try {
+      const userId = socket.userId;
+      if (!userId) return;
+
+      // Verify user is in the channel
+      const isInChannel = await voiceDB.isUserInVoiceChannel(channelId, userId);
+      if (!isInChannel) {
+        socket.emit('voice-error', { message: 'Not in voice channel' });
+        return;
+      }
+
+      // Get user info
+      const { userDB } = require('../database-postgres');
+      const user = await userDB.findById(userId);
+
+      // Forward signal to target peer
+      this.io.to(to).emit('screen-share-signal', {
+        from: socket.id,
+        userId,
+        username: user?.username,
+        signal,
+        channelId,
+        streamId
+      });
+    } catch (error) {
+      console.error('❌ Error handling screen share signal:', error);
+    }
+  }
+
   async handleDisconnect(socket) {
     const userData = this.socketToUser.get(socket.id);
     if (userData) {
@@ -206,6 +334,16 @@ class VoiceSignalingServer {
       const userId = userData?.userId || socket.userId;
       
       if (!userId) return;
+      
+      // Check if user is currently sharing screen and stop it
+      const shareData = this.screenShares.get(channelId);
+      if (shareData && shareData.userId === userId) {
+        this.screenShares.delete(channelId);
+        socket.to(`voice:${channelId}`).emit('user-stopped-screen-share', {
+          userId,
+          streamId: shareData.streamId
+        });
+      }
       
       // Leave room
       socket.leave(`voice:${channelId}`);

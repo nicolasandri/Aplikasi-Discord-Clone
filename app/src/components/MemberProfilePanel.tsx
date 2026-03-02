@@ -41,7 +41,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export function MemberProfilePanel({ member, serverId, onClose, onMessage, onKick, onBan }: MemberProfilePanelProps) {
-  const [memberDetails, setMemberDetails] = useState<any>(null);
+  const [_memberDetails, setMemberDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'permissions' | 'notes'>('info');
 

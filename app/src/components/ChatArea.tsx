@@ -7,7 +7,8 @@ import { MessageContent } from './MessageContent';
 import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
 import { ReactionTooltip } from './ReactionTooltip';
-import type { Channel, Message, User } from '@/types';
+import { ForwardModal } from './ForwardModal';
+import type { Channel, Message, User, Server } from '@/types';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -46,6 +47,8 @@ interface ChatAreaProps {
   isMobile?: boolean;
   onStartDM?: (user: { id: string; username: string; avatar?: string; status?: string; email?: string }) => void;
   onOpenSearch?: () => void;
+  servers?: Server[];
+  dmChannels?: import('@/types').DMChannel[];
 }
 
 // User permissions interface
@@ -75,34 +78,126 @@ interface UserPermissions {
   MODERATE_MEMBERS: 1 << 11,
 } */
 
+// Helper to convert UTC timestamp to GMT+7
+function toGMT7(date: Date): Date {
+  // Add 7 hours to UTC
+  return new Date(date.getTime() + (7 * 60 * 60 * 1000));
+}
+
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('id-ID', { 
+  const utcDate = new Date(timestamp);
+  if (isNaN(utcDate.getTime())) return '';
+  
+  // Convert UTC to GMT+7
+  const gmt7Date = toGMT7(utcDate);
+  
+  return gmt7Date.toLocaleTimeString('id-ID', { 
     hour: '2-digit', 
-    minute: '2-digit' 
+    minute: '2-digit',
+    hour12: false
+  });
+}
+
+// Format timestamp like Discord (GMT+7 - Asia/Jakarta)
+function formatDiscordTimestamp(timestamp: string): string {
+  if (!timestamp) return '';
+  
+  // Parse timestamp as UTC
+  const utcDate = new Date(timestamp);
+  if (isNaN(utcDate.getTime())) return '';
+  
+  // Convert UTC to GMT+7
+  const gmt7Date = toGMT7(utcDate);
+  const now = new Date();
+  const nowGmt7 = toGMT7(now);
+  
+  // Get date parts (all in GMT+7)
+  const today = new Date(nowGmt7.getFullYear(), nowGmt7.getMonth(), nowGmt7.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const messageDate = new Date(gmt7Date.getFullYear(), gmt7Date.getMonth(), gmt7Date.getDate());
+  
+  // Format time in GMT+7
+  const timeStr = gmt7Date.toLocaleTimeString('id-ID', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Today - show only time
+  if (messageDate.getTime() === today.getTime()) {
+    return timeStr;
+  }
+  
+  // Yesterday - show "Kemarin pukul XX:XX"
+  if (messageDate.getTime() === yesterday.getTime()) {
+    return `Kemarin pukul ${timeStr}`;
+  }
+  
+  // Within last 7 days - show day name and time
+  const daysDiff = Math.floor((today.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysDiff < 7) {
+    const dayName = gmt7Date.toLocaleDateString('id-ID', { 
+      weekday: 'long'
+    });
+    return `${dayName} pukul ${timeStr}`;
+  }
+  
+  // Older - show full date and time
+  const dateStr = gmt7Date.toLocaleDateString('id-ID', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric'
+  });
+  return `${dateStr} pukul ${timeStr}`;
+}
+
+// Format tooltip timestamp (full datetime with GMT+7)
+function formatTooltipTimestamp(timestamp: string): string {
+  if (!timestamp) return '';
+  const utcDate = new Date(timestamp);
+  if (isNaN(utcDate.getTime())) return '';
+  
+  // Convert UTC to GMT+7
+  const gmt7Date = toGMT7(utcDate);
+  
+  return gmt7Date.toLocaleDateString('id-ID', { 
+    weekday: 'long',
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric'
+  }) + ' pukul ' + gmt7Date.toLocaleTimeString('id-ID', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false
   });
 }
 
 function formatDate(timestamp: string): string {
   if (!timestamp) return 'Tanggal tidak diketahui';
-  const date = new Date(timestamp);
-  if (isNaN(date.getTime())) return 'Tanggal tidak valid';
+  const utcDate = new Date(timestamp);
+  if (isNaN(utcDate.getTime())) return 'Tanggal tidak valid';
   
-  const today = new Date();
+  // Convert UTC to GMT+7
+  const gmt7Date = toGMT7(utcDate);
+  const now = new Date();
+  const nowGmt7 = toGMT7(now);
+  
+  const today = new Date(nowGmt7.getFullYear(), nowGmt7.getMonth(), nowGmt7.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
+  const messageDate = new Date(gmt7Date.getFullYear(), gmt7Date.getMonth(), gmt7Date.getDate());
 
-  if (date.toDateString() === today.toDateString()) {
+  if (messageDate.getTime() === today.getTime()) {
     return 'Hari Ini';
-  } else if (date.toDateString() === yesterday.toDateString()) {
+  } else if (messageDate.getTime() === yesterday.getTime()) {
     return 'Kemarin';
   }
-  return date.toLocaleDateString('id-ID', { 
+  return gmt7Date.toLocaleDateString('id-ID', { 
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric' 
+    year: 'numeric'
   });
 }
 
@@ -141,16 +236,27 @@ interface MessageItemProps {
   onReply: (message: Message) => void;
   onReaction: (messageId: string, emoji: string) => void;
   onDelete: (messageId: string) => void;
+  onEdit?: (message: Message) => void;
   onUserClick?: (userId: string) => void;
   onAttachmentClick?: (message: Message, index: number) => void;
   onForward?: (message: Message) => void;
   onCopy?: (content: string) => void;
+  onPin?: (messageId: string) => void;
   isMobile?: boolean;
   avatarVersion?: number;
   userMap?: Map<string, string>;
+  // Edit mode props
+  isEditing?: boolean;
+  editContent?: string;
+  onEditContentChange?: (content: string) => void;
+  onEditSave?: () => void;
+  onEditCancel?: () => void;
+  editInputRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onUserClick, onAttachmentClick, onForward, onCopy, isMobile = false, avatarVersion = 0, userMap = new Map() }: MessageItemProps) {
+
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, isMobile = false, avatarVersion = 0, userMap = new Map(), isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
+
   const [showActions, setShowActions] = useState(false);
   
   // Default handlers
@@ -237,7 +343,10 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         </button>
       ) : (
         <div className={`flex-shrink-0 flex justify-end pt-1 ${isMobile ? 'w-8' : 'w-10'}`}>
-          <span className="text-[10px] text-[#72767d] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
+          <span 
+            className="text-[10px] text-[#72767d] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block cursor-default"
+            title={formatTooltipTimestamp(timestamp)}
+          >
             {formatTime(timestamp)}
           </span>
         </div>
@@ -253,8 +362,11 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 ? (currentUser?.displayName || currentUser?.username || 'You')
                 : (message.user?.displayName || message.user?.username)}
             </button>
-            <span className="text-[11px] text-[#72767d]">
-              {formatTime(timestamp)}
+            <span 
+              className="text-[11px] text-[#72767d] cursor-default hover:underline"
+              title={formatTooltipTimestamp(timestamp)}
+            >
+              {formatDiscordTimestamp(timestamp)}
             </span>
             {message.editedAt && (
               <span className="text-[11px] text-[#72767d]">(edited)</span>
@@ -294,7 +406,47 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           </div>
         )}
         
-        <MessageContent content={message.content} />
+        {/* Message Content or Edit UI */}
+        {isEditing ? (
+          <div className="mt-1">
+            <textarea
+              ref={editInputRef}
+              value={editContent}
+              onChange={(e) => onEditContentChange?.(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onEditSave?.();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  onEditCancel?.();
+                }
+              }}
+              className="w-full bg-[#40444b] text-white text-sm rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#5865f2]"
+              rows={2}
+              style={{ minHeight: '44px' }}
+            />
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={onEditSave}
+                className="px-3 py-1.5 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-medium rounded transition-colors"
+              >
+                Simpan
+              </button>
+              <button
+                onClick={onEditCancel}
+                className="px-3 py-1.5 bg-transparent hover:bg-[#40444b] text-[#b9bbbe] hover:text-white text-xs font-medium rounded transition-colors"
+              >
+                Batal
+              </button>
+              <span className="text-[#72767d] text-xs ml-2">
+                Tekan Enter untuk menyimpan, Escape untuk membatalkan
+              </span>
+            </div>
+          </div>
+        ) : (
+          <MessageContent content={message.content} />
+        )}
         
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
@@ -449,21 +601,25 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         isOpen={contextMenu.isOpen}
         onClose={() => setContextMenu({ x: 0, y: 0, isOpen: false })}
         onReply={() => onReply(message)}
-        onForward={() => (onForward || handleForward)(message)}
-        onCopy={() => (onCopy || handleCopy)(message.content)}
+        onForward={() => onForward?.(message)}
+        onCopy={() => onCopy ? onCopy(message.content) : handleCopy(message.content)}
         onCopyLink={() => handleCopy(`http://localhost:3001/message/${message.id}`)}
         onDelete={canDelete ? () => onDelete(message.id) : undefined}
+        onEdit={canEdit && onEdit ? () => onEdit(message) : undefined}
+        onPin={canPin && onPin ? () => onPin(message.id) : undefined}
+
         canDelete={canDelete}
         canPin={canPin}
         canEdit={canEdit}
         onReaction={(emoji) => onReaction(message.id, emoji)}
         isOwnMessage={isOwnMessage}
       />
+
     </div>
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [] }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -479,6 +635,17 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   // User map for reaction usernames
   const [userMap, setUserMap] = useState<Map<string, string>>(new Map());
+  // Pinned messages state
+  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
+  const [showPinnedBanner, setShowPinnedBanner] = useState(false);
+  // Edit message state
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+  // Forward message state
+  const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+
 
   // Update avatar version when currentUser avatar changes
   useEffect(() => {
@@ -514,16 +681,6 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     };
   }, []);
 
-  // Also update avatar version periodically to catch any changes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (currentUser?.avatar) {
-        setAvatarVersion(Date.now());
-      }
-    }, 5000); // Update every 5 seconds
-    
-    return () => clearInterval(interval);
-  }, [currentUser?.avatar]);
 
   // Build userMap from messages for reaction usernames
   useEffect(() => {
@@ -543,6 +700,32 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     
     setUserMap(newUserMap);
   }, [messages, currentUser]);
+
+  // Listen for socket events (message_edited, message_deleted)
+  useEffect(() => {
+    const socket = (window as any).socket;
+    if (!socket) return;
+
+    const handleMessageEdited = (_editedMessage: Message) => {
+      // The parent component should handle updating the messages state
+      // We just trigger a refresh to get the updated message
+      onRefresh?.();
+    };
+
+    const handleMessageDeleted = (_data: { messageId: string }) => {
+      // The parent component should handle updating the messages state
+      // We just trigger a refresh to remove the deleted message
+      onRefresh?.();
+    };
+
+    socket.on('message_edited', handleMessageEdited);
+    socket.on('message_deleted', handleMessageDeleted);
+
+    return () => {
+      socket.off('message_edited', handleMessageEdited);
+      socket.off('message_deleted', handleMessageDeleted);
+    };
+  }, [onRefresh]);
 
   const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -584,6 +767,14 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     }
   }, [serverId]);
 
+  // Fetch pinned messages when channel changes
+  useEffect(() => {
+    if (channel?.id) {
+      fetchPinnedMessages();
+    }
+  }, [channel?.id]);
+
+
   // Reset initial load state when channel changes (so it scrolls to bottom on new channel)
   useEffect(() => {
     setIsInitialLoad(true);
@@ -605,6 +796,136 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       console.error('Failed to fetch permissions:', error);
     }
   };
+
+  const fetchPinnedMessages = async () => {
+    if (!channel?.id) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/channels/${channel.id}/pins`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPinnedMessages(data.messages || []);
+        setShowPinnedBanner((data.messages || []).length > 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch pinned messages:', error);
+    }
+  };
+
+  const handlePinMessage = async (messageId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Pinning message:', messageId, 'API_URL:', API_URL);
+      const response = await fetch(`${API_URL}/messages/${messageId}/pin`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      console.log('Pin response status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Pin success:', data);
+        // Refresh pinned messages
+        fetchPinnedMessages();
+        // Show success notification
+        console.log('Message pinned successfully');
+      } else {
+        const errorText = await response.text();
+        console.error('Pin error response:', errorText);
+        let error;
+        try {
+          error = JSON.parse(errorText);
+        } catch {
+          error = { error: errorText || 'Failed to pin message' };
+        }
+        alert(error.error || 'Failed to pin message');
+      }
+    } catch (error) {
+      console.error('Failed to pin message:', error);
+      alert('Failed to pin message: ' + (error instanceof Error ? error.message : 'Network error'));
+    }
+  };
+
+
+  const handleUnpinMessage = async (messageId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/messages/${messageId}/unpin`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        // Refresh pinned messages
+        fetchPinnedMessages();
+        console.log('Message unpinned successfully');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to unpin message');
+      }
+    } catch (error) {
+      console.error('Failed to unpin message:', error);
+      alert('Failed to unpin message');
+    }
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      console.log('Copied to clipboard');
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+    });
+  };
+
+  const handleForwardMessage = async (message: Message, targetChannelId: string, comment?: string) => {
+    const token = localStorage.getItem('token');
+    
+    // Build forward content
+    let content = message.content || '';
+    if (comment) {
+      content = `${comment}\n\n> Forwarded from ${message.user?.username}:\n> ${content}`;
+    } else {
+      content = `> Forwarded from ${message.user?.username}:\n> ${content}`;
+    }
+    
+    // Check if target is a DM channel
+    const isDM = dmChannels.some(dm => dm.id === targetChannelId);
+    const endpoint = isDM 
+      ? `${API_URL}/dm/channels/${targetChannelId}/messages`
+      : `${API_URL}/channels/${targetChannelId}/messages`;
+    
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content,
+          attachments: message.attachments,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to forward message');
+      }
+      
+      console.log('Message forwarded successfully');
+    } catch (error) {
+      console.error('Failed to forward message:', error);
+      throw error;
+    }
+  };
+
+  const openForwardModal = (message: Message) => {
+    setForwardingMessage(message);
+    setIsForwardModalOpen(true);
+  };
+
 
   const handleReaction = async (messageId: string, emoji: string) => {
     console.log('handleReaction called:', messageId, emoji);
@@ -649,6 +970,44 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     const socket = (window as any).socket;
     if (socket) {
       socket.emit('delete_message', { messageId });
+    }
+  };
+
+  // Edit message handlers
+  const handleStartEdit = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content || '');
+    // Focus input after a short delay to ensure it's rendered
+    setTimeout(() => {
+      editInputRef.current?.focus();
+      // Place cursor at the end
+      editInputRef.current?.setSelectionRange(editContent.length, editContent.length);
+    }, 0);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !editContent.trim()) return;
+    
+    const socket = (window as any).socket;
+    if (socket) {
+      socket.emit('edit_message', { messageId: editingMessageId, content: editContent.trim() });
+    }
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
     }
   };
 
@@ -791,6 +1150,60 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         </div>
       </div>
 
+      {/* Pinned Messages Banner */}
+      {showPinnedBanner && pinnedMessages.length > 0 && (
+        <div className="bg-[#2f3136] border-b border-[#202225] px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Pin className="w-4 h-4 text-[#b9bbbe]" />
+              <span className="text-sm text-[#b9bbbe]">
+                {pinnedMessages.length} Pinned Message{pinnedMessages.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowPinnedBanner(!showPinnedBanner)}
+              className="text-xs text-[#5865f2] hover:underline"
+            >
+              {showPinnedBanner ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {showPinnedBanner && (
+            <div className="mt-2 space-y-2 max-h-32 overflow-y-auto">
+              {pinnedMessages.map((msg) => (
+                <div key={msg.id} className="flex items-start gap-2 p-2 bg-[#36393f] rounded text-sm">
+                  <img
+                    src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username || 'user'}`}
+                    alt={msg.user?.username}
+                    className="w-6 h-6 rounded-full"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-white">{msg.user?.displayName || msg.user?.username}</span>
+                      <span 
+                        className="text-xs text-[#72767d] cursor-default hover:underline"
+                        title={formatTooltipTimestamp(msg.timestamp || (msg as any).createdAt)}
+                      >
+                        {formatDiscordTimestamp(msg.timestamp || (msg as any).createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-[#b9bbbe] truncate">{msg.content}</p>
+                  </div>
+                  {userPermissions?.canManageMessages && (
+                    <button
+                      onClick={() => handleUnpinMessage(msg.id)}
+                      className="text-[#72767d] hover:text-[#ed4245] p-1"
+                      title="Unpin message"
+                    >
+                      <Pin className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Messages */}
       <div 
         ref={scrollContainerRef}
@@ -798,6 +1211,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         onScroll={handleScroll}
       >
         {groupedMessages.length === 0 ? (
+
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-[#5865f2]/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Hash className="w-8 h-8 text-[#5865f2]" />
@@ -842,12 +1256,23 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           onReply={onReply || (() => {})}
                           onReaction={handleReaction}
                           onDelete={handleDelete}
+                          onEdit={handleStartEdit}
                           onUserClick={handleUserClick}
                           onAttachmentClick={handleAttachmentClick}
+                          onPin={handlePinMessage}
+                          onForward={openForwardModal}
+                          onCopy={handleCopy}
                           isMobile={isMobile}
                           avatarVersion={avatarVersion}
                           userMap={userMap}
+                          isEditing={editingMessageId === message.id}
+                          editContent={editContent}
+                          onEditContentChange={setEditContent}
+                          onEditSave={handleSaveEdit}
+                          onEditCancel={handleCancelEdit}
+                          editInputRef={editInputRef}
                         />
+
                       </div>
                     );
                   })}
@@ -894,6 +1319,18 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
         onNavigate={setLightboxIndex}
+      />
+
+      {/* Forward Modal */}
+      <ForwardModal
+        isOpen={isForwardModalOpen}
+        onClose={() => setIsForwardModalOpen(false)}
+        message={forwardingMessage}
+        servers={servers}
+        channels={[]}
+        dmChannels={dmChannels}
+        currentServerId={serverId ?? null}
+        onForward={handleForwardMessage}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, Headphones, UserPlus, Trash2, Edit2, LogOut } from 'lucide-react';
+import { Hash, Volume2, ChevronDown, Plus, Settings, Mic, Headphones, UserPlus, Trash2, Edit2, LogOut, Gem, Calendar, LayoutGrid, Bell, Shield, UserCog, EyeOff, Edit3, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CategoryItem } from './CategoryItem';
 import { CreateCategoryModal } from './CreateCategoryModal';
@@ -13,6 +13,8 @@ interface ChannelListProps {
   selectedChannelId: string | null;
   onSelectChannel: (channelId: string) => void;
   onOpenSettings?: () => void;
+  onOpenServerSettings?: () => void;
+  onOpenUserSettings?: () => void;
   onOpenInvite?: () => void;
   isMobile?: boolean;
   onClose?: () => void;
@@ -26,7 +28,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenInvite, isMobile = false, onClose }: ChannelListProps) {
+export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, isMobile = false, onClose }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -36,7 +38,10 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [renameCategory, setRenameCategory] = useState<Category | null>(null);
   const [showServerMenu, setShowServerMenu] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
   const serverMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const token = localStorage.getItem('token');
 
@@ -108,13 +113,29 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
       if (serverMenuRef.current && !serverMenuRef.current.contains(event.target as Node)) {
         setShowServerMenu(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
     };
 
-    if (showServerMenu) {
+    if (showServerMenu || showUserMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showServerMenu]);
+  }, [showServerMenu, showUserMenu]);
+
+  const handleCopyUsername = () => {
+    if (user?.username) {
+      navigator.clipboard.writeText(user.username);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setShowUserMenu(false);
+    onOpenUserSettings?.();
+  };
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -276,23 +297,51 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
 
         {/* Server Dropdown Menu */}
         {showServerMenu && (
-          <div className="absolute top-full left-0 right-0 mt-1 mx-2 bg-[#18191c] rounded-lg shadow-lg border border-[#2f3136] z-50 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-1 mx-2 bg-[#18191c] rounded-lg shadow-lg border border-[#2f3136] z-50 overflow-hidden py-1">
+            
+            {/* Server Boost */}
+            <button
+              onClick={() => {
+                alert('Server Boost - Fitur premium akan segera hadir!');
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#ff73fa] hover:text-white hover:bg-[#ff73fa] transition-colors text-sm"
+            >
+              <span>Server Boost</span>
+              <Gem className="w-4 h-4" />
+            </button>
+
+            {/* Divider */}
+            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+
+            {/* Invite People */}
+            <button
+              onClick={() => {
+                onOpenInvite?.();
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>Invite People</span>
+              <UserPlus className="w-4 h-4" />
+            </button>
+
             {/* Server Settings - Owner/Admin only */}
             {canManage && (
-              <>
-                <button
-                  onClick={() => {
-                    onOpenSettings?.();
-                    setShowServerMenu(false);
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
-                >
-                  <span>Server Settings</span>
-                  <Settings className="w-4 h-4" />
-                </button>
-                <div className="h-px bg-[#2f3136] mx-2" />
-              </>
+              <button
+                onClick={() => {
+                  onOpenServerSettings?.();
+                  setShowServerMenu(false);
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              >
+                <span>Server Settings</span>
+                <Settings className="w-4 h-4" />
+              </button>
             )}
+
+            {/* Divider */}
+            <div className="h-px bg-[#2f3136] mx-2 my-1" />
 
             {/* Create Channel */}
             {canManage && (
@@ -323,16 +372,79 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
               </button>
             )}
 
-            {/* Invite People */}
+            {/* Create Event */}
             <button
               onClick={() => {
-                onOpenInvite?.();
+                alert('Create Event - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
               className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
             >
-              <span>Invite People</span>
-              <UserPlus className="w-4 h-4" />
+              <span>Create Event</span>
+              <Calendar className="w-4 h-4" />
+            </button>
+
+            {/* App Directory */}
+            <button
+              onClick={() => {
+                alert('App Directory - Fitur akan segera hadir!');
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>App Directory</span>
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+
+            {/* Divider */}
+            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+
+            {/* Notification Settings */}
+            <button
+              onClick={() => {
+                alert('Notification Settings - Fitur akan segera hadir!');
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>Notification Settings</span>
+              <Bell className="w-4 h-4" />
+            </button>
+
+            {/* Privacy Settings */}
+            <button
+              onClick={() => {
+                alert('Privacy Settings - Fitur akan segera hadir!');
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>Privacy Settings</span>
+              <Shield className="w-4 h-4" />
+            </button>
+
+            {/* Edit Per-server Profile */}
+            <button
+              onClick={() => {
+                alert('Edit Per-server Profile - Fitur akan segera hadir!');
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>Edit Per-server Profile</span>
+              <UserCog className="w-4 h-4" />
+            </button>
+
+            {/* Hide Muted Channels */}
+            <button
+              onClick={() => {
+                alert('Hide Muted Channels - Fitur akan segera hadir!');
+                setShowServerMenu(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+            >
+              <span>Hide Muted Channels</span>
+              <EyeOff className="w-4 h-4" />
             </button>
 
             {/* Divider */}
@@ -342,7 +454,6 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             <button
               onClick={() => {
                 if (confirm('Are you sure you want to leave this server?')) {
-                  // Handle leave server
                   window.location.href = '/';
                 }
                 setShowServerMenu(false);
@@ -470,9 +581,9 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
       </div>
 
       {/* User Panel */}
-      <div className="h-[52px] bg-[#292b2f] px-2 flex items-center justify-between">
+      <div className="h-[52px] bg-[#292b2f] px-2 flex items-center justify-between relative">
         <div 
-          onClick={onOpenSettings}
+          onClick={() => setShowUserMenu(!showUserMenu)}
           className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#34373c] cursor-pointer flex-1"
         >
           <img
@@ -497,12 +608,79 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             <Headphones className="w-5 h-5" />
           </button>
           <button 
-            onClick={onOpenSettings}
+            onClick={onOpenUserSettings}
             className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded"
           >
             <Settings className="w-5 h-5" />
           </button>
         </div>
+
+        {/* User Popup Menu - Discord Style */}
+        {showUserMenu && (
+          <div
+            ref={userMenuRef}
+            className="absolute bottom-full left-2 mb-2 w-[280px] bg-[#18191c] rounded-lg shadow-2xl overflow-hidden z-[100]"
+          >
+            {/* Banner */}
+            <div className="h-16 bg-[#5865f2] relative">
+              <div className="absolute -bottom-6 left-4">
+                <div className="relative">
+                  <img
+                    src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+                    alt={user?.displayName || user?.username}
+                    className="w-16 h-16 rounded-full object-cover border-4 border-[#18191c] bg-[#36393f]"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`;
+                    }}
+                  />
+                  <div className="absolute bottom-0 right-0 w-5 h-5 bg-[#3ba55d] rounded-full border-[3px] border-[#18191c]" />
+                </div>
+              </div>
+            </div>
+
+            {/* User Info */}
+            <div className="pt-8 px-4 pb-3">
+              <h3 className="text-white font-bold text-lg">{user?.displayName || user?.username}</h3>
+              <p className="text-[#b9bbbe] text-sm">{user?.email}</p>
+              
+              {/* Badges */}
+              <div className="flex items-center gap-2 mt-2">
+                <span className="px-2 py-0.5 bg-[#5865f2] text-white text-xs rounded font-medium">VIP</span>
+                <span className="text-[#faa61a]">👑</span>
+                <span className="text-[#43b581]">✓</span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="mx-4 h-px bg-[#36393f]" />
+
+            {/* Menu Items */}
+            <div className="py-2">
+              <button
+                onClick={handleEditProfile}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white transition-colors text-left"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span className="text-sm">Edit Profile</span>
+              </button>
+
+              <button
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white transition-colors text-left"
+              >
+                <div className="w-4 h-4 rounded-full bg-[#3ba55d]" />
+                <span className="text-sm">Online</span>
+              </button>
+
+              <button
+                onClick={handleCopyUsername}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white transition-colors text-left"
+              >
+                {copied ? <Check className="w-4 h-4 text-[#43b581]" /> : <Copy className="w-4 h-4" />}
+                <span className="text-sm">{copied ? 'Copied!' : 'Copy Username'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modals */}

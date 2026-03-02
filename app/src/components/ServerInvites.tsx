@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { UserPlus, Copy, Trash2, MoreVertical, X, Clock, Users, Link2, Check } from 'lucide-react';
+import { UserPlus, Copy, Trash2, MoreVertical, X, Clock, Link2, Check } from 'lucide-react';
 
 interface ServerInvitesProps {
   serverId: string;

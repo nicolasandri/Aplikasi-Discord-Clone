@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, UserPlus, X } from 'lucide-react';
+import { MessageCircle, UserPlus, Users, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,6 +29,7 @@ interface DMListProps {
   onSelectChannel: (channelId: string) => void;
   onOpenFriends: () => void;
   onOpenSettings?: () => void;
+  onCreateGroupDM?: () => void;
   unreadCounts: Record<string, number>;
 }
 
@@ -37,10 +38,23 @@ export function DMList({
   onSelectChannel, 
   onOpenFriends,
   onOpenSettings,
+  onCreateGroupDM,
   unreadCounts 
 }: DMListProps) {
   const [dmChannels, setDmChannels] = useState<DMChannel[]>([]);
   const token = localStorage.getItem('token');
+  
+  // Decode token to get user ID
+  const getUserIdFromToken = () => {
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.id || payload.userId;
+    } catch {
+      return null;
+    }
+  };
+  const currentUserId = getUserIdFromToken();
 
   const fetchDMChannels = async () => {
     try {
@@ -57,6 +71,7 @@ export function DMList({
             // Fallback if API returns flat format (from DB query)
             id: row.friend_id,
             username: row.friend_username,
+            displayName: row.friend_display_name,
             avatar: row.friend_avatar,
             status: row.friend_status || 'offline',
             email: '',
@@ -95,12 +110,24 @@ export function DMList({
       fetchDMChannels();
     };
 
+    const handleUserLeftDM = (data: { channelId: string; userId: string }) => {
+      // Remove the channel from the list if the current user left
+      if (data.userId === currentUserId) {
+        setDmChannels(prev => prev.filter(ch => ch.id !== data.channelId));
+        if (selectedChannelId === data.channelId) {
+          onSelectChannel('');
+        }
+      }
+    };
+
     socket.on('dm_message_received', handleDMMessageReceived);
     socket.on('dm_channel_updated', handleDMChannelUpdated);
+    socket.on('user_left_dm', handleUserLeftDM);
 
     return () => {
       socket.off('dm_message_received', handleDMMessageReceived);
       socket.off('dm_channel_updated', handleDMChannelUpdated);
+      socket.off('user_left_dm', handleUserLeftDM);
     };
   }, []);
 
@@ -113,14 +140,21 @@ export function DMList({
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      
       if (response.ok) {
         setDmChannels(prev => prev.filter(ch => ch.id !== channelId));
         if (selectedChannelId === channelId) {
           onSelectChannel(''); // Deselect
         }
+        console.log('DM channel deleted successfully:', channelId);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to delete DM channel:', response.status, errorData);
+        alert('Gagal menghapus percakapan: ' + (errorData.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Failed to delete DM channel:', error);
+      alert('Gagal menghapus percakapan: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -167,79 +201,102 @@ export function DMList({
         </button>
       </div>
 
-      {/* Section Title */}
-      <div className="px-4 py-1">
+      {/* Section Title with Create Group Button */}
+      <div className="px-4 py-1 flex items-center justify-between">
         <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide">
           Pesan Langsung
         </h3>
+        {onCreateGroupDM && (
+          <button
+            onClick={onCreateGroupDM}
+            className="text-[#96989d] hover:text-white transition-colors p-1"
+            title="Buat Grup Baru"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* DM List */}
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-0.5">
-          {dmChannels.map((channel) => (
-            <button
-              key={channel.id}
-              onClick={() => onSelectChannel(channel.id)}
-              className={`w-full flex items-center gap-3 px-2 py-2 rounded group relative ${
-                selectedChannelId === channel.id
-                  ? 'bg-[#40444b] text-white'
-                  : 'hover:bg-[#34373c] text-[#b9bbbe] hover:text-white'
-              }`}
-            >
-              {/* Avatar with status */}
-              <div className="relative flex-shrink-0">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage 
-                    src={channel.friend?.avatar 
-                      ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
-                      : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
-                    alt={channel.friend?.username || 'User'} 
-                  />
-                  <AvatarFallback>{(channel.friend?.username || 'U')[0].toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#2f3136]`} />
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center justify-between">
-                  <span className={`font-medium text-sm truncate ${
-                    (unreadCounts[channel.id] || 0) > 0 ? 'text-white' : ''
-                  }`}>
-                    {channel.friend?.username || 'Unknown'}
-                  </span>
-                  {channel.lastMessageAt && (
-                    <span className="text-[10px] text-[#72767d] flex-shrink-0 ml-1">
-                      {formatTime(channel.lastMessageAt)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs truncate ${
-                    (unreadCounts[channel.id] || 0) > 0 
-                      ? 'text-white font-medium' 
-                      : 'text-[#72767d]'
-                  }`}>
-                    {channel.lastMessage || 'Belum ada pesan'}
-                  </span>
-                  {(unreadCounts[channel.id] || 0) > 0 && (
-                    <Badge className="bg-[#ed4245] text-white text-[10px] min-w-[16px] h-4 flex items-center justify-center p-0 flex-shrink-0 ml-1">
-                      {unreadCounts[channel.id] > 9 ? '9+' : unreadCounts[channel.id]}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Delete button (hover) */}
+          {dmChannels.map((channel) => {
+            const isGroup = channel.type === 'group';
+            const displayName = isGroup 
+              ? (channel.name || `Grup (${channel.members?.length || 2})`)
+              : (channel.friend?.displayName || channel.friend?.username || 'Unknown');
+            
+            return (
               <button
-                onClick={(e) => handleDeleteDM(e, channel.id)}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#ed4245]/20 rounded text-[#72767d] hover:text-[#ed4245] transition-all"
+                key={channel.id}
+                onClick={() => onSelectChannel(channel.id)}
+                className={`w-full flex items-center gap-3 px-2 py-2 rounded group relative ${
+                  selectedChannelId === channel.id
+                    ? 'bg-[#40444b] text-white'
+                    : 'hover:bg-[#34373c] text-[#b9bbbe] hover:text-white'
+                }`}
               >
-                <X className="w-3 h-3" />
+                {/* Avatar or Group Icon */}
+                <div className="relative flex-shrink-0">
+                  {isGroup ? (
+                    <div className="w-8 h-8 rounded-full bg-[#5865f2] flex items-center justify-center">
+                      <Users className="w-4 h-4 text-white" />
+                    </div>
+                  ) : (
+                    <>
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage 
+                          src={channel.friend?.avatar 
+                            ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
+                            : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
+                          alt={channel.friend?.displayName || channel.friend?.username || 'User'} 
+                        />
+                        <AvatarFallback>{(channel.friend?.displayName || channel.friend?.username || 'U')[0].toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#2f3136]`} />
+                    </>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-medium text-sm truncate ${
+                      (unreadCounts[channel.id] || 0) > 0 ? 'text-white' : ''
+                    }`}>
+                      {displayName}
+                    </span>
+                    {channel.lastMessageAt && (
+                      <span className="text-[10px] text-[#72767d] flex-shrink-0 ml-1">
+                        {formatTime(channel.lastMessageAt)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs truncate ${
+                      (unreadCounts[channel.id] || 0) > 0 
+                        ? 'text-white font-medium' 
+                        : 'text-[#72767d]'
+                    }`}>
+                      {isGroup && channel.lastMessage && (
+                        <span className="mr-1">
+                          {channel.members?.find(m => channel.lastMessage?.includes(m.username))?.username || ''}:
+                        </span>
+                      )}
+                      {channel.lastMessage || 'Belum ada pesan'}
+                    </span>
+                    {(unreadCounts[channel.id] || 0) > 0 && (
+                      <Badge className="bg-[#ed4245] text-white text-[10px] min-w-[16px] h-4 flex items-center justify-center p-0 flex-shrink-0 ml-1">
+                        {unreadCounts[channel.id] > 9 ? '9+' : unreadCounts[channel.id]}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+
               </button>
-            </button>
-          ))}
+            );
+          })}
 
           {dmChannels.length === 0 && (
             <div className="text-center py-8 text-[#72767d] text-sm">

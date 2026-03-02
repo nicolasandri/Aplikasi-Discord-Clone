@@ -100,7 +100,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
 
         if (response.ok) {
           const data = await response.json();
-          newAttachments.push(data.file);
+          newAttachments.push(data);
         } else {
           const errorText = await response.text();
           console.error('Upload failed:', errorText);

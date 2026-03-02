@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronRight, Users, Shield, Hash, Trash2, Plus, Settings, UserPlus, UserMinus, Ban, Edit3, FolderPlus, FolderMinus } from 'lucide-react';
+import { ChevronRight, Users, Shield, Trash2, Plus, Settings, UserPlus, UserMinus, Ban, Edit3 } from 'lucide-react';
 
 interface ServerAuditLogProps {
   serverId: string;

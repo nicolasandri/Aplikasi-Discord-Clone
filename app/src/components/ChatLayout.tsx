@@ -6,12 +6,15 @@ import { MessageInput } from './MessageInput';
 import { MemberList } from './MemberList';
 import { SettingsModal } from './SettingsModal';
 import { ServerSettingsModal } from './ServerSettingsModal';
+import { ServerSettingsPage } from './ServerSettingsPage';
 import { InviteModal } from './InviteModal';
 import { SearchModal } from './SearchModal';
 import { FriendsPage } from '@/pages/FriendsPage';
 // import { InvitePage } from '@/pages/InvitePage';
 import { DMList } from './DMList';
 import { DMChatArea } from './DMChatArea';
+import { GroupDMModal } from './GroupDMModal';
+import { AddMemberToGroupModal } from './AddMemberToGroupModal';
 import { MobileBottomNav } from './MobileBottomNav';
 import { MobileDrawer } from './MobileDrawer';
 import { MobileHeader } from './MobileHeader';
@@ -50,6 +53,9 @@ export function ChatLayout() {
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGroupDMModalOpen, setIsGroupDMModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [activeGroupChannelId, setActiveGroupChannelId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingChannelId, setPendingChannelId] = useState<string | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
@@ -235,21 +241,25 @@ export function ChatLayout() {
       });
       if (response.ok) {
         const data = await response.json();
-        // API returns nested friend object, use it directly
+        // API returns nested data with support for group DMs
         const mappedChannels: DMChannel[] = data.map((row: any) => ({
           id: row.id,
-          friend: row.friend || {
-            // Fallback if API returns flat format
-            id: row.friend_id,
-            username: row.friend_username,
-            avatar: row.friend_avatar,
-            status: row.friend_status || 'offline',
+          name: row.name,
+          type: row.type || 'direct',
+          members: row.members || [],
+          friend: row.friend ? {
+            id: row.friend.id,
+            username: row.friend.username,
+            displayName: row.friend.displayName,
+            avatar: row.friend.avatar,
+            status: row.friend.status || 'offline',
             email: '',
-          },
+          } : undefined,
           lastMessage: row.last_message,
           lastMessageAt: row.last_message_at,
           unreadCount: row.unread_count || 0,
           updatedAt: row.updated_at || row.last_message_at,
+          creatorId: row.creator_id,
         }));
         setDmChannels(mappedChannels);
       }
@@ -276,7 +286,7 @@ export function ChatLayout() {
 
   // BUG-019: Socket Event Listeners Re-registration - Use ref pattern
   const dmHandlersRef = useRef({
-    handleDMMessageReceived: (data: { channelId: string }) => {
+    handleDMMessageReceived: (data: { channelId: string; sender?: any }) => {
       fetchDMUnreadCount();
       if (data.channelId === selectedDMChannelId) {
         // Messages will be updated via socket event in DMChatArea
@@ -284,21 +294,38 @@ export function ChatLayout() {
       if (viewMode !== 'dm' || selectedDMChannelId !== data.channelId) {
         const channel = dmChannels.find(c => c.id === data.channelId);
         if (channel) {
+          const senderName = data.sender?.username || channel.friend?.username || channel.name || 'Pesan Baru';
           notify({
-            title: channel.friend.username,
+            title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
             body: 'Pesan baru',
-            icon: channel.friend.avatar,
+            icon: data.sender?.avatar || channel.friend?.avatar,
             tag: `dm-${data.channelId}`,
           });
         }
       }
+    },
+    handleGroupDMCreated: (data: { channelId: string; name?: string }) => {
+      fetchDMChannels();
+      notify({
+        title: 'Grup Baru',
+        body: `Anda ditambahkan ke grup "${data.name || 'Grup Baru'}"`,
+        tag: `group-dm-${data.channelId}`,
+      });
+    },
+    handleUserAddedToDM: (data: { channelId: string; channelName?: string }) => {
+      fetchDMChannels();
+      notify({
+        title: 'Ditambahkan ke Grup',
+        body: `Anda ditambahkan ke "${data.channelName || 'Grup'}"`,
+        tag: `added-to-group-${data.channelId}`,
+      });
     },
     fetchDMUnreadCount
   });
 
   // Update ref when dependencies change
   useEffect(() => {
-    dmHandlersRef.current.handleDMMessageReceived = (data: { channelId: string }) => {
+    dmHandlersRef.current.handleDMMessageReceived = (data: { channelId: string; sender?: any }) => {
       fetchDMUnreadCount();
       if (data.channelId === selectedDMChannelId) {
         // Messages will be updated via socket event in DMChatArea
@@ -306,10 +333,11 @@ export function ChatLayout() {
       if (viewMode !== 'dm' || selectedDMChannelId !== data.channelId) {
         const channel = dmChannels.find(c => c.id === data.channelId);
         if (channel) {
+          const senderName = data.sender?.username || channel.friend?.username || channel.name || 'Pesan Baru';
           notify({
-            title: channel.friend.username,
+            title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
             body: 'Pesan baru',
-            icon: channel.friend.avatar,
+            icon: data.sender?.avatar || channel.friend?.avatar,
             tag: `dm-${data.channelId}`,
           });
         }
@@ -324,8 +352,12 @@ export function ChatLayout() {
     if (!socket) return;
 
     const wrappedHandlers = {
-      dm_message_received: (data: { channelId: string }) => dmHandlersRef.current.handleDMMessageReceived(data),
+      dm_message_received: (data: { channelId: string; sender?: any }) => dmHandlersRef.current.handleDMMessageReceived(data),
       dm_channel_updated: () => dmHandlersRef.current.fetchDMUnreadCount(),
+      group_dm_created: (data: { channelId: string; name?: string }) => dmHandlersRef.current.handleGroupDMCreated(data),
+      user_added_to_dm: (data: { channelId: string; channelName?: string }) => dmHandlersRef.current.handleUserAddedToDM(data),
+      dm_member_added: () => dmHandlersRef.current.fetchDMUnreadCount(),
+      dm_member_left: () => dmHandlersRef.current.fetchDMUnreadCount(),
     };
 
     // Register listeners
@@ -555,7 +587,7 @@ export function ChatLayout() {
 
   const handleStartDM = async (friend: any) => {
     try {
-      const existingChannel = dmChannels.find(c => c.friend?.id === friend.id);
+      const existingChannel = dmChannels.find(c => c.friend?.id === friend.id && c.type === 'direct');
       if (existingChannel) {
         setSelectedDMChannelId(existingChannel.id);
         setViewMode('dm');
@@ -577,9 +609,12 @@ export function ChatLayout() {
         // API returns nested friend object
         const newChannel: DMChannel = {
           id: data.id,
+          type: data.type || 'direct',
+          members: data.members || [],
           friend: data.friend || {
             id: friend.id,
             username: friend.username,
+            displayName: friend.displayName,
             avatar: friend.avatar,
             status: friend.status || 'offline',
             email: friend.email || '',
@@ -595,6 +630,94 @@ export function ChatLayout() {
       }
     } catch (error) {
       console.error('Failed to start DM:', error);
+    }
+  };
+
+  // Create Group DM
+  const handleCreateGroupDM = async (userIds: string[], name: string) => {
+    try {
+      const response = await fetch(`${API_URL}/dm/channels`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userIds, name, type: 'group' }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📨 Created Group DM:', data);
+        const newChannel: DMChannel = {
+          id: data.id,
+          name: data.name,
+          type: 'group',
+          members: data.members || [],
+          creatorId: data.creatorId,
+          lastMessage: '',
+          lastMessageAt: new Date().toISOString(),
+          unreadCount: 0,
+          updatedAt: new Date().toISOString(),
+        };
+        setDmChannels(prev => [newChannel, ...prev]);
+        setSelectedDMChannelId(newChannel.id);
+        setViewMode('dm');
+      }
+    } catch (error) {
+      console.error('Failed to create group DM:', error);
+    }
+  };
+
+  // Add member to group DM
+  const handleAddMemberToGroup = async (channelId: string, userId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/dm/channels/${channelId}/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        // Update local channel data
+        setDmChannels(prev => prev.map(ch => {
+          if (ch.id === channelId) {
+            return { ...ch, members: [...(ch.members || []), { id: userId, username: 'Unknown', email: '', avatar: '', status: 'offline' }] };
+          }
+          return ch;
+        }));
+        fetchDMChannels(); // Refresh to get full member data
+      }
+    } catch (error) {
+      console.error('Failed to add member:', error);
+    }
+  };
+
+  // Leave group DM
+  const handleLeaveGroup = async (channelId: string) => {
+    if (!confirm('Apakah Anda yakin ingin meninggalkan grup ini?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/dm/channels/${channelId}/members/${user?.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setDmChannels(prev => prev.filter(ch => ch.id !== channelId));
+        if (selectedDMChannelId === channelId) {
+          setSelectedDMChannelId(null);
+          setViewMode('friends');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to leave group:', error);
     }
   };
 
@@ -652,6 +775,12 @@ export function ChatLayout() {
                 <DMChatArea
                   channel={selectedDMChannel}
                   currentUser={user}
+                  onBack={handleBackFromDM}
+                  onAddMember={(channelId) => {
+                    setActiveGroupChannelId(channelId);
+                    setIsAddMemberModalOpen(true);
+                  }}
+                  onLeaveGroup={handleLeaveGroup}
                 />
               </div>
             </>
@@ -677,6 +806,8 @@ export function ChatLayout() {
                   isMobile={true}
                   onStartDM={handleStartDMFromProfile}
                   onOpenSearch={() => setIsSearchOpen(true)}
+                  servers={servers}
+                  dmChannels={dmChannels}
                 />
                 <MessageInput
                   ref={messageInputRef}
@@ -735,7 +866,8 @@ export function ChatLayout() {
             channels={channels}
             selectedChannelId={selectedChannelId}
             onSelectChannel={handleSelectChannel}
-            onOpenSettings={() => setIsServerSettingsOpen(true)}
+            onOpenServerSettings={() => setIsServerSettingsOpen(true)}
+            onOpenUserSettings={() => setIsSettingsOpen(true)}
             onOpenInvite={() => setIsInviteOpen(true)}
             isMobile={true}
             onClose={() => setIsChannelDrawerOpen(false)}
@@ -779,6 +911,26 @@ export function ChatLayout() {
           />
         )}
 
+        {/* Group DM Modal */}
+        <GroupDMModal
+          isOpen={isGroupDMModalOpen}
+          onClose={() => setIsGroupDMModalOpen(false)}
+          onCreateGroup={handleCreateGroupDM}
+          currentUser={user}
+        />
+
+        {/* Add Member to Group Modal */}
+        {activeGroupChannelId && (
+          <AddMemberToGroupModal
+            isOpen={isAddMemberModalOpen}
+            onClose={() => setIsAddMemberModalOpen(false)}
+            onAddMember={(userId) => handleAddMemberToGroup(activeGroupChannelId, userId)}
+            channelId={activeGroupChannelId}
+            currentMembers={dmChannels.find(c => c.id === activeGroupChannelId)?.members || []}
+            currentUser={user}
+          />
+        )}
+
         {/* Connection Status */}
         <div className="fixed top-16 right-2 flex items-center gap-2 px-3 py-1.5 bg-[#18191c] rounded-full z-40">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3ba55d]' : 'bg-[#ed4245]'}`} />
@@ -810,7 +962,8 @@ export function ChatLayout() {
           channels={channels}
           selectedChannelId={selectedChannelId}
           onSelectChannel={handleSelectChannel}
-          onOpenSettings={() => setIsServerSettingsOpen(true)}
+          onOpenServerSettings={() => setIsServerSettingsOpen(true)}
+            onOpenUserSettings={() => setIsSettingsOpen(true)}
           onOpenInvite={() => setIsInviteOpen(true)}
         />
       )}
@@ -820,7 +973,8 @@ export function ChatLayout() {
           selectedChannelId={selectedDMChannelId}
           onSelectChannel={handleSelectDMChannel}
           onOpenFriends={() => setViewMode('friends')}
-          onOpenSettings={() => setIsServerSettingsOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onCreateGroupDM={() => setIsGroupDMModalOpen(true)}
           unreadCounts={dmUnreadCounts}
         />
       )}
@@ -835,6 +989,12 @@ export function ChatLayout() {
         <DMChatArea
           channel={selectedDMChannel}
           currentUser={user}
+          onBack={handleBackFromDM}
+          onAddMember={(channelId) => {
+            setActiveGroupChannelId(channelId);
+            setIsAddMemberModalOpen(true);
+          }}
+          onLeaveGroup={handleLeaveGroup}
         />
       ) : (
         <>
@@ -849,6 +1009,8 @@ export function ChatLayout() {
               onRefresh={() => selectedChannelId && fetchMessages(selectedChannelId, true)}
               onStartDM={handleStartDMFromProfile}
               onOpenSearch={() => setIsSearchOpen(true)}
+              servers={servers}
+              dmChannels={dmChannels}
             />
             <MessageInput
               ref={messageInputRef}
@@ -866,18 +1028,18 @@ export function ChatLayout() {
         </>
       )}
 
-      {/* Connection Status */}
-      <div className="fixed bottom-2 right-2 flex items-center gap-2 px-3 py-1.5 bg-[#18191c] rounded-full z-50">
+      {/* Connection Status - Top Right */}
+      <div className="fixed top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-[#18191c]/90 backdrop-blur-sm rounded-full z-50 border border-[#2f3136]">
         <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3ba55d]' : 'bg-[#ed4245]'}`} />
-        <span className="text-xs text-[#b9bbbe]">
-          {isConnected ? 'Terhubung' : 'Memutuskan...'}
+        <span className="text-xs text-[#b9bbbe] font-medium">
+          {isConnected ? 'Online' : 'Connecting...'}
         </span>
         {!hasPermission && 'Notification' in window && Notification.permission !== 'granted' && (
           <button
             onClick={() => Notification.requestPermission()}
             className="ml-2 text-xs text-[#5865f2] hover:text-[#4752c4]"
           >
-            Aktifkan Notifikasi
+            Enable Notifications
           </button>
         )}
       </div>
@@ -888,12 +1050,19 @@ export function ChatLayout() {
         onClose={() => setIsSettingsOpen(false)}
       />
 
-      {/* Server Settings Modal */}
+      {/* Server Settings Page */}
       {selectedServer && (
-        <ServerSettingsModal
+        <ServerSettingsPage
           isOpen={isServerSettingsOpen}
           onClose={() => setIsServerSettingsOpen(false)}
           server={selectedServer}
+          onUpdateServer={(serverId, data) => {
+            // Update server in state
+            setServers(prev => prev.map(s => s.id === serverId ? { ...s, ...data } : s));
+            if (selectedServer?.id === serverId) {
+              setSelectedServerId(serverId);
+            }
+          }}
         />
       )}
 
@@ -914,6 +1083,26 @@ export function ChatLayout() {
         serverId={selectedServerId || undefined}
         channelId={selectedChannelId || undefined}
       />
+
+      {/* Group DM Modal */}
+      <GroupDMModal
+        isOpen={isGroupDMModalOpen}
+        onClose={() => setIsGroupDMModalOpen(false)}
+        onCreateGroup={handleCreateGroupDM}
+        currentUser={user}
+      />
+
+      {/* Add Member to Group Modal */}
+      {activeGroupChannelId && (
+        <AddMemberToGroupModal
+          isOpen={isAddMemberModalOpen}
+          onClose={() => setIsAddMemberModalOpen(false)}
+          onAddMember={(userId) => handleAddMemberToGroup(activeGroupChannelId, userId)}
+          channelId={activeGroupChannelId}
+          currentMembers={dmChannels.find(c => c.id === activeGroupChannelId)?.members || []}
+          currentUser={user}
+        />
+      )}
     </div>
   );
 }

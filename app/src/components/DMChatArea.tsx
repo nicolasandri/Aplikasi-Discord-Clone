@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Phone, Video } from 'lucide-react';
-import { EmojiPicker } from './EmojiPicker';
+import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, FileText } from 'lucide-react';
+import { EmojiStickerGIFPicker } from './EmojiStickerGIFPicker';
 import { ImageViewer } from './ImageViewer';
-import type { DMChannel, DMMessage, User } from '@/types';
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import type { DMChannel, DMMessage, User, FileAttachment } from '@/types';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -22,6 +29,8 @@ interface DMChatAreaProps {
   channel: DMChannel | null;
   currentUser: User | null;
   onBack?: () => void;
+  onAddMember?: (channelId: string) => void;
+  onLeaveGroup?: (channelId: string) => void;
 }
 
 const statusColors = {
@@ -38,32 +47,66 @@ const statusLabels = {
   dnd: 'Do Not Disturb',
 };
 
+// Helper to convert UTC to Asia/Jakarta (WIB) timezone
+function toWIB(date: Date): Date {
+  return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+}
+
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
   if (isNaN(date.getTime())) return '';
+  // Format: 11:28 PM in Asia/Jakarta timezone
   return date.toLocaleTimeString('id-ID', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Jakarta'
   });
 }
 
 function formatDate(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
-  const today = new Date();
+  const now = new Date();
+  
+  // Convert to WIB for comparison
+  const dateWIB = toWIB(date);
+  const nowWIB = toWIB(now);
+  
+  const today = new Date(nowWIB);
+  today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
+  
+  const dateOnly = new Date(dateWIB);
+  dateOnly.setHours(0, 0, 0, 0);
 
-  if (date.toDateString() === today.toDateString()) {
+  if (dateOnly.getTime() === today.getTime()) {
     return 'Hari Ini';
-  } else if (date.toDateString() === yesterday.toDateString()) {
+  } else if (dateOnly.getTime() === yesterday.getTime()) {
     return 'Kemarin';
   }
+  // Format: Selasa, 27 Januari 2026
   return date.toLocaleDateString('id-ID', { 
+    weekday: 'long',
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric' 
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
+  });
+}
+
+function formatShortDate(timestamp: string): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
+  // Format: 27/1/2026 (Indonesian format)
+  return date.toLocaleDateString('id-ID', { 
+    day: 'numeric', 
+    month: 'numeric', 
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
   });
 }
 
@@ -90,7 +133,7 @@ function groupMessagesByDate(messages: DMMessage[]): { date: string; messages: D
   }));
 }
 
-export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatAreaProps) {
+export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember, onLeaveGroup }: DMChatAreaProps) {
   const [messages, setMessages] = useState<DMMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -98,6 +141,9 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [socketReady, setSocketReady] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -209,6 +255,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
           senderId: data.message.sender_id || data.message.senderId,
           content: data.message.content,
           sender_username: data.message.sender_username || data.sender?.username,
+          sender_display_name: data.message.sender_display_name || data.sender?.displayName,
           sender_avatar: data.message.sender_avatar || data.sender?.avatar,
           attachments: data.message.attachments,
           isRead: data.message.is_read === 1 || data.message.is_read === true || data.message.isRead === true,
@@ -296,6 +343,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
           senderId: row.sender_id,
           content: row.content,
           sender_username: row.sender_username,
+          sender_display_name: row.sender_display_name,
           sender_avatar: row.sender_avatar,
           attachments: row.attachments,
           isRead: row.is_read === 1 || row.is_read === true,
@@ -309,6 +357,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Get member info for a sender
+  const getMemberInfo = (senderId: string) => {
+    if (!channel?.members) return null;
+    return channel.members.find(m => m.id === senderId);
   };
 
   const joinDMChannel = () => {
@@ -346,7 +400,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !channel || !currentUser) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !channel || !currentUser) return;
 
     const messageContent = newMessage.trim();
     const tempId = 'temp-' + Date.now();
@@ -359,6 +413,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       content: messageContent,
       sender_username: currentUser.username,
       sender_avatar: currentUser.avatar,
+      attachments: attachments.length > 0 ? attachments : undefined,
       isRead: false,
       createdAt: new Date().toISOString(),
     };
@@ -370,11 +425,15 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
     
     if (socket && socket.connected) {
       // Use socket for real-time messaging
-      console.log('Sending via socket:', { channelId: channel.id, content: messageContent });
+      console.log('Sending via socket:', { channelId: channel.id, content: messageContent, attachments });
       socket.emit('send-dm-message', {
         channelId: channel.id,
-        content: messageContent
+        content: messageContent,
+        attachments: attachments.length > 0 ? attachments : undefined
       });
+      
+      // Clear attachments after sending
+      setAttachments([]);
       
       // Set timeout to confirm message was received (fallback if no response)
       setTimeout(() => {
@@ -382,8 +441,6 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
           const stillHasTemp = prev.some(m => m.id === tempId);
           if (stillHasTemp) {
             console.log('No socket response received, keeping optimistic message');
-            // Mark as "pending" visually or try REST API fallback
-            // For now, we keep the optimistic message
           }
           return prev;
         });
@@ -398,13 +455,18 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ content: messageContent })
+          body: JSON.stringify({ 
+            content: messageContent,
+            attachments: attachments.length > 0 ? attachments : undefined
+          })
         });
         
         if (response.ok) {
           const message = await response.json();
           // Replace optimistic message with real one
           setMessages(prev => prev.map(m => m.id === tempId ? message : m));
+          // Clear attachments after sending
+          setAttachments([]);
         } else {
           console.error('Failed to send message:', await response.text());
           // Remove optimistic message on error
@@ -430,6 +492,71 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            url: data.url,
+            filename: data.filename,
+            originalName: data.originalName,
+            mimetype: data.mimetype,
+            size: data.size,
+          } as FileAttachment;
+        } else {
+          console.error('Upload failed:', await response.text());
+          return null;
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        return null;
+      }
+    });
+
+    const uploadedFiles = (await Promise.all(uploadPromises)).filter(Boolean) as FileAttachment[];
+    setAttachments(prev => [...prev, ...uploadedFiles]);
+    setIsUploading(false);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleGIFSelect = (gif: { url: string; title: string }) => {
+    // Add GIF as attachment
+    const gifAttachment: FileAttachment = {
+      url: gif.url,
+      filename: `gif_${Date.now()}.gif`,
+      originalName: gif.title || 'GIF',
+      mimetype: 'image/gif',
+      size: 0, // Size not available from Tenor
+    };
+    setAttachments(prev => [...prev, gifAttachment]);
+    // Auto send message with GIF
+    setTimeout(() => sendMessage(), 100);
   };
 
   /* _handleReaction = (emoji: string) => {
@@ -458,33 +585,84 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
       {/* Header */}
       <div className="h-12 px-4 flex items-center justify-between shadow-md border-b border-[#202225]">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <img 
-              src={channel.friend?.avatar 
-                ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
-                : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
-              alt={channel.friend?.username || 'User'}
-              className="w-8 h-8 rounded-full"
-              onError={(e) => {
-                console.log('[DMChatArea] Header avatar failed to load, using fallback');
-                const target = e.target as HTMLImageElement;
-                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`;
-              }}
-            />
-            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#36393f]`} />
-          </div>
-          <div>
-            <h3 className="text-white font-semibold">{channel.friend?.username || 'Unknown'}</h3>
-            <p className="text-xs text-[#b9bbbe]">{statusLabels[channel.friend?.status || 'offline']}</p>
-          </div>
+          {channel.type === 'group' ? (
+            // Group DM Header
+            <>
+              <div className="w-8 h-8 rounded-full bg-[#5865f2] flex items-center justify-center">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">
+                  {channel.name || `Grup (${channel.members?.length || 0})`}
+                </h3>
+                <p className="text-xs text-[#b9bbbe]">
+                  {channel.members?.map(m => m.username).join(', ') || 'Grup'}
+                </p>
+              </div>
+            </>
+          ) : (
+            // Direct DM Header
+            <>
+              <div className="relative">
+                <img 
+                  src={channel.friend?.avatar 
+                    ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
+                    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
+                  alt={channel.friend?.username || 'User'}
+                  className="w-8 h-8 rounded-full"
+                  onError={(e) => {
+                    console.log('[DMChatArea] Header avatar failed to load, using fallback');
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`;
+                  }}
+                />
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#36393f]`} />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">
+                  {channel.friend?.displayName || channel.friend?.username || 'Unknown'}
+                </h3>
+                <p className="text-xs text-[#b9bbbe]">{statusLabels[channel.friend?.status || 'offline']}</p>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-4">
+          {channel.type === 'group' && onAddMember && (
+            <button 
+              onClick={() => onAddMember(channel.id)}
+              className="text-[#b9bbbe] hover:text-white transition-colors"
+              title="Tambah Anggota"
+            >
+              <UserPlus className="w-5 h-5" />
+            </button>
+          )}
           <button className="text-[#b9bbbe] hover:text-white transition-colors">
             <Phone className="w-5 h-5" />
           </button>
           <button className="text-[#b9bbbe] hover:text-white transition-colors">
             <Video className="w-5 h-5" />
           </button>
+          {channel.type === 'group' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-[#b9bbbe] hover:text-white transition-colors">
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[#18191c] border-[#202225]">
+                {onLeaveGroup && (
+                  <DropdownMenuItem 
+                    onClick={() => onLeaveGroup(channel.id)}
+                    className="text-[#ed4245] focus:text-[#ed4245] focus:bg-[#ed4245]/10 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Tinggalkan Grup
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -504,7 +682,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
               <span className="text-3xl">👋</span>
             </div>
             <h3 className="text-xl font-bold text-white mb-2">
-              Ini adalah awal dari percakapan Anda dengan {channel.friend?.username || 'Unknown'}
+              Ini adalah awal dari percakapan Anda dengan {channel.friend?.displayName || channel.friend?.username || 'Unknown'}
             </h3>
             <p className="text-[#b9bbbe]">Kirim pesan untuk memulai!</p>
           </div>
@@ -512,10 +690,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
           <div className="space-y-6">
             {groupedMessages.map((group, groupIndex) => (
               <div key={groupIndex}>
-                {/* Date Divider */}
-                <div className="flex items-center justify-center mb-4">
+                {/* Date Divider - Discord Style */}
+                <div className="flex items-center justify-center my-4">
                   <div className="h-[1px] bg-[#40444b] flex-1" />
-                  <span className="px-4 text-xs text-[#72767d] font-medium">{group.date}</span>
+                  <div className="mx-4 px-4 py-1 bg-[#2f3136] rounded-full">
+                    <span className="text-xs text-[#b9bbbe] font-medium">{group.date}</span>
+                  </div>
                   <div className="h-[1px] bg-[#40444b] flex-1" />
                 </div>
 
@@ -525,34 +705,20 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
                     const isOwn = message.senderId === currentUser?.id;
                     const showAvatar = idx === 0 || group.messages[idx - 1].senderId !== message.senderId;
                     
-                    // Build full friend avatar URL
-                    const getFriendAvatar = () => {
-                      if (!channel.friend?.avatar) {
-                        console.log('[DMChatArea] Friend avatar empty, using dicebear');
-                        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`;
-                      }
-                      if (channel.friend.avatar.startsWith('http')) {
-                        console.log('[DMChatArea] Friend avatar full URL:', channel.friend.avatar);
-                        return channel.friend.avatar;
-                      }
-                      const fullUrl = `${BASE_URL}${channel.friend.avatar}`;
-                      console.log('[DMChatArea] Friend avatar constructed URL:', fullUrl, 'BASE_URL:', BASE_URL, 'avatar:', channel.friend.avatar);
-                      return fullUrl;
-                    };
-                    const friendAvatar = getFriendAvatar();
-                    const friendUsername = channel.friend?.username || 'Unknown';
-
-                    // Build full own avatar URL with cache-busting
-                    const getOwnAvatar = () => {
-                      if (!currentUser?.avatar) {
-                        return `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.username || 'user'}`;
-                      }
-                      if (currentUser.avatar.startsWith('http')) {
-                        return currentUser.avatar;
-                      }
-                      return `${BASE_URL}${currentUser.avatar}?v=${avatarVersion}`;
-                    };
-                    const ownAvatar = getOwnAvatar();
+                    // Get sender info (works for both direct and group DMs)
+                    const senderInfo = channel.type === 'group' 
+                      ? getMemberInfo(message.senderId)
+                      : channel.friend;
+                    const senderName = isOwn 
+                      ? (currentUser?.displayName || currentUser?.username)
+                      : (senderInfo?.displayName || message.sender_display_name || senderInfo?.username || message.sender_username || 'Unknown');
+                    const senderAvatar = isOwn 
+                      ? (currentUser?.avatar?.startsWith('http') 
+                          ? currentUser.avatar 
+                          : `${BASE_URL}${currentUser?.avatar}?v=${avatarVersion}`)
+                      : (senderInfo?.avatar?.startsWith('http')
+                          ? senderInfo.avatar
+                          : `${BASE_URL}${senderInfo?.avatar || message.sender_avatar}`);
                     
                     return (
                       <div 
@@ -561,13 +727,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
                       >
                         {showAvatar ? (
                           <img
-                            src={isOwn ? ownAvatar : friendAvatar}
-                            alt={message.sender_username || (isOwn ? currentUser?.username : friendUsername)}
+                            src={senderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderName || 'user'}`}
+                            alt={senderName}
                             className="w-10 h-10 rounded-full flex-shrink-0"
                             onError={(e) => {
-                              console.log('[DMChatArea] Message avatar failed to load:', isOwn ? 'own' : 'friend');
                               const target = e.target as HTMLImageElement;
-                              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${isOwn ? (currentUser?.username || 'user') : friendUsername}`;
+                              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderName || 'user'}`;
                             }}
                           />
                         ) : (
@@ -576,21 +741,84 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
                         <div className={`max-w-[70%] ${isOwn ? 'items-end' : ''}`}>
                           {showAvatar && (
                             <div className={`flex items-baseline gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                              <span className="text-white font-medium text-sm">
-                                {isOwn ? currentUser?.username : friendUsername}
+                              <span className="text-white font-medium text-sm hover:underline cursor-pointer">
+                                {senderName}
                               </span>
                               <span className="text-[11px] text-[#72767d]">
-                                {formatTime(message.createdAt)}
+                                {formatShortDate(message.createdAt)} {formatTime(message.createdAt)}
                               </span>
                             </div>
                           )}
-                          <div className={`px-4 py-2 rounded-2xl ${
-                            isOwn 
-                              ? 'bg-[#5865f2] text-white rounded-br-md' 
-                              : 'bg-[#40444b] text-[#dcddde] rounded-bl-md'
-                          }`}>
-                            <p className="text-sm">{message.content}</p>
-                          </div>
+                          {/* Message content bubble */}
+                          {(message.content || (message.attachments && message.attachments.some(f => !f.mimetype?.startsWith('image/')))) && (
+                            <div className={`px-4 py-2 rounded-2xl ${
+                              isOwn 
+                                ? 'bg-[#5865f2] text-white rounded-br-md' 
+                                : 'bg-[#40444b] text-[#dcddde] rounded-bl-md'
+                            }`}>
+                              {message.content && (
+                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              )}
+                              
+                              {/* Non-image attachments */}
+                              {message.attachments && message.attachments.filter(f => !f.mimetype?.startsWith('image/')).length > 0 && (
+                                <div className={`${message.content ? 'mt-2' : ''} space-y-2`}>
+                                  {message.attachments
+                                    .filter(f => !f.mimetype?.startsWith('image/'))
+                                    .map((file, index) => (
+                                      <div 
+                                        key={index}
+                                        className="flex items-center gap-2 p-2 bg-[#2f3136] rounded-lg"
+                                      >
+                                        <span className="text-2xl">📎</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm truncate">{file.originalName || file.filename}</p>
+                                          <p className="text-xs text-[#72767d]">{(file.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Image attachments - outside bubble, no background */}
+                          {message.attachments && message.attachments.filter(f => f.mimetype?.startsWith('image/')).length > 0 && (
+                            <div className={`${
+                              (message.content || message.attachments.some(f => !f.mimetype?.startsWith('image/'))) 
+                                ? 'mt-1' 
+                                : ''
+                            } ${
+                              message.attachments.filter(f => f.mimetype?.startsWith('image/')).length === 1 
+                                ? 'space-y-1' 
+                                : 'grid grid-cols-2 gap-1'
+                            }`}>
+                              {message.attachments
+                                .filter(f => f.mimetype?.startsWith('image/'))
+                                .map((file, index) => (
+                                  <div 
+                                    key={index}
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                      const fullUrl = file.url?.startsWith('http') 
+                                        ? file.url 
+                                        : `${BASE_URL}${file.url}`;
+                                      setViewerImage({ src: fullUrl, alt: file.originalName || 'Image' });
+                                    }}
+                                  >
+                                    <img 
+                                      src={file.url?.startsWith('http') ? file.url : `${BASE_URL}${file.url}`}
+                                      alt={file.originalName || 'Attachment'}
+                                      className="max-w-[200px] max-h-[200px] rounded-lg object-cover hover:opacity-90 transition-opacity"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -618,10 +846,56 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
 
       {/* Input Area */}
       <div className="px-3 pb-3 pt-2 bg-[#36393f]">
+        {/* Attachment Preview */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {attachments.map((file, index) => (
+              <div key={index} className="relative bg-[#2f3136] rounded-lg p-2 flex items-center gap-2 max-w-[200px]">
+                {file.mimetype?.startsWith('image/') ? (
+                  <img 
+                    src={file.url?.startsWith('http') ? file.url : `${BASE_URL}${file.url}`}
+                    alt={file.originalName}
+                    className="w-12 h-12 rounded object-cover"
+                  />
+                ) : (
+                  <FileText className="w-8 h-8 text-[#b9bbbe]" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-white truncate">{file.originalName}</p>
+                  <p className="text-[10px] text-[#72767d]">{(file.size ? (file.size / 1024).toFixed(1) : '?')} KB</p>
+                </div>
+                <button
+                  onClick={() => removeAttachment(index)}
+                  className="p-1 hover:bg-[#ed4245]/20 rounded text-[#72767d] hover:text-[#ed4245]"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        
         <div className="bg-[#40444b] rounded-lg flex items-end gap-2 p-2">
           <div className="flex items-center gap-1">
-            <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors">
-              <span className="text-xl">+</span>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt"
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors disabled:opacity-50"
+              title="Tambah attachment"
+            >
+              {isUploading ? (
+                <div className="w-5 h-5 border-2 border-[#b9bbbe] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
             </button>
           </div>
           <textarea
@@ -629,7 +903,10 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleTyping}
-            placeholder={`Kirim pesan ke @${channel.friend?.username || 'Unknown'}`}
+            placeholder={channel.type === 'group' 
+              ? `Kirim pesan ke grup`
+              : `Kirim pesan ke @${channel.friend?.displayName || channel.friend?.username || 'Unknown'}`
+            }
             className="flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none min-h-[40px] max-h-[120px] py-2"
             rows={1}
             style={{ height: 'auto' }}
@@ -640,9 +917,34 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack }: DMChatArea
             }}
           />
           <div className="flex items-center gap-1">
-            <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors">
-              <EmojiPicker onEmojiSelect={(emoji) => setNewMessage(prev => prev + emoji)} />
-            </button>
+            <EmojiStickerGIFPicker 
+              onSelectEmoji={(emoji) => setNewMessage(prev => prev + emoji)}
+              onSelectSticker={(sticker) => {
+                // Add sticker as attachment
+                const stickerAttachment: FileAttachment = {
+                  url: sticker.url,
+                  filename: `sticker_${Date.now()}.png`,
+                  originalName: sticker.name,
+                  mimetype: 'image/png',
+                  size: 0,
+                };
+                setAttachments(prev => [...prev, stickerAttachment]);
+                setTimeout(() => sendMessage(), 100);
+              }}
+              onSelectGIF={(gif) => {
+                // Add GIF as attachment
+                const gifAttachment: FileAttachment = {
+                  url: gif.url,
+                  filename: `gif_${Date.now()}.gif`,
+                  originalName: gif.title || 'GIF',
+                  mimetype: 'image/gif',
+                  size: 0,
+                };
+                setAttachments(prev => [...prev, gifAttachment]);
+                setTimeout(() => sendMessage(), 100);
+              }}
+              serverId={null} // DM doesn't have serverId
+            />
           </div>
         </div>
       </div>

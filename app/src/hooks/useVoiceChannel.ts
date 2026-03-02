@@ -9,7 +9,12 @@ import type {
   UserJoinedVoicePayload,
   UserLeftVoicePayload,
   VoiceStateChangedPayload,
-  SignalPayload 
+  SignalPayload,
+  ScreenShareState,
+  UserStartedScreenSharePayload,
+  UserStoppedScreenSharePayload,
+  ScreenShareSignalPayload,
+  ScreenShareStartedPayload
 } from '@/types/voice';
 
 // ICE Servers configuration
@@ -38,8 +43,16 @@ export function useVoiceChannel(channelId: string | null) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   
+  // Screen share states
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenShareStream, setScreenShareStream] = useState<MediaStream | null>(null);
+  const [remoteScreenShare, setRemoteScreenShare] = useState<ScreenShareState | null>(null);
+  const [screenShareStreamId, setScreenShareStreamId] = useState<string | null>(null);
+  
   const peersRef = useRef<{ [key: string]: SimplePeerInstance }>({});
   const streamsRef = useRef<{ [key: string]: MediaStream }>({});
+  const screenSharePeersRef = useRef<{ [key: string]: SimplePeerInstance }>({});
+  const screenShareStreamsRef = useRef<{ [key: string]: MediaStream }>({});
 
   // Get local media stream
   const getLocalStream = useCallback(async () => {
@@ -109,6 +122,58 @@ export function useVoiceChannel(channelId: string | null) {
     return peer;
   }, [socket, channelId]);
 
+  // Create screen share peer connection
+  const createScreenSharePeer = useCallback((socketId: string, initiator: boolean, stream: MediaStream) => {
+    const peer = new SimplePeer({
+      initiator,
+      trickle: false,
+      stream,
+      config: ICE_SERVERS
+    });
+
+    peer.on('signal', (signal: any) => {
+      socket?.emit('screen-share-signal', {
+        to: socketId,
+        signal,
+        channelId,
+        streamId: screenShareStreamId
+      });
+    });
+
+    peer.on('stream', (remoteStream) => {
+      console.log('Received screen share stream from:', socketId);
+      screenShareStreamsRef.current[socketId] = remoteStream;
+      
+      // Find the participant to get their info
+      const participant = participants.find(p => p.socketId === socketId);
+      if (participant) {
+        setRemoteScreenShare({
+          userId: participant.userId,
+          username: participant.username,
+          streamId: `screen-${participant.userId}`,
+          stream: remoteStream,
+          isActive: true
+        });
+      }
+    });
+
+    peer.on('connect', () => {
+      console.log('Screen share peer connected:', socketId);
+    });
+
+    peer.on('close', () => {
+      console.log('Screen share peer closed:', socketId);
+      delete screenSharePeersRef.current[socketId];
+      delete screenShareStreamsRef.current[socketId];
+    });
+
+    peer.on('error', (err) => {
+      console.error('Screen share peer error:', err);
+    });
+
+    return peer;
+  }, [socket, channelId, screenShareStreamId, participants]);
+
   // Join voice channel
   const joinVoice = useCallback(async () => {
     if (!channelId || !socket || !isSocketConnected || !user) {
@@ -131,6 +196,11 @@ export function useVoiceChannel(channelId: string | null) {
   const leaveVoice = useCallback(() => {
     if (!socket || !channelId) return;
 
+    // Stop screen sharing if active
+    if (isScreenSharing) {
+      stopScreenShare();
+    }
+
     // Stop local stream
     localStream?.getTracks().forEach(track => track.stop());
     setLocalStream(null);
@@ -140,6 +210,11 @@ export function useVoiceChannel(channelId: string | null) {
     peersRef.current = {};
     streamsRef.current = {};
 
+    // Destroy all screen share peer connections
+    Object.values(screenSharePeersRef.current).forEach(peer => peer.destroy());
+    screenSharePeersRef.current = {};
+    screenShareStreamsRef.current = {};
+
     // Emit leave event
     socket.emit('leave-voice-channel', { channelId });
 
@@ -148,7 +223,8 @@ export function useVoiceChannel(channelId: string | null) {
     setParticipants([]);
     setIsMuted(false);
     setIsDeafened(false);
-  }, [socket, channelId, localStream]);
+    setRemoteScreenShare(null);
+  }, [socket, channelId, localStream, isScreenSharing]);
 
   // Toggle mute
   const toggleMute = useCallback(() => {
@@ -188,6 +264,55 @@ export function useVoiceChannel(channelId: string | null) {
       isDeafened: newDeafenedState
     });
   }, [isMuted, isDeafened, socket, channelId]);
+
+  // Start screen sharing
+  const startScreenShare = useCallback(async () => {
+    if (!channelId || !socket || !isConnected) {
+      setError('Tidak dapat memulai screen sharing');
+      return;
+    }
+
+    try {
+      // Get screen stream
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false
+      });
+
+      // Handle user stopping screen share via browser UI
+      screenStream.getVideoTracks()[0].onended = () => {
+        stopScreenShare();
+      };
+
+      setScreenShareStream(screenStream);
+      setIsScreenSharing(true);
+
+      // Notify server
+      socket.emit('start-screen-share', { channelId });
+    } catch (err: any) {
+      console.error('Failed to start screen sharing:', err);
+      setError('Gagal memulai screen sharing');
+    }
+  }, [channelId, socket, isConnected]);
+
+  // Stop screen sharing
+  const stopScreenShare = useCallback(() => {
+    if (!socket || !channelId) return;
+
+    // Stop screen share stream
+    screenShareStream?.getTracks().forEach(track => track.stop());
+    setScreenShareStream(null);
+    setIsScreenSharing(false);
+    setScreenShareStreamId(null);
+
+    // Destroy screen share peer connections
+    Object.values(screenSharePeersRef.current).forEach(peer => peer.destroy());
+    screenSharePeersRef.current = {};
+    screenShareStreamsRef.current = {};
+
+    // Notify server
+    socket.emit('stop-screen-share', { channelId });
+  }, [socket, channelId, screenShareStream]);
 
   // Socket event handlers
   useEffect(() => {
@@ -241,8 +366,23 @@ export function useVoiceChannel(channelId: string | null) {
       }
       delete streamsRef.current[data.socketId];
       
+      // Remove screen share peer if exists
+      if (screenSharePeersRef.current[data.socketId]) {
+        screenSharePeersRef.current[data.socketId].destroy();
+        delete screenSharePeersRef.current[data.socketId];
+      }
+      delete screenShareStreamsRef.current[data.socketId];
+      
       // Remove from participants
       setParticipants(prev => prev.filter(p => p.userId !== data.userId));
+      
+      // Clear remote screen share if the user who left was sharing
+      setRemoteScreenShare(prev => {
+        if (prev && prev.userId === data.userId) {
+          return null;
+        }
+        return prev;
+      });
     };
 
     // Voice state changed (mute/deafen)
@@ -272,11 +412,82 @@ export function useVoiceChannel(channelId: string | null) {
       }
     };
 
+    // Screen share started by current user
+    const handleScreenShareStarted = (data: ScreenShareStartedPayload) => {
+      console.log('Screen share started:', data);
+      setScreenShareStreamId(data.streamId);
+
+      // Create peer connections for screen share with all existing participants
+      if (screenShareStream && participants.length > 0) {
+        participants.forEach((participant) => {
+          if (participant.socketId && participant.userId !== user?.id) {
+            const peer = createScreenSharePeer(participant.socketId, true, screenShareStream);
+            screenSharePeersRef.current[participant.socketId] = peer;
+          }
+        });
+      }
+    };
+
+    // Another user started screen sharing
+    const handleUserStartedScreenShare = (data: UserStartedScreenSharePayload) => {
+      console.log('User started screen sharing:', data);
+      
+      // Find the participant
+      const participant = participants.find(p => p.userId === data.userId);
+      if (participant) {
+        setRemoteScreenShare({
+          userId: data.userId,
+          username: data.username,
+          streamId: data.streamId,
+          isActive: true
+        });
+      }
+    };
+
+    // Another user stopped screen sharing
+    const handleUserStoppedScreenShare = (data: UserStoppedScreenSharePayload) => {
+      console.log('User stopped screen sharing:', data);
+      
+      setRemoteScreenShare(prev => {
+        if (prev && prev.userId === data.userId) {
+          return null;
+        }
+        return prev;
+      });
+    };
+
+    // Screen share WebRTC signaling
+    const handleScreenShareSignal = (data: ScreenShareSignalPayload) => {
+      console.log('Received screen share signal from:', data.from);
+      
+      if (isScreenSharing) {
+        // We are the sharer, handle incoming signals
+        const peer = screenSharePeersRef.current[data.from];
+        if (peer) {
+          peer.signal(data.signal);
+        } else if (screenShareStream) {
+          // New peer wants to receive our screen share
+          const newPeer = createScreenSharePeer(data.from, false, screenShareStream);
+          screenSharePeersRef.current[data.from] = newPeer;
+          newPeer.signal(data.signal);
+        }
+      } else {
+        // We are the viewer, handle incoming signals
+        const peer = screenSharePeersRef.current[data.from];
+        if (peer) {
+          peer.signal(data.signal);
+        }
+      }
+    };
+
     // Error handling
     const handleVoiceError = (data: { message: string }) => {
       console.error('Voice error:', data);
       setError(data.message);
-      setIsConnected(false);
+      // Don't disconnect on screen share errors
+      if (!data.message.includes('screen')) {
+        setIsConnected(false);
+      }
     };
 
     socket.on('voice-channel-joined', handleVoiceChannelJoined);
@@ -284,6 +495,10 @@ export function useVoiceChannel(channelId: string | null) {
     socket.on('user-left-voice', handleUserLeftVoice);
     socket.on('voice-state-changed', handleVoiceStateChanged);
     socket.on('signal', handleSignal);
+    socket.on('screen-share-started', handleScreenShareStarted);
+    socket.on('user-started-screen-share', handleUserStartedScreenShare);
+    socket.on('user-stopped-screen-share', handleUserStoppedScreenShare);
+    socket.on('screen-share-signal', handleScreenShareSignal);
     socket.on('voice-error', handleVoiceError);
 
     return () => {
@@ -292,9 +507,13 @@ export function useVoiceChannel(channelId: string | null) {
       socket.off('user-left-voice', handleUserLeftVoice);
       socket.off('voice-state-changed', handleVoiceStateChanged);
       socket.off('signal', handleSignal);
+      socket.off('screen-share-started', handleScreenShareStarted);
+      socket.off('user-started-screen-share', handleUserStartedScreenShare);
+      socket.off('user-stopped-screen-share', handleUserStoppedScreenShare);
+      socket.off('screen-share-signal', handleScreenShareSignal);
       socket.off('voice-error', handleVoiceError);
     };
-  }, [socket, channelId, localStream, user?.id, createPeer]);
+  }, [socket, channelId, localStream, user?.id, createPeer, screenShareStream, isScreenSharing, createScreenSharePeer, participants]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -313,6 +532,12 @@ export function useVoiceChannel(channelId: string | null) {
     joinVoice,
     leaveVoice,
     toggleMute,
-    toggleDeafen
+    toggleDeafen,
+    // Screen share
+    isScreenSharing,
+    screenShareStream,
+    remoteScreenShare,
+    startScreenShare,
+    stopScreenShare
   };
 }

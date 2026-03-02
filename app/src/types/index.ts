@@ -38,6 +38,8 @@ export interface Channel {
   serverId: string;
   categoryId?: string | null;
   position: number;
+  serverName?: string;
+  serverIcon?: string;
 }
 
 export interface Reaction {
@@ -86,11 +88,15 @@ export interface AuthState {
 
 export interface DMChannel {
   id: string;
-  friend: User;
+  name?: string;
+  type: 'direct' | 'group';
+  members: User[];
+  friend?: User; // for 1-on-1 (backward compat)
   lastMessage?: string;
   lastMessageAt?: string;
   unreadCount: number;
   updatedAt: string;
+  creatorId?: string;
 }
 
 export interface DMMessage {
@@ -99,6 +105,7 @@ export interface DMMessage {
   senderId: string;
   content: string;
   sender_username?: string;
+  sender_display_name?: string;
   sender_avatar?: string;
   attachments?: FileAttachment[];
   isRead: boolean;

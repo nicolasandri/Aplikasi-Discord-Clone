@@ -9,6 +9,22 @@ const SALT_ROUNDS = 12;
 const dbPath = path.join(__dirname, 'workgrid.db');
 const db = new sqlite3.Database(dbPath);
 
+// Set timezone to Asia/Jakarta (WIB) for SQLite
+// SQLite stores datetime in UTC by default, we need to handle timezone conversion
+process.env.TZ = 'Asia/Jakarta';
+
+// Helper to get current timestamp in ISO format with timezone
+function getCurrentTimestamp() {
+  return new Date().toISOString();
+}
+
+// Helper to convert UTC to local time for display
+function toLocalTime(isoString) {
+  if (!isoString) return null;
+  const date = new Date(isoString);
+  return date.toISOString();
+}
+
 // ============================================
 // PERMISSION SYSTEM CONSTANTS
 // ============================================
@@ -361,11 +377,16 @@ function initDatabase() {
       content TEXT,
       reply_to_id TEXT,
       attachments TEXT,
+      is_pinned BOOLEAN DEFAULT 0,
+      pinned_at DATETIME,
+      pinned_by TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       edited_at DATETIME,
       FOREIGN KEY (channel_id) REFERENCES channels(id),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (pinned_by) REFERENCES users(id)
     )`);
+
 
     // Reactions table
     db.run(`CREATE TABLE IF NOT EXISTS reactions (
@@ -448,16 +469,26 @@ function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
 
-    // DM Channels table for 1-on-1 direct messages
+    // DM Channels table for 1-on-1 and group direct messages
     db.run(`CREATE TABLE IF NOT EXISTS dm_channels (
       id TEXT PRIMARY KEY,
-      user1_id TEXT NOT NULL,
-      user2_id TEXT NOT NULL,
+      name TEXT,
+      type TEXT DEFAULT 'direct',
+      creator_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user1_id) REFERENCES users(id),
-      FOREIGN KEY (user2_id) REFERENCES users(id),
-      UNIQUE(user1_id, user2_id)
+      FOREIGN KEY (creator_id) REFERENCES users(id)
+    )`);
+
+    // DM Channel Members table for supporting multiple users
+    db.run(`CREATE TABLE IF NOT EXISTS dm_channel_members (
+      id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (channel_id) REFERENCES dm_channels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(channel_id, user_id)
     )`);
 
     // DM Messages table
@@ -484,6 +515,22 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id),
       UNIQUE(user_id, endpoint)
+    )`);
+
+    // User Sessions table for device management
+    db.run(`CREATE TABLE IF NOT EXISTS user_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      device_type TEXT NOT NULL,
+      device_name TEXT NOT NULL,
+      browser TEXT,
+      os TEXT,
+      ip_address TEXT,
+      location TEXT,
+      last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_current BOOLEAN DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
 
     console.log('✅ Database initialized');
@@ -585,7 +632,8 @@ const userDB = {
 
   async findByUsername(username) {
     return new Promise((resolve, reject) => {
-      db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+      // Use COLLATE NOCASE for case-insensitive search
+      db.get('SELECT * FROM users WHERE username = ? COLLATE NOCASE', [username], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -657,8 +705,73 @@ const userDB = {
 
   async verifyPassword(password, hashedPassword) {
     return bcrypt.compare(password, hashedPassword);
+  },
+
+  // Search users (for Bug #4 - replace direct db.all in server.js)
+  async search(query, excludeUserId = null, serverId = null, limit = 20) {
+    return new Promise((resolve, reject) => {
+      let sql;
+      let params;
+      
+      if (serverId) {
+        // Search within server members (for mention autocomplete)
+        sql = `
+          SELECT u.id, u.username, u.avatar, u.status, sm.role
+          FROM users u
+          JOIN server_members sm ON u.id = sm.user_id
+          WHERE sm.server_id = ?
+          AND u.username LIKE ?
+          ${excludeUserId ? 'AND u.id != ?' : ''}
+          ORDER BY 
+            CASE sm.role 
+              WHEN 'owner' THEN 1 
+              WHEN 'admin' THEN 2 
+              WHEN 'moderator' THEN 3 
+              ELSE 4 
+            END,
+            u.username
+          LIMIT ?
+        `;
+        params = [serverId, `${query}%`];
+        if (excludeUserId) params.push(excludeUserId);
+        params.push(limit);
+      } else {
+        // Regular user search
+        sql = `
+          SELECT id, username, avatar, status FROM users 
+          WHERE username LIKE ? 
+          ${excludeUserId ? 'AND id != ?' : ''}
+          LIMIT ?
+        `;
+        params = [`%${query}%`];
+        if (excludeUserId) params.push(excludeUserId);
+        params.push(limit);
+      }
+      
+      db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  // Get mutual server count between two users (for Bug #4)
+  async getMutualServerCount(userId1, userId2) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COUNT(*) as count FROM server_members sm1
+         JOIN server_members sm2 ON sm1.server_id = sm2.server_id
+         WHERE sm1.user_id = ? AND sm2.user_id = ?`,
+        [userId1, userId2],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row?.count || 0);
+        }
+      );
+    });
   }
 };
+
 
 // Server operations
 const serverDB = {
@@ -804,8 +917,140 @@ const serverDB = {
         if (err) reject(err); else resolve(!!row);
       });
     });
+  },
+
+  // Update server info
+  async update(serverId, updates) {
+    const fields = [];
+    const values = [];
+    
+    if (updates.name !== undefined) {
+      fields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.icon !== undefined) {
+      fields.push('icon = ?');
+      values.push(updates.icon);
+    }
+    
+    if (fields.length === 0) {
+      return Promise.resolve({ success: false, error: 'No updates provided' });
+    }
+    
+    values.push(serverId);
+    
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE servers SET ${fields.join(', ')} WHERE id = ?`,
+        values,
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Get member's role in a server
+  async getMemberRole(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT role FROM server_members WHERE server_id = ? AND user_id = ?',
+        [serverId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row?.role || null);
+        }
+      );
+    });
+  },
+
+  // Delete server with cascading deletes (Bug #5 fix)
+  async delete(serverId) {
+    return new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // 1. Delete reactions for messages in this server's channels
+        db.run(`
+          DELETE FROM reactions WHERE message_id IN (
+            SELECT m.id FROM messages m
+            JOIN channels c ON m.channel_id = c.id
+            WHERE c.server_id = ?
+          )
+        `, [serverId]);
+        
+        // 2. Delete messages in channels
+        db.run(`
+          DELETE FROM messages WHERE channel_id IN (
+            SELECT id FROM channels WHERE server_id = ?
+          )
+        `, [serverId]);
+        
+        // 3. Delete channels
+        db.run('DELETE FROM channels WHERE server_id = ?', [serverId]);
+        
+        // 4. Delete categories (Bug #5 fix)
+        db.run('DELETE FROM categories WHERE server_id = ?', [serverId]);
+        
+        // 5. Delete custom role assignments
+        db.run('DELETE FROM server_members WHERE server_id = ?', [serverId]);
+        
+        // 6. Delete server_roles (Bug #5 fix)
+        db.run('DELETE FROM server_roles WHERE server_id = ?', [serverId]);
+        
+        // 7. Delete invites
+        db.run('DELETE FROM invites WHERE server_id = ?', [serverId]);
+        
+        // 8. Delete bans
+        db.run('DELETE FROM bans WHERE server_id = ?', [serverId]);
+        
+        // 9. Delete audit logs (Bug #5 fix)
+        db.run('DELETE FROM audit_logs WHERE server_id = ?', [serverId]);
+        
+        // 10. Finally delete the server
+        db.run('DELETE FROM servers WHERE id = ?', [serverId], function(err) {
+          if (err) {
+            db.run('ROLLBACK');
+            reject(err);
+          } else {
+            db.run('COMMIT');
+            resolve({ success: this.changes > 0 });
+          }
+        });
+      });
+    });
   }
 };
+
+
+// Helper: Run a db query as Promise (for abstraction)
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve({ changes: this.changes, lastID: this.lastID });
+    });
+  });
+}
+
+function dbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+}
 
 // Role operations (Custom roles)
 const roleDB = {
@@ -1162,6 +1407,17 @@ const channelDB = {
     });
   },
 
+  // Delete channel (for Bug #4)
+  async delete(channelId) {
+    return new Promise((resolve, reject) => {
+      db.run('DELETE FROM channels WHERE id = ?', [channelId], function(err) {
+        if (err) reject(err);
+        else resolve({ success: this.changes > 0 });
+      });
+    });
+  },
+
+
   async getUncategorized(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
@@ -1265,10 +1521,11 @@ const channelDB = {
 const messageDB = {
   async create(channelId, userId, content, replyToId = null, attachments = null) {
     const id = uuidv4();
+    const timestamp = getCurrentTimestamp();
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO messages (id, channel_id, user_id, content, reply_to_id, attachments) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, channelId, userId, content, replyToId, attachments ? JSON.stringify(attachments) : null],
+        'INSERT INTO messages (id, channel_id, user_id, content, reply_to_id, attachments, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, channelId, userId, content, replyToId, attachments ? JSON.stringify(attachments) : null, timestamp],
         async function(err) {
           if (err) reject(err);
           else {
@@ -1475,6 +1732,253 @@ const messageDB = {
           else resolve(true);
         }
       );
+    });
+  },
+
+  // Pin message
+  async pin(messageId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE messages SET is_pinned = 1, pinned_at = datetime("now"), pinned_by = ? WHERE id = ?',
+        [userId, messageId],
+        async function(err) {
+          if (err) reject(err);
+          else {
+            const message = await messageDB.getById(messageId);
+            resolve(message);
+          }
+        }
+      );
+    });
+  },
+
+  // Unpin message
+  async unpin(messageId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE messages SET is_pinned = 0, pinned_at = NULL, pinned_by = NULL WHERE id = ?',
+        [messageId],
+        async function(err) {
+          if (err) reject(err);
+          else {
+            const message = await messageDB.getById(messageId);
+            resolve(message);
+          }
+        }
+      );
+    });
+  },
+
+  // Get pinned messages for a channel
+  async getPinnedByChannel(channelId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+                p.username as pinned_by_username
+         FROM messages m
+         JOIN users u ON m.user_id = u.id
+         LEFT JOIN users p ON m.pinned_by = p.id
+         WHERE m.channel_id = ? AND m.is_pinned = 1
+         ORDER BY m.pinned_at DESC`,
+        [channelId],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            rows.forEach(row => {
+              if (row.attachments) {
+                try {
+                  row.attachments = JSON.parse(row.attachments);
+                } catch (e) {
+                  row.attachments = [];
+                }
+              }
+              row.user = {
+                id: row.user_id,
+                username: row.username,
+                displayName: row.display_name,
+                avatar: row.avatar
+              };
+              row.pinnedBy = row.pinned_by_username;
+              row.channelId = row.channel_id;
+              row.userId = row.user_id;
+              row.timestamp = row.created_at;
+              delete row.user_id;
+              delete row.username;
+              delete row.display_name;
+              delete row.avatar;
+              delete row.channel_id;
+              delete row.created_at;
+              delete row.pinned_by_username;
+            });
+            resolve(rows);
+          }
+        }
+      );
+    });
+  },
+
+
+  // Message Search Feature
+  async searchMessages(options) {
+    const {
+      serverId = null,
+      channelId = null,
+      userId = null,
+      query = '',
+      dateFrom = null,
+      dateTo = null,
+      hasAttachments = null,
+      limit = 50,
+      offset = 0
+    } = options;
+    
+    return new Promise((resolve, reject) => {
+      let sql = `
+        SELECT 
+          m.id,
+          m.content,
+          m.created_at,
+          m.reply_to_id,
+          m.attachments,
+          u.id as user_id,
+          u.username,
+          u.avatar,
+          c.id as channel_id,
+          c.name as channel_name,
+          c.server_id
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        JOIN channels c ON m.channel_id = c.id
+        WHERE 1=1
+      `;
+      const params = [];
+      
+      // Search by content (case-insensitive using LOWER)
+      if (query) {
+        sql += ` AND LOWER(m.content) LIKE LOWER(?)`;
+        params.push(`%${query}%`);
+      }
+      
+      // Filter by server
+      if (serverId) {
+        sql += ` AND c.server_id = ?`;
+        params.push(serverId);
+      }
+      
+      // Filter by channel
+      if (channelId) {
+        sql += ` AND m.channel_id = ?`;
+        params.push(channelId);
+      }
+      
+      // Filter by user
+      if (userId) {
+        sql += ` AND m.user_id = ?`;
+        params.push(userId);
+      }
+      
+      // Date range
+      if (dateFrom) {
+        sql += ` AND m.created_at >= ?`;
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        sql += ` AND m.created_at <= ?`;
+        params.push(dateTo);
+      }
+      
+      // Has attachments
+      if (hasAttachments !== null) {
+        sql += hasAttachments 
+          ? ` AND m.attachments IS NOT NULL AND m.attachments != ''`
+          : ` AND (m.attachments IS NULL OR m.attachments = '')`;
+      }
+      
+      // Order by date (newest first)
+      sql += ` ORDER BY m.created_at DESC`;
+      
+      // Pagination
+      sql += ` LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+      
+      // Debug log
+      console.log('Search SQL:', sql);
+      console.log('Search params:', params);
+      
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          console.error('Search SQL error:', err);
+          reject(err);
+        }
+        else {
+          console.log('Search results:', rows.length);
+          resolve(rows);
+        }
+      });
+    });
+  },
+
+  async getSearchResultCount(options) {
+    const {
+      serverId = null,
+      channelId = null,
+      userId = null,
+      query = '',
+      dateFrom = null,
+      dateTo = null,
+      hasAttachments = null
+    } = options;
+    
+    return new Promise((resolve, reject) => {
+      let sql = `
+        SELECT COUNT(*) as count
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        JOIN channels c ON m.channel_id = c.id
+        WHERE 1=1
+      `;
+      const params = [];
+      
+      // Search by content (case-insensitive using LOWER)
+      if (query) {
+        sql += ` AND LOWER(m.content) LIKE LOWER(?)`;
+        params.push(`%${query}%`);
+      }
+      
+      if (serverId) {
+        sql += ` AND c.server_id = ?`;
+        params.push(serverId);
+      }
+      
+      if (channelId) {
+        sql += ` AND m.channel_id = ?`;
+        params.push(channelId);
+      }
+      
+      if (userId) {
+        sql += ` AND m.user_id = ?`;
+        params.push(userId);
+      }
+      
+      if (dateFrom) {
+        sql += ` AND m.created_at >= ?`;
+        params.push(dateFrom);
+      }
+      if (dateTo) {
+        sql += ` AND m.created_at <= ?`;
+        params.push(dateTo);
+      }
+      
+      if (hasAttachments !== null) {
+        sql += hasAttachments 
+          ? ` AND m.attachments IS NOT NULL AND m.attachments != ''`
+          : ` AND (m.attachments IS NULL OR m.attachments = '')`;
+      }
+      
+      db.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row?.count || 0);
+      });
     });
   }
 };
@@ -1718,170 +2222,6 @@ const reactionDB = {
         if (err) reject(err); else resolve(!!row);
       });
     });
-  },
-
-  // Message Search Feature
-  async searchMessages(options) {
-    const {
-      serverId = null,
-      channelId = null,
-      userId = null,
-      query = '',
-      dateFrom = null,
-      dateTo = null,
-      hasAttachments = null,
-      limit = 50,
-      offset = 0
-    } = options;
-    
-    return new Promise((resolve, reject) => {
-      let sql = `
-        SELECT 
-          m.id,
-          m.content,
-          m.created_at,
-          m.reply_to_id,
-          m.attachments,
-          u.id as user_id,
-          u.username,
-          u.avatar,
-          c.id as channel_id,
-          c.name as channel_name,
-          c.server_id
-        FROM messages m
-        JOIN users u ON m.user_id = u.id
-        JOIN channels c ON m.channel_id = c.id
-        WHERE 1=1
-      `;
-      const params = [];
-      
-      // Search by content (case-insensitive using LOWER)
-      if (query) {
-        sql += ` AND LOWER(m.content) LIKE LOWER(?)`;
-        params.push(`%${query}%`);
-      }
-      
-      // Filter by server
-      if (serverId) {
-        sql += ` AND c.server_id = ?`;
-        params.push(serverId);
-      }
-      
-      // Filter by channel
-      if (channelId) {
-        sql += ` AND m.channel_id = ?`;
-        params.push(channelId);
-      }
-      
-      // Filter by user
-      if (userId) {
-        sql += ` AND m.user_id = ?`;
-        params.push(userId);
-      }
-      
-      // Date range
-      if (dateFrom) {
-        sql += ` AND m.created_at >= ?`;
-        params.push(dateFrom);
-      }
-      if (dateTo) {
-        sql += ` AND m.created_at <= ?`;
-        params.push(dateTo);
-      }
-      
-      // Has attachments
-      if (hasAttachments !== null) {
-        sql += hasAttachments 
-          ? ` AND m.attachments IS NOT NULL AND m.attachments != ''`
-          : ` AND (m.attachments IS NULL OR m.attachments = '')`;
-      }
-      
-      // Order by date (newest first)
-      sql += ` ORDER BY m.created_at DESC`;
-      
-      // Pagination
-      sql += ` LIMIT ? OFFSET ?`;
-      params.push(limit, offset);
-      
-      // Debug log
-      console.log('Search SQL:', sql);
-      console.log('Search params:', params);
-      
-      db.all(sql, params, (err, rows) => {
-        if (err) {
-          console.error('Search SQL error:', err);
-          reject(err);
-        }
-        else {
-          console.log('Search results:', rows.length);
-          resolve(rows);
-        }
-      });
-    });
-  },
-
-  async getSearchResultCount(options) {
-    const {
-      serverId = null,
-      channelId = null,
-      userId = null,
-      query = '',
-      dateFrom = null,
-      dateTo = null,
-      hasAttachments = null
-    } = options;
-    
-    return new Promise((resolve, reject) => {
-      let sql = `
-        SELECT COUNT(*) as count
-        FROM messages m
-        JOIN users u ON m.user_id = u.id
-        JOIN channels c ON m.channel_id = c.id
-        WHERE 1=1
-      `;
-      const params = [];
-      
-      // Search by content (case-insensitive using LOWER)
-      if (query) {
-        sql += ` AND LOWER(m.content) LIKE LOWER(?)`;
-        params.push(`%${query}%`);
-      }
-      
-      if (serverId) {
-        sql += ` AND c.server_id = ?`;
-        params.push(serverId);
-      }
-      
-      if (channelId) {
-        sql += ` AND m.channel_id = ?`;
-        params.push(channelId);
-      }
-      
-      if (userId) {
-        sql += ` AND m.user_id = ?`;
-        params.push(userId);
-      }
-      
-      if (dateFrom) {
-        sql += ` AND m.created_at >= ?`;
-        params.push(dateFrom);
-      }
-      if (dateTo) {
-        sql += ` AND m.created_at <= ?`;
-        params.push(dateTo);
-      }
-      
-      if (hasAttachments !== null) {
-        sql += hasAttachments 
-          ? ` AND m.attachments IS NOT NULL AND m.attachments != ''`
-          : ` AND (m.attachments IS NULL OR m.attachments = '')`;
-      }
-      
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row?.count || 0);
-      });
-    });
   }
 };
 
@@ -2074,7 +2414,7 @@ const friendDB = {
   async getFriends(userId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.avatar, u.status, f.created_at as friendship_date
+        `SELECT u.id, u.username, u.display_name, u.avatar, u.status, f.created_at as friendship_date
          FROM friendships f
          JOIN users u ON f.friend_id = u.id
          WHERE f.user_id = ? AND f.status = ?
@@ -2082,7 +2422,14 @@ const friendDB = {
         [userId, 'accepted'],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else {
+            // Map display_name to displayName
+            rows.forEach(row => {
+              row.displayName = row.display_name;
+              delete row.display_name;
+            });
+            resolve(rows);
+          }
         }
       );
     });
@@ -2093,7 +2440,7 @@ const friendDB = {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT f.id, f.user_id, f.friend_id, f.status, f.created_at,
-                u.id as requester_id, u.username as requester_username, u.avatar as requester_avatar, u.status as requester_status
+                u.id as requester_id, u.username as requester_username, u.display_name as requester_display_name, u.avatar as requester_avatar, u.status as requester_status
          FROM friendships f
          JOIN users u ON f.user_id = u.id
          WHERE f.friend_id = ? AND f.status = ?
@@ -2107,7 +2454,7 @@ const friendDB = {
 
           db.all(
             `SELECT f.id, f.user_id, f.friend_id, f.status, f.created_at,
-                    u.id as recipient_id, u.username as recipient_username, u.avatar as recipient_avatar, u.status as recipient_status
+                    u.id as recipient_id, u.username as recipient_username, u.display_name as recipient_display_name, u.avatar as recipient_avatar, u.status as recipient_status
              FROM friendships f
              JOIN users u ON f.friend_id = u.id
              WHERE f.user_id = ? AND f.status = ?
@@ -2132,7 +2479,7 @@ const friendDB = {
   async getBlockedUsers(userId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.avatar, f.created_at as blocked_date
+        `SELECT u.id, u.username, u.display_name, u.avatar, f.created_at as blocked_date
          FROM friendships f
          JOIN users u ON f.friend_id = u.id
          WHERE f.user_id = ? AND f.status = ?
@@ -2140,7 +2487,13 @@ const friendDB = {
         [userId, 'blocked'],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else {
+            // Map display_name to displayName
+            rows.forEach(row => {
+              row.display_name = row.display_name;
+            });
+            resolve(rows);
+          }
         }
       );
     });
@@ -2190,18 +2543,30 @@ const friendDB = {
     }
     
     return 'none';
+  },
+
+  // Get friend request by ID (for Bug #4)
+  async getRequestById(requestId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM friendships WHERE id = ?',
+        [requestId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
   }
 };
 
+
 // DM (Direct Message) operations
 const dmDB = {
-  // Create or get existing DM channel between two users
+  // Create a direct DM channel (1-on-1)
   async createDMChannel(user1Id, user2Id) {
-    // Ensure consistent ordering (smaller id first)
-    const [firstUser, secondUser] = [user1Id, user2Id].sort();
-    
-    // Check if channel already exists
-    const existingChannel = await this.getDMChannel(user1Id, user2Id);
+    // Check if channel already exists between these two users
+    const existingChannel = await this.getDMChannelBetweenUsers(user1Id, user2Id);
     if (existingChannel) {
       return existingChannel;
     }
@@ -2209,11 +2574,20 @@ const dmDB = {
     const id = uuidv4();
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO dm_channels (id, user1_id, user2_id, created_at, updated_at) VALUES (?, ?, ?, datetime("now"), datetime("now"))',
-        [id, firstUser, secondUser],
+        'INSERT INTO dm_channels (id, type, creator_id, created_at, updated_at) VALUES (?, \'direct\', ?, datetime("now"), datetime("now"))',
+        [id, user1Id],
         async function(err) {
           if (err) reject(err);
           else {
+            // Add both users as members
+            await dbRun(
+              'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES (?, ?, ?, datetime("now"))',
+              [uuidv4(), id, user1Id]
+            );
+            await dbRun(
+              'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES (?, ?, ?, datetime("now"))',
+              [uuidv4(), id, user2Id]
+            );
             const channel = await dmDB.getDMChannelById(id);
             resolve(channel);
           }
@@ -2222,20 +2596,47 @@ const dmDB = {
     });
   },
 
-  // Get DM channel between two users
-  async getDMChannel(user1Id, user2Id) {
-    const [firstUser, secondUser] = [user1Id, user2Id].sort();
+  // Create a group DM channel
+  async createGroupDMChannel(creatorId, userIds, name = null) {
+    // Validate all users are friends with creator
+    const allUserIds = [creatorId, ...userIds.filter(id => id !== creatorId)];
+    
+    const id = uuidv4();
+    // Generate default name if not provided
+    const groupName = name || 'Grup Baru';
     
     return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO dm_channels (id, name, type, creator_id, created_at, updated_at) VALUES (?, ?, \'group\', ?, datetime("now"), datetime("now"))',
+        [id, groupName, creatorId],
+        async function(err) {
+          if (err) reject(err);
+          else {
+            // Add all users as members
+            for (const userId of allUserIds) {
+              await dbRun(
+                'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES (?, ?, ?, datetime("now"))',
+                [uuidv4(), id, userId]
+              );
+            }
+            const channel = await dmDB.getDMChannelById(id);
+            resolve(channel);
+          }
+        }
+      );
+    });
+  },
+
+  // Get DM channel between two users (direct only)
+  async getDMChannelBetweenUsers(user1Id, user2Id) {
+    return new Promise((resolve, reject) => {
       db.get(
-        `SELECT dc.*, 
-                u1.username as user1_username, u1.avatar as user1_avatar, u1.status as user1_status,
-                u2.username as user2_username, u2.avatar as user2_avatar, u2.status as user2_status
-         FROM dm_channels dc
-         JOIN users u1 ON dc.user1_id = u1.id
-         JOIN users u2 ON dc.user2_id = u2.id
-         WHERE dc.user1_id = ? AND dc.user2_id = ?`,
-        [firstUser, secondUser],
+        `SELECT dc.* FROM dm_channels dc
+         JOIN dm_channel_members m1 ON dc.id = m1.channel_id AND m1.user_id = ?
+         JOIN dm_channel_members m2 ON dc.id = m2.channel_id AND m2.user_id = ?
+         WHERE dc.type = 'direct'
+         LIMIT 1`,
+        [user1Id, user2Id],
         (err, row) => {
           if (err) reject(err);
           else resolve(row);
@@ -2244,21 +2645,117 @@ const dmDB = {
     });
   },
 
-  // Get DM channel by ID
+  // Get DM channel by ID with members
   async getDMChannelById(channelId) {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT dc.*, 
-                u1.username as user1_username, u1.avatar as user1_avatar, u1.status as user1_status,
-                u2.username as user2_username, u2.avatar as user2_avatar, u2.status as user2_status
-         FROM dm_channels dc
-         JOIN users u1 ON dc.user1_id = u1.id
-         JOIN users u2 ON dc.user2_id = u2.id
-         WHERE dc.id = ?`,
+        `SELECT dc.* FROM dm_channels dc WHERE dc.id = ?`,
+        [channelId],
+        async (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (!row) {
+            resolve(null);
+            return;
+          }
+          
+          // Get all members
+          const members = await dmDB.getChannelMembers(channelId);
+          row.members = members;
+          
+          // For direct channels, identify the "friend" (other user)
+          if (row.type === 'direct' && members.length === 2) {
+            // Will be set based on requesting user context
+            row.friend = null;
+          }
+          
+          resolve(row);
+        }
+      );
+    });
+  },
+
+  // Get all members of a DM channel
+  async getChannelMembers(channelId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT u.id, u.username, u.display_name, u.avatar, u.status, m.joined_at
+         FROM dm_channel_members m
+         JOIN users u ON m.user_id = u.id
+         WHERE m.channel_id = ?
+         ORDER BY m.joined_at`,
+        [channelId],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            // Map display_name to displayName
+            rows.forEach(row => {
+              row.displayName = row.display_name;
+              delete row.display_name;
+            });
+            resolve(rows);
+          }
+        }
+      );
+    });
+  },
+
+  // Check if user is a member of a DM channel
+  async isChannelMember(channelId, userId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT 1 FROM dm_channel_members WHERE channel_id = ? AND user_id = ?',
+        [channelId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(!!row);
+        }
+      );
+    });
+  },
+
+  // Add member to DM channel
+  async addChannelMember(channelId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR IGNORE INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES (?, ?, ?, datetime("now"))',
+        [uuidv4(), channelId, userId],
+        async function(err) {
+          if (err) reject(err);
+          else {
+            const member = await userDB.findById(userId);
+            resolve({ success: this.changes > 0, member });
+          }
+        }
+      );
+    });
+  },
+
+  // Remove member from DM channel
+  async removeChannelMember(channelId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM dm_channel_members WHERE channel_id = ? AND user_id = ?',
+        [channelId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Get channel creator
+  async getChannelCreator(channelId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT creator_id FROM dm_channels WHERE id = ?',
         [channelId],
         (err, row) => {
           if (err) reject(err);
-          else resolve(row);
+          else resolve(row?.creator_id);
         }
       );
     });
@@ -2268,35 +2765,51 @@ const dmDB = {
   async getUserDMChannels(userId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT dc.*, 
-                CASE 
-                  WHEN dc.user1_id = ? THEN dc.user2_id 
-                  ELSE dc.user1_id 
-                END as friend_id,
-                CASE 
-                  WHEN dc.user1_id = ? THEN u2.username 
-                  ELSE u1.username 
-                END as friend_username,
-                CASE 
-                  WHEN dc.user1_id = ? THEN u2.avatar 
-                  ELSE u1.avatar 
-                END as friend_avatar,
-                CASE 
-                  WHEN dc.user1_id = ? THEN u2.status 
-                  ELSE u1.status 
-                END as friend_status,
+        `SELECT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
                 (SELECT content FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message,
                 (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
                 (SELECT COUNT(*) FROM dm_messages WHERE channel_id = dc.id AND sender_id != ? AND is_read = 0) as unread_count
          FROM dm_channels dc
-         JOIN users u1 ON dc.user1_id = u1.id
-         JOIN users u2 ON dc.user2_id = u2.id
-         WHERE dc.user1_id = ? OR dc.user2_id = ?
+         JOIN dm_channel_members m ON dc.id = m.channel_id
+         WHERE m.user_id = ?
          ORDER BY COALESCE(last_message_at, dc.updated_at) DESC`,
-        [userId, userId, userId, userId, userId, userId, userId],
-        (err, rows) => {
+        [userId, userId],
+        async (err, rows) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          // Fetch members for each channel
+          const channelsWithMembers = await Promise.all(
+            rows.map(async (row) => {
+              const members = await dmDB.getChannelMembers(row.id);
+              return {
+                ...row,
+                members,
+                // For direct messages, identify the friend
+                friend: row.type === 'direct' 
+                  ? members.find(m => m.id !== userId) || members[0]
+                  : null
+              };
+            })
+          );
+          
+          resolve(channelsWithMembers);
+        }
+      );
+    });
+  },
+
+  // Update group DM name
+  async updateGroupName(channelId, name) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE dm_channels SET name = ?, updated_at = datetime("now") WHERE id = ? AND type = \'group\'',
+        [name, channelId],
+        function(err) {
           if (err) reject(err);
-          else resolve(rows);
+          else resolve({ success: this.changes > 0 });
         }
       );
     });
@@ -2305,15 +2818,40 @@ const dmDB = {
   // Send DM message
   async sendDMMessage(channelId, senderId, content, attachments = null) {
     const id = uuidv4();
+    
+    // Validate and format attachments
+    let attachmentsJson = null;
+    if (attachments) {
+      try {
+        // If attachments is already a string, parse it first
+        const attachmentsArray = typeof attachments === 'string' 
+          ? JSON.parse(attachments) 
+          : attachments;
+        
+        // Ensure it's an array
+        if (Array.isArray(attachmentsArray) && attachmentsArray.length > 0) {
+          attachmentsJson = JSON.stringify(attachmentsArray);
+        }
+      } catch (e) {
+        console.error('Error formatting attachments:', e);
+        attachmentsJson = null;
+      }
+    }
+    
+    const timestamp = getCurrentTimestamp();
+    
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO dm_messages (id, channel_id, sender_id, content, attachments) VALUES (?, ?, ?, ?, ?)',
-        [id, channelId, senderId, content, attachments ? JSON.stringify(attachments) : null],
+        'INSERT INTO dm_messages (id, channel_id, sender_id, content, attachments, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, channelId, senderId, content, attachmentsJson, timestamp],
         async function(err) {
-          if (err) reject(err);
+          if (err) {
+            console.error('Error inserting DM message:', err);
+            reject(err);
+          }
           else {
             // Update channel updated_at
-            db.run('UPDATE dm_channels SET updated_at = datetime("now") WHERE id = ?', [channelId]);
+            db.run('UPDATE dm_channels SET updated_at = ? WHERE id = ?', [timestamp, channelId]);
             const message = await dmDB.getDMMessageById(id);
             resolve(message);
           }
@@ -2326,7 +2864,7 @@ const dmDB = {
   async getDMMessageById(messageId) {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT dm.*, u.username as sender_username, u.avatar as sender_avatar
+        `SELECT dm.*, u.username as sender_username, u.display_name as sender_display_name, u.avatar as sender_avatar
          FROM dm_messages dm
          JOIN users u ON dm.sender_id = u.id
          WHERE dm.id = ?`,
@@ -2352,7 +2890,7 @@ const dmDB = {
   async getDMMessages(channelId, limit = 50, offset = 0) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT dm.*, u.username as sender_username, u.avatar as sender_avatar
+        `SELECT dm.*, u.username as sender_username, u.display_name as sender_display_name, u.avatar as sender_avatar
          FROM dm_messages dm
          JOIN users u ON dm.sender_id = u.id
          WHERE dm.channel_id = ?
@@ -2411,11 +2949,11 @@ const dmDB = {
     return new Promise((resolve, reject) => {
       db.get(
         `SELECT COUNT(*) as count FROM dm_messages dm
-         JOIN dm_channels dc ON dm.channel_id = dc.id
-         WHERE (dc.user1_id = ? OR dc.user2_id = ?) 
+         JOIN dm_channel_members m ON dm.channel_id = m.channel_id
+         WHERE m.user_id = ? 
            AND dm.sender_id != ? 
            AND dm.is_read = 0`,
-        [userId, userId, userId],
+        [userId, userId],
         (err, row) => {
           if (err) reject(err);
           else resolve(row?.count || 0);
@@ -2430,12 +2968,12 @@ const dmDB = {
       db.all(
         `SELECT dm.channel_id, COUNT(*) as count 
          FROM dm_messages dm
-         JOIN dm_channels dc ON dm.channel_id = dc.id
-         WHERE (dc.user1_id = ? OR dc.user2_id = ?) 
+         JOIN dm_channel_members m ON dm.channel_id = m.channel_id
+         WHERE m.user_id = ? 
            AND dm.sender_id != ? 
            AND dm.is_read = 0
          GROUP BY dm.channel_id`,
-        [userId, userId, userId],
+        [userId, userId],
         (err, rows) => {
           if (err) reject(err);
           else {
@@ -2453,18 +2991,55 @@ const dmDB = {
   // Delete DM channel (hard delete for now)
   async deleteDMChannel(channelId) {
     return new Promise((resolve, reject) => {
-      // Delete messages first
-      db.run('DELETE FROM dm_messages WHERE channel_id = ?', [channelId], (err) => {
+      // Delete members first
+      db.run('DELETE FROM dm_channel_members WHERE channel_id = ?', [channelId], (err) => {
         if (err) {
           reject(err);
           return;
         }
-        // Delete channel
-        db.run('DELETE FROM dm_channels WHERE id = ?', [channelId], function(err) {
-          if (err) reject(err);
-          else resolve({ success: true });
+        // Delete messages
+        db.run('DELETE FROM dm_messages WHERE channel_id = ?', [channelId], (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          // Delete channel
+          db.run('DELETE FROM dm_channels WHERE id = ?', [channelId], function(err) {
+            if (err) reject(err);
+            else resolve({ success: true });
+          });
         });
       });
+    });
+  },
+
+  // Leave DM channel (for group DMs)
+  async leaveDMChannel(channelId, userId) {
+    return new Promise((resolve, reject) => {
+      // Remove user from members
+      db.run(
+        'DELETE FROM dm_channel_members WHERE channel_id = ? AND user_id = ?',
+        [channelId, userId],
+        async function(err) {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          // Check remaining member count
+          const remaining = await dbGet(
+            'SELECT COUNT(*) as count FROM dm_channel_members WHERE channel_id = ?',
+            [channelId]
+          );
+          
+          // If no members left, delete the channel
+          if (remaining.count === 0) {
+            await dmDB.deleteDMChannel(channelId);
+          }
+          
+          resolve({ success: this.changes > 0 });
+        }
+      );
     });
   }
 };
@@ -2527,12 +3102,368 @@ const subscriptionDB = {
   }
 };
 
+// Custom Emoji and Stickers Database
+const emojiDB = {
+  // Create custom emoji
+  async createEmoji(name, url, serverId, uploaderId, isGlobal = false, isAnimated = false) {
+    const id = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO custom_emojis (id, name, url, server_id, uploader_id, is_global, is_animated) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, name, url, serverId, uploaderId, isGlobal ? 1 : 0, isAnimated ? 1 : 0],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, name, url, serverId, uploaderId, isGlobal, isAnimated });
+        }
+      );
+    });
+  },
+
+  // Get emojis by server (including global emojis)
+  async getEmojisByServer(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT e.*, u.username as uploader_username 
+         FROM custom_emojis e
+         LEFT JOIN users u ON e.uploader_id = u.id
+         WHERE e.server_id = ? OR e.is_global = 1
+         ORDER BY e.is_global DESC, e.created_at DESC`,
+        [serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get global emojis only
+  async getGlobalEmojis() {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT e.*, u.username as uploader_username 
+         FROM custom_emojis e
+         LEFT JOIN users u ON e.uploader_id = u.id
+         WHERE e.is_global = 1
+         ORDER BY e.created_at DESC`,
+        [],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Delete emoji
+  async deleteEmoji(emojiId, uploaderId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM custom_emojis WHERE id = ? AND (uploader_id = ? OR is_global = 0)',
+        [emojiId, uploaderId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  }
+};
+
+const stickerDB = {
+  // Create sticker
+  async createSticker(name, description, url, serverId, uploaderId, isGlobal = false) {
+    const id = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO stickers (id, name, description, url, server_id, uploader_id, is_global) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, name, description, url, serverId, uploaderId, isGlobal ? 1 : 0],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, name, description, url, serverId, uploaderId, isGlobal });
+        }
+      );
+    });
+  },
+
+  // Get stickers by server (including global stickers)
+  async getStickersByServer(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT s.*, u.username as uploader_username 
+         FROM stickers s
+         LEFT JOIN users u ON s.uploader_id = u.id
+         WHERE s.server_id = ? OR s.is_global = 1
+         ORDER BY s.is_global DESC, s.created_at DESC`,
+        [serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get global stickers only
+  async getGlobalStickers() {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT s.*, u.username as uploader_username 
+         FROM stickers s
+         LEFT JOIN users u ON s.uploader_id = u.id
+         WHERE s.is_global = 1
+         ORDER BY s.created_at DESC`,
+        [],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Create sticker pack
+  async createStickerPack(name, description, thumbnail, serverId, creatorId, isGlobal = false) {
+    const id = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO sticker_packs (id, name, description, thumbnail, server_id, creator_id, is_global) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, name, description, thumbnail, serverId, creatorId, isGlobal ? 1 : 0],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, name, description, thumbnail, serverId, creatorId, isGlobal });
+        }
+      );
+    });
+  },
+
+  // Add sticker to pack
+  async addStickerToPack(packId, stickerId, position = 0) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR IGNORE INTO sticker_pack_items (pack_id, sticker_id, position) VALUES (?, ?, ?)',
+        [packId, stickerId, position],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true });
+        }
+      );
+    });
+  },
+
+  // Get sticker packs with stickers
+  async getStickerPacks(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT sp.*, u.username as creator_username 
+         FROM sticker_packs sp
+         LEFT JOIN users u ON sp.creator_id = u.id
+         WHERE sp.server_id = ? OR sp.is_global = 1
+         ORDER BY sp.is_global DESC, sp.created_at DESC`,
+        [serverId],
+        async (err, packs) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          // Get stickers for each pack
+          const packsWithStickers = await Promise.all(
+            packs.map(async (pack) => {
+              const stickers = await this.getStickersInPack(pack.id);
+              return { ...pack, stickers };
+            })
+          );
+          
+          resolve(packsWithStickers);
+        }
+      );
+    });
+  },
+
+  // Get stickers in a pack
+  async getStickersInPack(packId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT s.*, spi.position 
+         FROM stickers s
+         JOIN sticker_pack_items spi ON s.id = spi.sticker_id
+         WHERE spi.pack_id = ?
+         ORDER BY spi.position`,
+        [packId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Delete sticker
+  async deleteSticker(stickerId, uploaderId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM stickers WHERE id = ? AND (uploader_id = ? OR is_global = 0)',
+        [stickerId, uploaderId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  }
+};
+
+// Session/Device management
+const sessionDB = {
+  // Create new session
+  async createSession(userId, sessionData) {
+    const id = uuidv4();
+    const {
+      deviceType,
+      deviceName,
+      browser,
+      os,
+      ipAddress,
+      location,
+      isCurrent = false
+    } = sessionData;
+    
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO user_sessions (id, user_id, device_type, device_name, browser, os, ip_address, location, is_current)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, userId, deviceType, deviceName, browser, os, ipAddress, location, isCurrent ? 1 : 0],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, userId, deviceType, deviceName, browser, os, ipAddress, location, isCurrent });
+        }
+      );
+    });
+  },
+
+  // Get all sessions for a user
+  async getUserSessions(userId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT id, user_id, device_type, device_name, browser, os, ip_address, location, 
+                last_active, created_at, is_current
+         FROM user_sessions 
+         WHERE user_id = ?
+         ORDER BY is_current DESC, last_active DESC`,
+        [userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+  },
+
+  // Update session last active
+  async updateLastActive(sessionId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE user_sessions SET last_active = CURRENT_TIMESTAMP WHERE id = ?',
+        [sessionId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true });
+        }
+      );
+    });
+  },
+
+  // Delete a specific session
+  async deleteSession(sessionId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM user_sessions WHERE id = ? AND user_id = ?',
+        [sessionId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Delete all other sessions (logout from all devices except current)
+  async deleteOtherSessions(userId, currentSessionId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM user_sessions WHERE user_id = ? AND id != ?',
+        [userId, currentSessionId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true, count: this.changes });
+        }
+      );
+    });
+  },
+
+  // Delete all sessions for a user (logout from all devices)
+  async deleteAllUserSessions(userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM user_sessions WHERE user_id = ?',
+        [userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true, count: this.changes });
+        }
+      );
+    });
+  },
+
+  // Get session by ID
+  async getSessionById(sessionId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM user_sessions WHERE id = ?',
+        [sessionId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+
+  // Mark session as current
+  async markAsCurrent(sessionId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE user_sessions SET is_current = 0 WHERE user_id = ?',
+        [userId],
+        (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          db.run(
+            'UPDATE user_sessions SET is_current = 1 WHERE id = ? AND user_id = ?',
+            [sessionId, userId],
+            function(err2) {
+              if (err2) reject(err2);
+              else resolve({ success: true });
+            }
+          );
+        }
+      );
+    });
+  }
+};
+
 // Dummy pool for compatibility with PostgreSQL interface
 const pool = { query: () => Promise.resolve({ rows: [] }) };
 
 module.exports = {
   pool,
   db,
+  dbGet,
+  dbRun,
+  dbAll,
   subscriptionDB,
   initDatabase,
   userDB,
@@ -2547,6 +3478,9 @@ module.exports = {
   friendDB,
   dmDB,
   auditLogDB,
+  emojiDB,
+  stickerDB,
+  sessionDB,
   Permissions,
   RolePermissions,
   RoleHierarchy

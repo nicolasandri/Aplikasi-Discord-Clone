@@ -127,7 +127,7 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
   if (!user) return null;
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" style={{ position: 'relative' }}>
       {/* Main Button */}
       <button
         ref={buttonRef}
@@ -163,8 +163,8 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
       {isOpen && (
         <div
           ref={popupRef}
-          className="fixed bottom-2 left-[76px] w-[280px] bg-[#18191c] rounded-lg shadow-2xl overflow-hidden z-[100]"
-          style={{ maxHeight: 'calc(100vh - 20px)', overflowY: 'auto' }}
+          className="absolute bottom-full left-0 mb-2 w-[280px] bg-[#18191c] rounded-lg shadow-2xl overflow-hidden z-[100]"
+          style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}
         >
           {/* Banner */}
           <div className="h-16 bg-[#5865f2] relative">

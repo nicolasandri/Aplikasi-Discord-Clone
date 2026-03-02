@@ -40,10 +40,12 @@ interface FriendRequest {
   created_at: string;
   requester_id?: string;
   requester_username?: string;
+  requester_display_name?: string;
   requester_avatar?: string;
   requester_status?: string;
   recipient_id?: string;
   recipient_username?: string;
+  recipient_display_name?: string;
   recipient_avatar?: string;
   recipient_status?: string;
 }
@@ -51,6 +53,7 @@ interface FriendRequest {
 interface BlockedUser {
   id: string;
   username: string;
+  display_name?: string;
   avatar: string;
   blocked_date: string;
 }
@@ -94,7 +97,13 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       });
       if (response.ok) {
         const data = await response.json();
-        setFriends(data);
+        console.log('[FriendsPage] Friends data:', data);
+        // Map display_name to displayName if needed
+        const mappedData = data.map((friend: any) => ({
+          ...friend,
+          displayName: friend.displayName || friend.display_name || friend.username,
+        }));
+        setFriends(mappedData);
       }
     } catch (error) {
       console.error('Failed to fetch friends:', error);
@@ -108,7 +117,19 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       });
       if (response.ok) {
         const data = await response.json();
-        setPendingRequests(data);
+        console.log('[FriendsPage] Pending data:', data);
+        // Map display_name to displayName for incoming and outgoing
+        const mappedData = {
+          incoming: (data.incoming || []).map((req: any) => ({
+            ...req,
+            requester_display_name: req.requester_display_name || req.requester_displayName || req.requester_username,
+          })),
+          outgoing: (data.outgoing || []).map((req: any) => ({
+            ...req,
+            recipient_display_name: req.recipient_display_name || req.recipient_displayName || req.recipient_username,
+          })),
+        };
+        setPendingRequests(mappedData);
       }
     } catch (error) {
       console.error('Failed to fetch pending requests:', error);
@@ -122,7 +143,13 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       });
       if (response.ok) {
         const data = await response.json();
-        setBlockedUsers(data);
+        console.log('[FriendsPage] Blocked data:', data);
+        // Map display_name to displayName
+        const mappedData = data.map((user: any) => ({
+          ...user,
+          display_name: user.display_name || user.displayName || user.username,
+        }));
+        setBlockedUsers(mappedData);
       }
     } catch (error) {
       console.error('Failed to fetch blocked users:', error);
@@ -383,7 +410,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     }
   };
 
-  /* _handleBlockUser = async (userId: string, username: string) => {
+  const handleBlockUser = async (userId: string, username: string) => {
     if (!confirm(`Apakah Anda yakin ingin memblokir ${username}?`)) return;
 
     try {
@@ -414,7 +441,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
         variant: 'destructive',
       });
     }
-  }; */
+  };
 
   const handleUnblockUser = async (userId: string, username: string) => {
     try {
@@ -466,7 +493,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
         <div className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[friend.status]} rounded-full border-2 border-[#2f3136]`} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white truncate">{friend.username}</div>
+        <div className="font-medium text-white truncate">{friend.displayName || friend.username}</div>
         <div className="text-xs text-[#b9bbbe]">{statusLabels[friend.status]}</div>
       </div>
       {showActions && (
@@ -489,6 +516,15 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
           >
             <UserX className="w-4 h-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-[#b9bbbe] hover:text-[#ed4245] hover:bg-[#ed4245]/10"
+            onClick={() => handleBlockUser(friend.id, friend.username)}
+            title="Blokir"
+          >
+            <ShieldAlert className="w-4 h-4" />
+          </Button>
         </div>
       )}
     </div>
@@ -497,11 +533,11 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   const IncomingRequestItem = ({ request }: { request: FriendRequest }) => (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-[#36393f]/50">
       <Avatar className="w-10 h-10">
-        <AvatarImage src={request.requester_avatar} alt={request.requester_username} />
-        <AvatarFallback>{request.requester_username?.[0].toUpperCase()}</AvatarFallback>
+        <AvatarImage src={request.requester_avatar} alt={request.requester_display_name || request.requester_username} />
+        <AvatarFallback>{(request.requester_display_name || request.requester_username)?.[0].toUpperCase()}</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white truncate">{request.requester_username}</div>
+        <div className="font-medium text-white truncate">{request.requester_display_name || request.requester_username}</div>
         <div className="text-xs text-[#b9bbbe]">Mengirim permintaan pertemanan</div>
       </div>
       <div className="flex items-center gap-1">
@@ -528,11 +564,11 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   const OutgoingRequestItem = ({ request }: { request: FriendRequest }) => (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-[#36393f]/50 opacity-70">
       <Avatar className="w-10 h-10">
-        <AvatarImage src={request.recipient_avatar} alt={request.recipient_username} />
-        <AvatarFallback>{request.recipient_username?.[0].toUpperCase()}</AvatarFallback>
+        <AvatarImage src={request.recipient_avatar} alt={request.recipient_display_name || request.recipient_username} />
+        <AvatarFallback>{(request.recipient_display_name || request.recipient_username)?.[0].toUpperCase()}</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white truncate">{request.recipient_username}</div>
+        <div className="font-medium text-white truncate">{request.recipient_display_name || request.recipient_username}</div>
         <div className="text-xs text-[#b9bbbe]">Permintaan tertunda</div>
       </div>
       <Badge variant="secondary" className="bg-[#5865f2]/20 text-[#5865f2]">Outgoing</Badge>
@@ -551,13 +587,13 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     <div className="flex items-center gap-3 p-3 rounded-lg bg-[#36393f]/50">
       <div className="relative">
         <Avatar className="w-10 h-10">
-          <AvatarImage src={user.avatar} alt={user.username} />
-          <AvatarFallback>{user.username[0].toUpperCase()}</AvatarFallback>
+          <AvatarImage src={user.avatar} alt={user.display_name || user.username} />
+          <AvatarFallback>{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
         </Avatar>
         <ShieldAlert className="absolute -bottom-1 -right-1 w-4 h-4 text-[#ed4245]" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white truncate">{user.username}</div>
+        <div className="font-medium text-white truncate">{user.display_name || user.username}</div>
         <div className="text-xs text-[#b9bbbe]">Diblokir</div>
       </div>
       <Button

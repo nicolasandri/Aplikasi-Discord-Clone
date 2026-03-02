@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**WorkGrid** adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
+**WorkGrid** (also referred to as ChatCord in some configurations) adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android via Capacitor), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
 
 **Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
 
@@ -12,12 +12,17 @@
 - Messaging real-time dengan Socket.IO
 - File sharing (maksimal 10MB)
 - Reaksi pesan, reply, edit/hapus pesan
-- Direct Messages (DM) antar pengguna
+- Pin messages (dengan permission MANAGE_MESSAGES)
+- Direct Messages (DM) antar pengguna (1-on-1 dan group)
 - Voice channels dengan WebRTC
 - Custom roles dengan permission system (Discord-like)
-- Friend system dengan friend requests
-- Push notifications
-- UI responsif untuk mobile, tablet, dan desktop
+- Friend system dengan friend requests, block user
+- Push notifications dengan VAPID
+- Typing indicators
+- Search messages
+- Audit logging untuk server
+- Server invites dengan kode
+- Responsive UI untuk mobile, tablet, dan desktop
 
 ---
 
@@ -107,7 +112,16 @@
 │   │   │   ├── InviteModal.tsx  # Server invite modal
 │   │   │   ├── SearchModal.tsx  # Global search
 │   │   │   ├── RoleManagerModal.tsx # Role management
+│   │   │   ├── ServerSettingsModal.tsx # Server settings
+│   │   │   ├── ServerAuditLog.tsx # Audit logging
 │   │   │   ├── NotificationSettings.tsx # Notification preferences
+│   │   │   ├── ServerInvites.tsx # Server invite management
+│   │   │   ├── ServerMembers.tsx # Server member management
+│   │   │   ├── ServerRoles.tsx  # Server roles configuration
+│   │   │   ├── ForwardModal.tsx # Message forwarding
+│   │   │   ├── GroupDMModal.tsx # Group DM creation
+│   │   │   ├── MemberProfilePanel.tsx # Member profile sidebar
+│   │   │   ├── ReactionTooltip.tsx # Reaction display
 │   │   │   └── RichTextEditor.tsx # TipTap editor wrapper
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
@@ -119,7 +133,10 @@
 │   │   │   ├── useNotification.ts # Browser notifications
 │   │   │   └── usePush.ts       # Push notifications
 │   │   ├── types/
-│   │   │   └── index.ts         # TypeScript interfaces
+│   │   │   ├── index.ts         # TypeScript interfaces
+│   │   │   ├── voice.ts         # Voice-related types
+│   │   │   ├── electron.d.ts    # Electron type definitions
+│   │   │   └── simple-peer.d.ts # SimplePeer types
 │   │   ├── lib/
 │   │   │   └── utils.ts         # Utility functions (cn helper)
 │   │   ├── pages/
@@ -127,8 +144,7 @@
 │   │   │   └── FriendsPage.tsx  # Friends management page
 │   │   ├── App.tsx              # Root component
 │   │   ├── main.tsx             # Entry point
-│   │   ├── index.css            # Global styles (Discord theme)
-│   │   └── App.css              # Component styles
+│   │   └── index.css            # Global styles (Discord theme)
 │   ├── electron/                # Electron desktop app
 │   │   ├── main.cjs             # Main process
 │   │   └── preload.cjs          # Preload script
@@ -140,6 +156,8 @@
 │   ├── tailwind.config.js       # Tailwind CSS config
 │   ├── vite.config.ts           # Vite configuration
 │   ├── tsconfig.json            # TypeScript config
+│   ├── tsconfig.app.json        # App TypeScript config
+│   ├── tsconfig.node.json       # Node TypeScript config
 │   ├── Dockerfile               # Frontend Docker image
 │   └── package.json             # Dependencies
 │
@@ -301,6 +319,11 @@ FRONTEND_URL=http://localhost
 
 # Node Environment
 NODE_ENV=production
+
+# Push Notifications (VAPID Keys)
+VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
+VAPID_SUBJECT=mailto:admin@workgrid.app
 ```
 
 ### Server `.env`
@@ -319,13 +342,18 @@ DB_SSL=false
 
 # Or use DATABASE_URL
 DATABASE_URL=postgresql://user:password@host:5432/database
+
+# VAPID Keys for Push Notifications
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
 ```
 
 ### Frontend Environment
 Development (`app/.env`):
 ```env
-VITE_API_URL=/api
-VITE_SOCKET_URL=
+VITE_API_URL=http://localhost:3001/api
+VITE_SOCKET_URL=http://localhost:3001
 ```
 
 Production (`app/.env.production`):
@@ -405,24 +433,39 @@ VITE_SOCKET_URL=https://your-domain.com
 | POST | `/api/servers/:serverId/roles` | Create role | Yes (Manage Roles) |
 | PUT | `/api/servers/:serverId/roles/:roleId` | Update role | Yes (Manage Roles) |
 | DELETE | `/api/servers/:serverId/roles/:roleId` | Delete role | Yes (Manage Roles) |
+| GET | `/api/servers/:id/invites` | Get server invites | Yes |
+| POST | `/api/servers/:id/invites` | Create invite | Yes |
+| GET | `/api/servers/:serverId/audit-logs` | Get audit logs | Yes (Manage Server) |
 
 #### Channels & Messages
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | DELETE | `/api/channels/:id` | Delete channel | Yes |
 | GET | `/api/channels/:id/messages` | Get messages | Yes |
+| POST | `/api/channels/:channelId/pins` | Get pinned messages | Yes |
 | POST | `/api/messages/:id/reactions` | Add reaction | Yes |
 | DELETE | `/api/messages/:id/reactions` | Remove reaction | Yes |
+| POST | `/api/messages/:messageId/pin` | Pin message | Yes (Manage Messages) |
+| POST | `/api/messages/:messageId/unpin` | Unpin message | Yes (Manage Messages) |
+| GET | `/api/messages/search` | Search messages | Yes |
 
 #### Friends & DMs
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | GET | `/api/friends` | Get friends | Yes |
+| GET | `/api/friends/requests` | Get pending requests | Yes |
 | POST | `/api/friends/request` | Send friend request | Yes |
-| POST | `/api/friends/:id/accept` | Accept request | Yes |
+| POST | `/api/friends/requests/:id/accept` | Accept request | Yes |
+| POST | `/api/friends/requests/:id/reject` | Reject request | Yes |
+| DELETE | `/api/friends/:id` | Remove friend | Yes |
+| POST | `/api/friends/:id/block` | Block user | Yes |
 | GET | `/api/dm/channels` | Get DM channels | Yes |
 | POST | `/api/dm/channels` | Create DM channel | Yes |
 | GET | `/api/dm/channels/:id/messages` | Get DM messages | Yes |
+| POST | `/api/dm/channels/:id/messages` | Send DM message | Yes |
+| DELETE | `/api/dm/channels/:id` | Delete DM channel | Yes |
+| POST | `/api/dm/channels/:id/members` | Add member to group | Yes (Creator) |
+| DELETE | `/api/dm/channels/:id/members/:userId` | Remove member | Yes (Creator) |
 
 #### Files
 | Method | Endpoint | Description | Auth |
@@ -437,6 +480,14 @@ VITE_SOCKET_URL=https://your-domain.com
 | PUT | `/api/servers/:serverId/members/:userId/custom-role` | Assign custom role | Yes |
 | DELETE | `/api/servers/:serverId/members/:userId` | Kick member | Yes |
 | POST | `/api/servers/:serverId/bans/:userId` | Ban member | Yes |
+
+#### Push Notifications
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/push/subscribe` | Subscribe to push | Yes |
+| POST | `/api/push/unsubscribe` | Unsubscribe | Yes |
+| POST | `/api/push/test` | Test push notification | Yes |
+| GET | `/api/push/vapid-public-key` | Get VAPID public key | No |
 
 ### WebSocket Events
 
@@ -467,33 +518,42 @@ VITE_SOCKET_URL=https://your-domain.com
 | `reaction_removed` | `{ messageId, reactions }` | Reaction removed |
 | `message_edited` | `Message` | Message edited |
 | `message_deleted` | `{ messageId }` | Message deleted |
+| `message_pinned` | `{ messageId, channelId }` | Message pinned |
+| `message_unpinned` | `{ messageId, channelId }` | Message unpinned |
 | `voice-channel-joined` | `{ channelId, participants }` | Joined voice |
 | `user-joined-voice` | `{ userId, socketId }` | User joined voice |
 | `user-left-voice` | `{ userId, socketId }` | User left voice |
 | `signal` | `{ from, signal }` | WebRTC signal |
+| `user_status_changed` | `{ userId, status }` | User status change |
+| `friend_request_received` | `{ request }` | Friend request received |
+| `friend_request_accepted` | `{ friend }` | Friend request accepted |
 
 ---
 
 ## Database Schema
 
-### PostgreSQL Tables
+### PostgreSQL/SQLite Tables
 
 | Table | Description |
 |-------|-------------|
 | `users` | User accounts (id, username, email, password, avatar, status) |
 | `servers` | Discord-like servers (id, name, icon, owner_id) |
-| `server_members` | Server membership (server_id, user_id, role, role_id) |
+| `server_members` | Server membership (server_id, user_id, role, role_id, joined_at) |
 | `categories` | Channel categories (server_id, name, position) |
-| `channels` | Text/voice channels (server_id, category_id, type) |
-| `messages` | Channel messages (channel_id, user_id, content, reply_to_id) |
+| `channels` | Text/voice channels (server_id, category_id, type, position) |
+| `messages` | Channel messages (channel_id, user_id, content, reply_to_id, is_pinned, pinned_at, pinned_by) |
 | `reactions` | Message reactions (message_id, user_id, emoji) |
-| `friendships` | Friend relationships (user_id, friend_id, status) |
-| `dm_channels` | DM channels between users |
+| `friendships` | Friend relationships (user_id, friend_id, status, created_at) |
+| `friend_requests` | Pending friend requests (sender_id, receiver_id, status) |
+| `dm_channels` | DM channels between users (type: direct/group, creator_id) |
+| `dm_channel_members` | DM channel participants |
 | `dm_messages` | DM messages |
-| `invites` | Server invite codes |
-| `bans` | Server bans |
+| `invites` | Server invite codes (code, server_id, created_by, expires_at, max_uses) |
+| `bans` | Server bans (server_id, user_id, reason, created_at) |
 | `voice_participants` | Voice channel participants |
-| `roles` | Custom server roles dengan permissions |
+| `roles` | Custom server roles dengan permissions (server_id, name, color, permissions, position) |
+| `audit_logs` | Server audit logs (server_id, action, user_id, target_id, details, created_at) |
+| `push_subscriptions` | Push notification subscriptions |
 
 ### Role Hierarchy
 ```
@@ -537,8 +597,9 @@ const Permissions = {
 - [ ] Edit dan delete messages
 - [ ] Add emoji reactions
 - [ ] Reply to messages
+- [ ] Pin/unpin messages
 - [ ] Add friend dan accept request
-- [ ] Send DMs
+- [ ] Send DMs (1-on-1 dan group)
 - [ ] Create channel categories
 - [ ] Create dan assign custom roles
 - [ ] Test voice channels
@@ -705,6 +766,10 @@ Pada server pertama kali start, data berikut akan dibuat:
    - Verify browser permissions untuk microphone
    - Check signaling server logs
 
+6. **TypeScript errors:**
+   - Run `npm run build` di app directory untuk check errors
+   - Check `typescript-errors.log` untuk detail
+
 ### Getting Help
 - Check `docs/BUG_REPORT.md` untuk known issues
 - Review Docker logs: `docker-compose logs -f`
@@ -718,4 +783,6 @@ Pada server pertama kali start, data berikut akan dibuat:
 - `docs/BUG_REPORT.md` - Detailed bug tracking
 - `docs/CHANGELOG.md` - Version history
 - `DOCKER_DEPLOYMENT_GUIDE.md` - Docker deployment instructions
+- `TODO.md` - Bug fix checklist dan feature status
 - `AGENTS.md` - This file
+- `server/MIGRATION_GUIDE.md` - Database migration guide

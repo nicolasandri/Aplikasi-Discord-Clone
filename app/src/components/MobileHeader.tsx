@@ -25,6 +25,7 @@ export function MobileHeader({
   isChannelsOpen = false,
 }: MobileHeaderProps) {
   const isDM = !!dmChannel;
+  const isGroupDM = dmChannel?.type === 'group';
   
   return (
     <div className="h-12 px-3 flex items-center justify-between bg-[#36393f] border-b border-[#202225]">
@@ -48,16 +49,29 @@ export function MobileHeader({
         
         <div className="flex items-center gap-2 min-w-0">
           {isDM ? (
-            <>
-              <img 
-                src={dmChannel?.friend.avatar} 
-                alt={dmChannel?.friend.username}
-                className="w-7 h-7 rounded-full flex-shrink-0"
-              />
-              <span className="text-white font-semibold truncate">
-                {dmChannel?.friend.username}
-              </span>
-            </>
+            isGroupDM ? (
+              // Group DM Header
+              <>
+                <div className="w-7 h-7 rounded-full bg-[#5865f2] flex items-center justify-center flex-shrink-0">
+                  <Users className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-white font-semibold truncate">
+                  {dmChannel?.name || `Grup (${dmChannel?.members?.length || 0})`}
+                </span>
+              </>
+            ) : (
+              // Direct DM Header
+              <>
+                <img 
+                  src={dmChannel?.friend?.avatar} 
+                  alt={dmChannel?.friend?.username}
+                  className="w-7 h-7 rounded-full flex-shrink-0"
+                />
+                <span className="text-white font-semibold truncate">
+                  {dmChannel?.friend?.username}
+                </span>
+              </>
+            )
           ) : (
             <>
               <span className="text-[#8e9297] text-lg">#</span>
