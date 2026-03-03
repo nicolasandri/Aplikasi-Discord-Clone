@@ -73,6 +73,8 @@ const io = new Server(server, {
   pingInterval: 25000
 });
 
+
+
 // Initialize Voice Signaling Server for WebRTC
 const VoiceSignalingServer = require('./webrtc/signaling');
 const voiceSignaling = new VoiceSignalingServer(io);
@@ -122,17 +124,9 @@ async function seedData() {
 
 seedData();
 
-// Security: Express CORS
+// Security: Express CORS - allow all for development
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      console.error(`CORS blocked: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Authorization", "Content-Type"],
   credentials: true
@@ -169,9 +163,13 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const timestamp = Date.now();
+    const randomNum = Math.round(Math.random() * 1E9);
+    const uniqueSuffix = timestamp + '-' + randomNum;
     const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    const filename = file.fieldname + '-' + uniqueSuffix + ext;
+    console.log('[MULTER] Generating filename:', filename, 'timestamp:', timestamp);
+    cb(null, filename);
   }
 });
 
@@ -200,6 +198,8 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
+    console.log('[UPLOAD] File uploaded:', req.file.filename);
+    
     res.json({
       url: `/uploads/${req.file.filename}`,
       filename: req.file.filename,
@@ -221,7 +221,7 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(uploadsDir));
 
-// JWT Middleware
+// JWT Middleware - Simple token verification (7 days expiry)
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -230,12 +230,19 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Access denied' });
   }
   
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
     // Support both 'id' and 'userId' fields in token
-    req.userId = user.id || user.userId;
+    req.userId = decoded.id || decoded.userId;
+    req.user = decoded;
     next();
-  });
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' });
+    }
+    return res.status(403).json({ error: 'Invalid token' });
+  }
 }
 
 // Helper function to format user response
@@ -336,9 +343,18 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     }
     
     const user = await userDB.create(username, email, password);
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
     
-    res.json({ user: formatUserResponse(user), token });
+    // Generate JWT token (7 days expiry)
+    const token = jwt.sign(
+      { id: user.id, email: user.email, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.json({ 
+      user: formatUserResponse(user), 
+      token
+    });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
@@ -368,32 +384,28 @@ app.post('/api/auth/login', async (req, res) => {
     // Update user status to online
     await userDB.updateProfile(user.id, { status: 'online' });
     
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
-    
-    // Create session for device management
-    try {
-      // Reset all sessions to non-current
-      await dbRun('UPDATE user_sessions SET is_current = 0 WHERE user_id = ?', [user.id]);
-      
-      // Create new session
-      const deviceInfo = getDeviceInfo(req);
-      await sessionDB.createSession(user.id, {
-        ...deviceInfo,
-        isCurrent: true
-      });
-    } catch (sessionError) {
-      console.error('Failed to create session:', sessionError);
-      // Don't fail login if session creation fails
-    }
+    // Generate JWT token (7 days expiry)
+    const token = jwt.sign(
+      { id: user.id, email: user.email, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
     
     res.json({ 
       user: formatUserResponse({ ...user, status: 'online' }), 
-      token 
+      token
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
+});
+
+
+
+// Logout endpoint (simple - just client-side token removal)
+app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+  res.json({ success: true, message: 'Berhasil logout' });
 });
 
 // Get current user (verify token)
@@ -437,6 +449,67 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Change password
+app.put('/api/users/password', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    
+    // Get user with password
+    const user = await userDB.findById(userId, true);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log('[Change Password] User found, checking password...');
+    
+    // Verify current password
+    const bcrypt = require('bcryptjs');
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Update password (database.js will handle hashing)
+    await userDB.updatePassword(userId, newPassword);
+    
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Upload user avatar
+app.post('/api/users/avatar', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const userId = req.userId;
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    
+    console.log('[POST /api/users/avatar] Uploading avatar for user:', userId, 'file:', req.file.filename);
+    
+    // Update user avatar in database
+    await userDB.updateProfile(userId, { avatar: avatarUrl });
+    
+    res.json({ avatar: avatarUrl });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    res.status(500).json({ error: 'Failed to upload avatar' });
   }
 });
 
@@ -503,6 +576,133 @@ app.get('/api/servers/:serverId', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Get server error:', error);
     res.status(500).json({ error: 'Failed to get server' });
+  }
+});
+
+// Transfer server ownership
+app.post('/api/servers/:serverId/transfer-ownership', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const { newOwnerId } = req.body;
+    const currentOwnerId = req.userId;
+    
+    if (!newOwnerId) {
+      return res.status(400).json({ error: 'New owner ID is required' });
+    }
+    
+    // Get server
+    const server = await serverDB.findById(serverId);
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+    
+    // Check if current user is the owner
+    if (server.owner_id !== currentOwnerId) {
+      return res.status(403).json({ error: 'Only server owner can transfer ownership' });
+    }
+    
+    // Check if new owner is a member
+    const isMember = await serverDB.isMember(serverId, newOwnerId);
+    if (!isMember) {
+      return res.status(400).json({ error: 'New owner must be a member of this server' });
+    }
+    
+    // Check if trying to transfer to self
+    if (newOwnerId === currentOwnerId) {
+      return res.status(400).json({ error: 'Cannot transfer ownership to yourself' });
+    }
+    
+    // Transfer ownership
+    await serverDB.transferOwnership(serverId, currentOwnerId, newOwnerId);
+    
+    // Emit socket event
+    io.to(`server:${serverId}`).emit('ownership_transferred', {
+      serverId,
+      oldOwnerId: currentOwnerId,
+      newOwnerId
+    });
+    
+    res.json({ success: true, message: 'Ownership transferred successfully' });
+  } catch (error) {
+    console.error('[TRANSFER OWNERSHIP] Error:', error);
+    res.status(500).json({ error: 'Failed to transfer ownership', details: error.message });
+  }
+});
+
+// Update server (name, icon, description)
+app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
+  console.log('[PUT /api/servers/:serverId] Called with serverId:', req.params.serverId);
+  try {
+    const { serverId } = req.params;
+    const { name, icon, description } = req.body;
+    const userId = req.userId;
+    
+    // Check if server exists
+    const server = await serverDB.findById(serverId);
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+    
+    // Check if user is owner or admin
+    const members = await serverDB.getMembers(serverId);
+    const member = members.find(m => m.id === userId);
+    
+    if (!member) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    if (member.role !== 'owner' && member.role !== 'admin') {
+      return res.status(403).json({ error: 'Only owner or admin can update server' });
+    }
+    
+    // Build update object
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (icon !== undefined) updates.icon = icon;
+    if (description !== undefined) updates.description = description;
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    // Update server
+    await serverDB.update(serverId, updates);
+    
+    // Get updated server
+    const updatedServer = await serverDB.findById(serverId);
+    
+    res.json(updatedServer);
+  } catch (error) {
+    console.error('Update server error:', error);
+    res.status(500).json({ error: 'Failed to update server' });
+  }
+});
+
+// Get user by ID (for DM profile)
+app.get('/api/users/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await userDB.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Return user data without sensitive info
+    res.json({
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      avatar: user.avatar,
+      status: user.status,
+      email: user.email,
+      created_at: user.created_at,
+      // No role info for DM view
+      role: null
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Failed to get user' });
   }
 });
 
@@ -673,6 +873,30 @@ app.get('/api/servers/:serverId/members', authenticateToken, async (req, res) =>
   }
 });
 
+// Get specific server member details (alias for /users/)
+app.get('/api/servers/:serverId/users/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const requesterId = req.userId;
+    
+    // Check if requester is a member
+    const isMember = await serverDB.isMember(serverId, requesterId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    // Get member details
+    const member = await serverDB.getMemberDetails(serverId, userId);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    res.json(member);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get member details' });
+  }
+});
+
 // Get specific server member details
 app.get('/api/servers/:serverId/members/:userId', authenticateToken, async (req, res) => {
   try {
@@ -712,15 +936,33 @@ app.post('/api/servers/:serverId/leave', authenticateToken, async (req, res) => 
       return res.status(404).json({ error: 'Server not found' });
     }
     
-    // Cannot leave if you're the owner
-    if (server.owner_id === userId) {
-      return res.status(403).json({ error: 'Server owner cannot leave. Transfer ownership or delete the server.' });
-    }
-    
     // Check if user is a member
     const isMember = await serverDB.isMember(serverId, userId);
     if (!isMember) {
       return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    // If owner is trying to leave
+    if (server.owner_id === userId) {
+      // Get member count
+      const members = await serverDB.getMembers(serverId);
+      
+      // If owner is the only member, delete the server
+      if (members.length === 1) {
+        console.log(`[LEAVE SERVER] Owner is the only member. Deleting server ${serverId}`);
+        await serverDB.delete(serverId);
+        
+        // Emit socket event
+        io.to(`server:${serverId}`).emit('server_deleted', {
+          serverId,
+          deletedBy: userId
+        });
+        
+        return res.json({ success: true, message: 'Server deleted successfully' });
+      }
+      
+      // If there are other members, owner cannot leave
+      return res.status(403).json({ error: 'Server owner cannot leave. Transfer ownership or delete the server.' });
     }
     
     // Remove member from server

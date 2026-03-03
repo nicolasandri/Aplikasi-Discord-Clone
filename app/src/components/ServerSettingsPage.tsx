@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, Settings, Shield, Users, UserPlus, UserX, ImageIcon } from 'lucide-react';
+import { X, Settings, Shield, Users, UserPlus, UserX, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck } from 'lucide-react';
 import type { Server, ServerMember } from '@/types';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ServerSettingsPageProps {
   server: Server | null;
@@ -13,6 +23,24 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 const API_URL = isElectron 
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+
+// Get base URL for backend (without /api)
+const BASE_URL = (() => {
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  return 'http://localhost:3001';
+})();
+
+// Helper to convert relative URL to absolute URL
+const getFullImageUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/uploads/')) {
+    return `${BASE_URL}${url}`;
+  }
+  return url;
+};
 
 const BANNER_COLORS = [
   { bg: 'linear-gradient(135deg, #5865f2 0%, #4752c4 100%)', name: 'Default' },
@@ -35,6 +63,8 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
   const [bannerColor, setBannerColor] = useState(BANNER_COLORS[0].bg);
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [transferConfirmOpen, setTransferConfirmOpen] = useState<string | null>(null);
 
   useEffect(() => {
     if (server) {
@@ -83,10 +113,14 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
       
       if (response.ok) {
         const data = await response.json();
+        console.log('[handleIconUpload] Upload success, URL:', data.url);
+        console.log('[handleIconUpload] Filename from server:', data.filename);
         setServerIcon(data.url);
+        console.log('[handleIconUpload] serverIcon state set to:', data.url);
+        alert('Icon berhasil diupload! Klik "Simpan Perubahan" untuk menyimpan.');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Upload failed:', response.status, errorData);
+        console.error('[handleIconUpload] Upload failed:', response.status, errorData);
         alert('Gagal upload icon: ' + (errorData.error || response.statusText));
       }
     } catch (error) {
@@ -100,6 +134,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
+      console.log('[handleSave] Saving server with icon:', serverIcon);
       const res = await fetch(`${API_URL}/servers/${server.id}`, {
         method: 'PUT',
         headers: {
@@ -108,16 +143,83 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
         },
         body: JSON.stringify({ name: serverName, icon: serverIcon, description }),
       });
+      
       if (res.ok) {
+        const updatedServer = await res.json();
+        console.log('[handleSave] Server updated successfully:', updatedServer);
         onUpdateServer?.(server.id, { name: serverName, icon: serverIcon });
+        alert('Server berhasil diperbarui!');
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[handleSave] Failed to update server:', res.status, errorData);
+        alert('Gagal menyimpan: ' + (errorData.error || res.statusText));
       }
     } catch (error) {
-      console.error('Failed to update server:', error);
+      console.error('[handleSave] Error:', error);
+      alert('Terjadi kesalahan saat menyimpan.');
     }
     setIsLoading(false);
   };
 
   const onlineCount = members.filter(m => m.status === 'online').length;
+
+  // Get current user from localStorage (stored as 'user' object, not 'userId')
+  const getCurrentUserId = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Failed to parse user from localStorage:', e);
+    }
+    return null;
+  };
+  
+  const currentUserId = getCurrentUserId();
+  const currentMember = members.find(m => m.id === currentUserId);
+  const isOwner = currentMember?.role === 'owner';
+  
+  // Debug logging
+  console.log('[ServerSettingsPage] currentUserId:', currentUserId);
+  console.log('[ServerSettingsPage] currentMember:', currentMember);
+  console.log('[ServerSettingsPage] isOwner:', isOwner);
+
+  const handleTransferOwnership = async (memberId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/servers/${server?.id}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ newOwnerId: memberId }),
+      });
+      if (response.ok) {
+        // Update local state - new owner becomes owner, old owner becomes admin
+        setMembers(members.map(m => {
+          if (m.id === memberId) return { ...m, role: 'owner' as any };
+          if (m.id === currentUserId) return { ...m, role: 'admin' as any };
+          return m;
+        }));
+        setTransferConfirmOpen(null);
+        setMenuOpen(null);
+        alert('Ownership transferred successfully! You are now an admin.\n\nPage will refresh to apply changes.');
+        // Refresh page after 2 seconds to apply changes
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to transfer ownership');
+      }
+    } catch (error) {
+      console.error('Failed to transfer ownership:', error);
+      alert('Failed to transfer ownership');
+    }
+  };
 
   if (!isOpen || !server) return null;
 
@@ -265,7 +367,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
                       <div className="w-20 h-20 rounded-2xl bg-[#1e1f22] flex items-center justify-center overflow-hidden border-4 border-[#2b2d31]">
                         {serverIcon ? (
-                          <img src={serverIcon} alt={serverName} className="w-full h-full object-cover" />
+                          <img src={getFullImageUrl(serverIcon)} alt={serverName} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-3xl font-bold text-white">{serverName.charAt(0).toUpperCase()}</span>
                         )}
@@ -302,19 +404,94 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
               <h3 className="text-white font-semibold mb-4">Members ({members.length})</h3>
               <div className="space-y-2">
                 {members.map((member) => (
-                  <div key={member.id} className="flex items-center gap-3 bg-[#1e1f22] p-3 rounded">
-                    <img
-                      src={member.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`}
-                      alt={member.username}
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div>
-                      <div className="text-white font-medium">{member.displayName || member.username}</div>
-                      <div className="text-[#949ba4] text-sm">{member.role}</div>
+                  <div key={member.id} className="flex items-center justify-between gap-3 bg-[#1e1f22] p-3 rounded group">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={member.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`}
+                        alt={member.username}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div>
+                        <div className="text-white font-medium flex items-center gap-2">
+                          {member.displayName || member.username}
+                          {member.role === 'owner' && <Crown className="w-4 h-4 text-[#ffd700]" />}
+                          {member.role === 'admin' && <ShieldCheck className="w-4 h-4 text-[#ed4245]" />}
+                        </div>
+                        <div className="text-[#949ba4] text-sm capitalize">{member.role}</div>
+                      </div>
                     </div>
+                    
+                    {/* Menu button - only show for owner and not self */}
+                    {isOwner && member.id !== currentUserId && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setMenuOpen(menuOpen === member.id ? null : member.id)}
+                          className="p-2 hover:bg-[#2f3136] rounded text-[#949ba4] hover:text-white transition-colors"
+                          title="Transfer Ownership"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        
+                        {menuOpen === member.id && (
+                          <>
+                            {/* Backdrop to close menu */}
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setMenuOpen(null)}
+                            />
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136]">
+                              <button
+                                onClick={() => { setTransferConfirmOpen(member.id); setMenuOpen(null); }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-[#ffd700] hover:bg-[#ffd700] hover:text-black text-sm"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                                Transfer Ownership
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+              
+              {/* Transfer Ownership Confirmation Dialog */}
+              <AlertDialog open={!!transferConfirmOpen} onOpenChange={() => setTransferConfirmOpen(null)}>
+                <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white flex items-center gap-2">
+                      <KeyRound className="w-5 h-5 text-[#ffd700]" />
+                      Transfer Server Ownership
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-[#b9bbbe]">
+                      Are you sure you want to transfer ownership of this server to{' '}
+                      <span className="text-white font-semibold">
+                        {members.find(m => m.id === transferConfirmOpen)?.displayName || 
+                         members.find(m => m.id === transferConfirmOpen)?.username}
+                      </span>?
+                      <br /><br />
+                      <span className="text-[#ed4245] font-medium">
+                        This action cannot be undone. You will lose owner privileges and become an admin instead.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel 
+                      className="bg-[#40444b] text-white border-[#40444b] hover:bg-[#35373c] hover:text-white"
+                      onClick={() => setTransferConfirmOpen(null)}
+                    >
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-[#ffd700] text-black hover:bg-[#e6c200]"
+                      onClick={() => transferConfirmOpen && handleTransferOwnership(transferConfirmOpen)}
+                    >
+                      Transfer Ownership
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
 

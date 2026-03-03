@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, ArrowUpDown, UserX, MoreVertical, Shield, Bot, MessageSquare, Crown, Ban, UserMinus } from 'lucide-react';
+import { Search, ArrowUpDown, UserX, MoreVertical, Shield, Bot, MessageSquare, Crown, Ban, UserMinus, KeyRound } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { MemberProfilePanel } from './MemberProfilePanel';
 import type { ServerMember } from '@/types';
 
@@ -31,6 +41,7 @@ export function ServerMembers({ serverId }: ServerMembersProps) {
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [selectedMember, setSelectedMember] = useState<ServerMember | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [transferConfirmOpen, setTransferConfirmOpen] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const fetchMembers = useCallback(async () => {
@@ -204,10 +215,42 @@ export function ServerMembers({ serverId }: ServerMembersProps) {
     }
   };
 
+  const handleTransferOwnership = async (memberId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/servers/${serverId}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ newOwnerId: memberId }),
+      });
+      if (response.ok) {
+        // Update local state - new owner becomes owner, old owner becomes admin
+        setMembers(members.map(m => {
+          if (m.id === memberId) return { ...m, role: 'owner' as any };
+          if (m.id === currentUserId) return { ...m, role: 'admin' as any };
+          return m;
+        }));
+        setTransferConfirmOpen(null);
+        setMenuOpen(null);
+        alert('Ownership transferred successfully! You are now an admin.');
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to transfer ownership');
+      }
+    } catch (error) {
+      console.error('Failed to transfer ownership:', error);
+      alert('Failed to transfer ownership');
+    }
+  };
+
   // Get current user role
   const currentUserId = localStorage.getItem('userId');
   const currentMember = members.find(m => m.id === currentUserId);
   const canManage = currentMember?.role === 'owner' || currentMember?.role === 'admin' || currentMember?.role === 'moderator';
+  const isOwner = currentMember?.role === 'owner';
 
   if (isLoading) {
     return (
@@ -351,7 +394,7 @@ export function ServerMembers({ serverId }: ServerMembersProps) {
                       </button>
                       
                       {menuOpen === member.id && canManage && member.id !== currentUserId && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136]">
+                        <div className="absolute right-0 top-full mt-1 w-56 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136]">
                           <button
                             onClick={() => { setSelectedMember(member); setMenuOpen(null); }}
                             className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
@@ -362,29 +405,43 @@ export function ServerMembers({ serverId }: ServerMembersProps) {
                           
                           <div className="my-1 border-t border-[#2f3136]" />
                           
-                          <button
-                            onClick={() => handleChangeRole(member.id, 'admin')}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
-                          >
-                            <Crown className="w-4 h-4" />
-                            Make Admin
-                          </button>
+                          {isOwner && (
+                            <button
+                              onClick={() => { setTransferConfirmOpen(member.id); setMenuOpen(null); }}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-[#ffd700] hover:bg-[#ffd700] hover:text-black text-sm"
+                            >
+                              <KeyRound className="w-4 h-4" />
+                              Transfer Ownership
+                            </button>
+                          )}
                           
-                          <button
-                            onClick={() => handleChangeRole(member.id, 'moderator')}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
-                          >
-                            <Shield className="w-4 h-4" />
-                            Make Moderator
-                          </button>
-                          
-                          <button
-                            onClick={() => handleChangeRole(member.id, 'member')}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
-                          >
-                            <UserMinus className="w-4 h-4" />
-                            Make Member
-                          </button>
+                          {!isOwner && (
+                            <>
+                              <button
+                                onClick={() => handleChangeRole(member.id, 'admin')}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
+                              >
+                                <Crown className="w-4 h-4" />
+                                Make Admin
+                              </button>
+                              
+                              <button
+                                onClick={() => handleChangeRole(member.id, 'moderator')}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
+                              >
+                                <Shield className="w-4 h-4" />
+                                Make Moderator
+                              </button>
+                              
+                              <button
+                                onClick={() => handleChangeRole(member.id, 'member')}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                                Make Member
+                              </button>
+                            </>
+                          )}
                           
                           <div className="my-1 border-t border-[#2f3136]" />
                           
@@ -430,6 +487,43 @@ export function ServerMembers({ serverId }: ServerMembersProps) {
           </div>
         </div>
       </div>
+
+      {/* Transfer Ownership Confirmation Dialog */}
+      <AlertDialog open={!!transferConfirmOpen} onOpenChange={() => setTransferConfirmOpen(null)}>
+        <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-[#ffd700]" />
+              Transfer Server Ownership
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#b9bbbe]">
+              Are you sure you want to transfer ownership of this server to{' '}
+              <span className="text-white font-semibold">
+                {members.find(m => m.id === transferConfirmOpen)?.displayName || 
+                 members.find(m => m.id === transferConfirmOpen)?.username}
+              </span>?
+              <br /><br />
+              <span className="text-[#ed4245] font-medium">
+                This action cannot be undone. You will lose owner privileges and become an admin instead.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="bg-[#40444b] text-white border-[#40444b] hover:bg-[#35373c] hover:text-white"
+              onClick={() => setTransferConfirmOpen(null)}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#ffd700] text-black hover:bg-[#e6c200]"
+              onClick={() => transferConfirmOpen && handleTransferOwnership(transferConfirmOpen)}
+            >
+              Transfer Ownership
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Member Profile Panel */}
       <MemberProfilePanel

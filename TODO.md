@@ -69,9 +69,32 @@ All 5 bugs have been successfully fixed:
 - **Status**: ✅ Fully implemented and working
 
 
+## Feature #7: ✅ COMPLETE - Transfer Server Ownership
+- **Description**: Implement "Transfer Ownership" feature to allow server owners to transfer ownership to another member
+- **Implementation**:
+  1. **Backend API**: Added `POST /api/servers/:serverId/transfer-ownership` endpoint
+     - Validates current user is the server owner
+     - Validates new owner is a member of the server
+     - Updates server owner_id in database
+     - Updates old owner role to 'admin'
+     - Updates new owner role to 'owner'
+     - Broadcasts `ownership_transferred` socket event
+  2. **Database Method**: Added `transferOwnership(serverId, oldOwnerId, newOwnerId)` to serverDB
+     - Uses database transaction for atomic update
+     - Updates both servers and server_members tables
+  3. **Frontend UI**: Updated `ServerSettingsPage.tsx` (Server Settings → Members tab)
+     - Added menu button (⋮) that appears on hover for each member
+     - Only visible to server owner (not for self)
+     - Added "Transfer Ownership" option in dropdown menu (gold color)
+     - Added Crown icon for owner, ShieldCheck icon for admin
+     - Added confirmation dialog with warning message
+     - Updates local state after successful transfer
+- **Status**: ✅ Fully implemented and working
+
 ## Files Modified
-1. `server/database.js` - Added dbGet/dbRun/dbAll helpers, moved search methods, added serverDB.delete() with cascade, added pin message methods
+1. `server/database.js` - Added dbGet/dbRun/dbAll helpers, moved search methods, added serverDB.delete() with cascade, added pin message methods, added transferOwnership method
 2. `app/src/pages/FriendsPage.tsx` - Uncommented handleBlockUser, added Block button
-3. `server/server.js` - Replaced all 24 direct db calls with abstraction methods, added pin/unpin API endpoints
+3. `server/server.js` - Replaced all 24 direct db calls with abstraction methods, added pin/unpin API endpoints, added transfer-ownership endpoint
 4. `app/src/components/ChatArea.tsx` - Added pinned messages banner, pin/unpin handlers
 5. `app/src/components/MessageContextMenu.tsx` - Already had Pin option, connected to handler
+6. `app/src/components/ServerSettingsPage.tsx` - Added Transfer Ownership menu (⋮) in Server Settings → Members tab with confirmation dialog

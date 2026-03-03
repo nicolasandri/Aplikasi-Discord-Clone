@@ -78,51 +78,59 @@ interface UserPermissions {
   MODERATE_MEMBERS: 1 << 11,
 } */
 
-// Helper to convert UTC timestamp to GMT+7
-function toGMT7(date: Date): Date {
-  // Add 7 hours to UTC
-  return new Date(date.getTime() + (7 * 60 * 60 * 1000));
-}
-
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';
-  const utcDate = new Date(timestamp);
-  if (isNaN(utcDate.getTime())) return '';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
   
-  // Convert UTC to GMT+7
-  const gmt7Date = toGMT7(utcDate);
-  
-  return gmt7Date.toLocaleTimeString('id-ID', { 
+  return date.toLocaleTimeString('id-ID', { 
     hour: '2-digit', 
     minute: '2-digit',
-    hour12: false
+    hour12: false,
+    timeZone: 'Asia/Jakarta'
   });
 }
 
-// Format timestamp like Discord (GMT+7 - Asia/Jakarta)
+// Format timestamp like Discord (Asia/Jakarta timezone)
 function formatDiscordTimestamp(timestamp: string): string {
   if (!timestamp) return '';
   
-  // Parse timestamp as UTC
-  const utcDate = new Date(timestamp);
-  if (isNaN(utcDate.getTime())) return '';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
   
-  // Convert UTC to GMT+7
-  const gmt7Date = toGMT7(utcDate);
   const now = new Date();
-  const nowGmt7 = toGMT7(now);
   
-  // Get date parts (all in GMT+7)
-  const today = new Date(nowGmt7.getFullYear(), nowGmt7.getMonth(), nowGmt7.getDate());
+  // Get date parts in Asia/Jakarta timezone
+  const dateOptions: Intl.DateTimeFormatOptions = { 
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  };
+  const todayParts = new Intl.DateTimeFormat('id-ID', dateOptions).formatToParts(now);
+  const msgParts = new Intl.DateTimeFormat('id-ID', dateOptions).formatToParts(date);
+  
+  const today = new Date(
+    parseInt(todayParts.find(p => p.type === 'year')?.value || '0'),
+    parseInt(todayParts.find(p => p.type === 'month')?.value || '0') - 1,
+    parseInt(todayParts.find(p => p.type === 'day')?.value || '0')
+  );
+  
+  const messageDate = new Date(
+    parseInt(msgParts.find(p => p.type === 'year')?.value || '0'),
+    parseInt(msgParts.find(p => p.type === 'month')?.value || '0') - 1,
+    parseInt(msgParts.find(p => p.type === 'day')?.value || '0')
+  );
+  
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const messageDate = new Date(gmt7Date.getFullYear(), gmt7Date.getMonth(), gmt7Date.getDate());
   
-  // Format time in GMT+7
-  const timeStr = gmt7Date.toLocaleTimeString('id-ID', { 
+  // Format time in Asia/Jakarta
+  const timeStr = date.toLocaleTimeString('id-ID', { 
     hour: '2-digit', 
     minute: '2-digit',
-    hour12: false
+    hour12: false,
+    timeZone: 'Asia/Jakarta'
   });
   
   // Today - show only time
@@ -138,66 +146,85 @@ function formatDiscordTimestamp(timestamp: string): string {
   // Within last 7 days - show day name and time
   const daysDiff = Math.floor((today.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff < 7) {
-    const dayName = gmt7Date.toLocaleDateString('id-ID', { 
-      weekday: 'long'
+    const dayName = date.toLocaleDateString('id-ID', { 
+      weekday: 'long',
+      timeZone: 'Asia/Jakarta'
     });
     return `${dayName} pukul ${timeStr}`;
   }
   
   // Older - show full date and time
-  const dateStr = gmt7Date.toLocaleDateString('id-ID', { 
+  const dateStr = date.toLocaleDateString('id-ID', { 
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
   });
   return `${dateStr} pukul ${timeStr}`;
 }
 
-// Format tooltip timestamp (full datetime with GMT+7)
+// Format tooltip timestamp (full datetime with Asia/Jakarta timezone)
 function formatTooltipTimestamp(timestamp: string): string {
   if (!timestamp) return '';
-  const utcDate = new Date(timestamp);
-  if (isNaN(utcDate.getTime())) return '';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
   
-  // Convert UTC to GMT+7
-  const gmt7Date = toGMT7(utcDate);
-  
-  return gmt7Date.toLocaleDateString('id-ID', { 
+  return date.toLocaleDateString('id-ID', { 
     weekday: 'long',
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric'
-  }) + ' pukul ' + gmt7Date.toLocaleTimeString('id-ID', { 
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
+  }) + ' pukul ' + date.toLocaleTimeString('id-ID', { 
     hour: '2-digit', 
     minute: '2-digit',
-    hour12: false
+    hour12: false,
+    timeZone: 'Asia/Jakarta'
   });
 }
 
 function formatDate(timestamp: string): string {
   if (!timestamp) return 'Tanggal tidak diketahui';
-  const utcDate = new Date(timestamp);
-  if (isNaN(utcDate.getTime())) return 'Tanggal tidak valid';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return 'Tanggal tidak valid';
   
-  // Convert UTC to GMT+7
-  const gmt7Date = toGMT7(utcDate);
   const now = new Date();
-  const nowGmt7 = toGMT7(now);
   
-  const today = new Date(nowGmt7.getFullYear(), nowGmt7.getMonth(), nowGmt7.getDate());
+  // Get date parts in Asia/Jakarta timezone
+  const dateOptions: Intl.DateTimeFormatOptions = { 
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  };
+  const todayParts = new Intl.DateTimeFormat('id-ID', dateOptions).formatToParts(now);
+  const msgParts = new Intl.DateTimeFormat('id-ID', dateOptions).formatToParts(date);
+  
+  const today = new Date(
+    parseInt(todayParts.find(p => p.type === 'year')?.value || '0'),
+    parseInt(todayParts.find(p => p.type === 'month')?.value || '0') - 1,
+    parseInt(todayParts.find(p => p.type === 'day')?.value || '0')
+  );
+  
+  const messageDate = new Date(
+    parseInt(msgParts.find(p => p.type === 'year')?.value || '0'),
+    parseInt(msgParts.find(p => p.type === 'month')?.value || '0') - 1,
+    parseInt(msgParts.find(p => p.type === 'day')?.value || '0')
+  );
+  
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const messageDate = new Date(gmt7Date.getFullYear(), gmt7Date.getMonth(), gmt7Date.getDate());
 
   if (messageDate.getTime() === today.getTime()) {
     return 'Hari Ini';
   } else if (messageDate.getTime() === yesterday.getTime()) {
     return 'Kemarin';
   }
-  return gmt7Date.toLocaleDateString('id-ID', { 
+  return date.toLocaleDateString('id-ID', { 
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
   });
 }
 

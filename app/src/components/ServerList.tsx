@@ -45,6 +45,58 @@ interface ServerListProps {
   isMobile?: boolean;
 }
 
+// Separate component for server icon to handle image errors properly
+function ServerIconButton({ 
+  server, 
+  isSelected, 
+  onClick 
+}: { 
+  server: Server; 
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const iconUrl = getServerIconUrl(server.icon);
+  const initial = server.name.charAt(0).toUpperCase();
+  
+  return (
+    <button
+      onClick={onClick}
+      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group overflow-hidden ${
+        isSelected
+          ? 'bg-[#5865f2] rounded-2xl'
+          : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
+      }`}
+    >
+      {iconUrl && !imgError ? (
+        <img 
+          src={iconUrl} 
+          alt={server.name} 
+          className="w-full h-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="text-xl font-bold text-white">{initial}</span>
+      )}
+      
+      {/* Selected indicator */}
+      {isSelected && (
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
+      )}
+      
+      {/* Hover indicator */}
+      {!isSelected && (
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
+      )}
+
+      {/* Tooltip */}
+      <div className="absolute left-16 bg-[#18191c] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+        {server.name}
+      </div>
+    </button>
+  );
+}
+
 export function ServerList({ 
   servers, 
   selectedServerId, 
@@ -305,50 +357,15 @@ export function ServerList({
 
       {/* Server List */}
       {servers.map((server) => (
-        <button
+        <ServerIconButton
           key={server.id}
+          server={server}
+          isSelected={selectedServerId === server.id && !isFriendsOpen}
           onClick={() => onSelectServer(server.id)}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group overflow-hidden ${
-            selectedServerId === server.id && !isFriendsOpen
-              ? 'bg-[#5865f2] rounded-2xl'
-              : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
-          }`}
-        >
-          {(() => {
-            const iconUrl = getServerIconUrl(server.icon);
-            return iconUrl ? (
-              <img 
-                src={iconUrl} 
-                alt={server.name} 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-xl">🌐</span>';
-                }}
-              />
-            ) : (
-              <span className="text-2xl">🌐</span>
-            );
-          })()}
-          
-          {/* Selected indicator */}
-          {selectedServerId === server.id && !isFriendsOpen && (
-            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
-          )}
-          
-          {/* Hover indicator */}
-          {!(selectedServerId === server.id && !isFriendsOpen) && (
-            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
-          )}
-
-          {/* Tooltip */}
-          <div className="absolute left-16 bg-[#18191c] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-            {server.name}
-          </div>
-        </button>
+        />
       ))}
 
-      {/* Add Server Button */}
+      {/* Add Server Button -->
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogTrigger asChild>
           <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#3ba55d] flex items-center justify-center transition-all duration-200 group mt-2">
@@ -389,12 +406,13 @@ export function ServerList({
         </DialogContent>
       </Dialog>
 
-      {/* Explore Button */}
+      {/* Explore Button - Hidden */}
+      {/*
       <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#5865f2] flex items-center justify-center transition-all duration-200 group">
         <Compass className="w-6 h-6 text-[#5865f2] group-hover:text-white transition-colors" />
       </button>
-
       <div className="w-8 h-[2px] bg-[#36393f] rounded-full my-1" />
+      */}
 
       {/* Download App Button */}
       <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#3ba55d] flex items-center justify-center transition-all duration-200 group">

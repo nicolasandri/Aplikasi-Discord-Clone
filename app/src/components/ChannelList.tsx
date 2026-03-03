@@ -19,6 +19,7 @@ interface ChannelListProps {
   onLeaveServer?: () => void;
   isMobile?: boolean;
   onClose?: () => void;
+  isOwner?: boolean;
 }
 
 // Detect if running in Electron
@@ -29,7 +30,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, onLeaveServer, isMobile = false, onClose }: ChannelListProps) {
+export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, onLeaveServer, isMobile = false, onClose, isOwner: propIsOwner }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -65,6 +66,31 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
     }
   }, [server, token]);
 
+  // Get current user ID from localStorage
+  const getCurrentUserId = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Failed to parse user from localStorage:', e);
+    }
+    return null;
+  };
+
+  const currentUserId = getCurrentUserId();
+  // Check if current user is the server owner - use prop if provided, otherwise calculate locally
+  const calculatedIsOwner = !!(server?.owner_id && currentUserId && server.owner_id === currentUserId);
+  const isOwner = propIsOwner !== undefined ? propIsOwner : calculatedIsOwner;
+  
+  // Debug logging
+  console.log('[ChannelList] server?.owner_id:', server?.owner_id);
+  console.log('[ChannelList] currentUserId:', currentUserId);
+  console.log('[ChannelList] propIsOwner:', propIsOwner);
+  console.log('[ChannelList] isOwner:', isOwner, '| type:', typeof isOwner);
+
   // Check permissions
   useEffect(() => {
     const checkPermission = async () => {
@@ -75,15 +101,20 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
         });
         if (response.ok) {
           const data = await response.json();
-          setCanManage(data.canManageChannels || data.isOwner);
+          setCanManage(data.canManageChannels || data.isOwner || isOwner);
+        } else {
+          // Fallback: use isOwner check if API fails
+          setCanManage(isOwner);
         }
       } catch (error) {
         console.error('Failed to check permissions:', error);
+        // Fallback: use isOwner check if API fails
+        setCanManage(isOwner);
       }
     };
     checkPermission();
     fetchCategories();
-  }, [server, fetchCategories, token]);
+  }, [server, fetchCategories, token, isOwner]);
 
   // Listen for socket events
   useEffect(() => {
@@ -94,17 +125,25 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
     const handleCategoryUpdated = () => fetchCategories();
     const handleCategoryDeleted = () => fetchCategories();
     const handleChannelMoved = () => fetchCategories();
+    const handleOwnershipTransferred = (data: any) => {
+      if (data.serverId === server.id) {
+        // Refresh permissions after ownership transfer
+        window.location.reload();
+      }
+    };
 
     socket.on('category_created', handleCategoryCreated);
     socket.on('category_updated', handleCategoryUpdated);
     socket.on('category_deleted', handleCategoryDeleted);
     socket.on('channel_moved', handleChannelMoved);
+    socket.on('ownership_transferred', handleOwnershipTransferred);
 
     return () => {
       socket.off('category_created', handleCategoryCreated);
       socket.off('category_updated', handleCategoryUpdated);
       socket.off('category_deleted', handleCategoryDeleted);
       socket.off('channel_moved', handleChannelMoved);
+      socket.off('ownership_transferred', handleOwnershipTransferred);
     };
   }, [server, fetchCategories]);
 
@@ -327,8 +366,8 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
               <UserPlus className="w-4 h-4" />
             </button>
 
-            {/* Server Settings - Owner/Admin only */}
-            {canManage && (
+            {/* Server Settings - Owner only - v2 */}
+            {isOwner && (
               <button
                 onClick={() => {
                   onOpenServerSettings?.();
@@ -474,9 +513,9 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                     if (response.ok) {
                       onLeaveServer?.();
                     } else {
-                      const error = await response.text();
-                      console.error('[LEAVE] Error:', error);
-                      alert('Failed to leave server. Please try again.');
+                      const errorData = await response.json().catch(() => ({ error: 'Failed to leave server' }));
+                      console.error('[LEAVE] Error:', errorData);
+                      alert(errorData.error || 'Failed to leave server. Please try again.');
                     }
                   } catch (error) {
                     console.error('Leave server error:', error);

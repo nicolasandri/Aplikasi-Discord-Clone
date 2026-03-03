@@ -308,6 +308,13 @@ function initDatabase() {
         console.error('Error adding display_name column:', err);
       }
     });
+    
+    // Add token_version column for force logout functionality
+    db.run(`ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding token_version column:', err);
+      }
+    });
 
     // Servers table
     db.run(`CREATE TABLE IF NOT EXISTS servers (
@@ -643,8 +650,8 @@ const userDB = {
   async findById(id, includePassword = false) {
     return new Promise((resolve, reject) => {
       const fields = includePassword 
-        ? 'id, username, display_name, email, password, avatar, status, created_at'
-        : 'id, username, display_name, email, avatar, status, created_at';
+        ? 'id, username, display_name, email, password, avatar, status, token_version, created_at'
+        : 'id, username, display_name, email, avatar, status, token_version, created_at';
       db.get(`SELECT ${fields} FROM users WHERE id = ?`, [id], (err, row) => {
         if (err) reject(err);
         else resolve(row);
@@ -818,6 +825,19 @@ const serverDB = {
     });
   },
 
+  async removeMember(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM server_members WHERE server_id = ? AND user_id = ?',
+        [serverId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
   async getMembers(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
@@ -948,6 +968,57 @@ const serverDB = {
           else resolve({ success: this.changes > 0 });
         }
       );
+    });
+  },
+
+  // Transfer ownership to another member
+  async transferOwnership(serverId, oldOwnerId, newOwnerId) {
+    return new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // 1. Update server owner
+        db.run(
+          'UPDATE servers SET owner_id = ? WHERE id = ?',
+          [newOwnerId, serverId],
+          function(err) {
+            if (err) {
+              db.run('ROLLBACK');
+              reject(err);
+              return;
+            }
+            
+            // 2. Update old owner role to admin
+            db.run(
+              "UPDATE server_members SET role = 'admin' WHERE server_id = ? AND user_id = ?",
+              [serverId, oldOwnerId],
+              function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  reject(err);
+                  return;
+                }
+                
+                // 3. Update new owner role to owner
+                db.run(
+                  "UPDATE server_members SET role = 'owner' WHERE server_id = ? AND user_id = ?",
+                  [serverId, newOwnerId],
+                  function(err) {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      reject(err);
+                      return;
+                    }
+                    
+                    db.run('COMMIT');
+                    resolve({ success: true });
+                  }
+                );
+              }
+            );
+          }
+        );
+      });
     });
   },
 

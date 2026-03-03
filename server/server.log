@@ -1,26 +1,16 @@
-[dotenv@17.3.1] injecting env (7) from .env -- tip: ⚙️  override existing env vars with { override: true }
+
+> chatcord-server@2.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  override existing env vars with { override: true }
 📦 Using database: SQLite
 ✅ Database initialized
 Server running on port 3001
-🔌 Client connected for voice: VIkFf-YAqnCWQmGTAAAB
-🔌 Client connected: VIkFf-YAqnCWQmGTAAAB
-✅ Socket authenticated: VIkFf-YAqnCWQmGTAAAB User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
-🔌 Client connected for voice: 42SGw6ru1JqxHMYjAAAD
-🔌 Client connected: 42SGw6ru1JqxHMYjAAAD
-✅ Socket authenticated: 42SGw6ru1JqxHMYjAAAD User: be97eaa0-ec14-45c8-9b40-9af3ebcd3327
-👋 Client disconnected: VIkFf-YAqnCWQmGTAAAB
-🔌 Client connected for voice: oiafGgP7NKlr5DOkAAAG
-🔌 Client connected: oiafGgP7NKlr5DOkAAAG
-✅ Socket authenticated: oiafGgP7NKlr5DOkAAAG User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
-📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
-📤 User left channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
-📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 0c24f8eb-ca08-47ef-8ea8-d2173a59dc4a
-📤 User left channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 0c24f8eb-ca08-47ef-8ea8-d2173a59dc4a
-👋 Client disconnected: oiafGgP7NKlr5DOkAAAG
-🔌 Client connected for voice: pZcG6qw_uVt-mAOgAAAI
-🔌 Client connected: pZcG6qw_uVt-mAOgAAAI
-✅ Socket authenticated: pZcG6qw_uVt-mAOgAAAI User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
-📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
-📤 User left channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
-📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 0c24f8eb-ca08-47ef-8ea8-d2173a59dc4a
-📤 User left channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 0c24f8eb-ca08-47ef-8ea8-d2173a59dc4a
+🔌 Client connected for voice: 72-i7B_z4_uxpz7vAAAB
+🔌 Client connected: 72-i7B_z4_uxpz7vAAAB
+✅ Socket authenticated: 72-i7B_z4_uxpz7vAAAB User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
+📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 427f2e6b-dc62-488b-810b-4125ecebc6fd
+🔌 Client connected for voice: mU40D1cwW-kzEFeJAAAD
+🔌 Client connected: mU40D1cwW-kzEFeJAAAD
+✅ Socket authenticated: mU40D1cwW-kzEFeJAAAD User: be97eaa0-ec14-45c8-9b40-9af3ebcd3327
+📥 User joined channel room: be97eaa0-ec14-45c8-9b40-9af3ebcd3327 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa

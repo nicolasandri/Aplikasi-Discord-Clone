@@ -88,11 +88,33 @@ export function ChatLayout() {
     fetchDMUnreadCount();
   }, [token]);
 
-  // Auto-select last visited server & channel
+  // Auto-select last visited server & channel or DM
   useEffect(() => {
-    if (servers.length > 0 && !selectedServerId && !selectedChannelId) {
+    // Only run if nothing is selected yet
+    if (!selectedServerId && !selectedChannelId && !selectedDMChannelId) {
       const lastVisited = localStorage.getItem('lastVisited');
-      if (lastVisited) {
+      const lastVisitedDM = localStorage.getItem('lastVisitedDM');
+      
+      // Try to restore DM first if it exists
+      if (lastVisitedDM) {
+        try {
+          const { dmChannelId } = JSON.parse(lastVisitedDM);
+          if (dmChannelId && dmChannels.length > 0) {
+            const dmExists = dmChannels.find(c => c.id === dmChannelId);
+            if (dmExists) {
+              console.log('🔄 Restoring last visited DM:', dmChannelId);
+              setSelectedDMChannelId(dmChannelId);
+              setViewMode('dm');
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse lastVisitedDM:', e);
+        }
+      }
+      
+      // Otherwise try to restore server
+      if (servers.length > 0 && lastVisited) {
         try {
           const { serverId, channelId } = JSON.parse(lastVisited);
           // Check if server still exists
@@ -112,7 +134,7 @@ export function ChatLayout() {
         }
       }
     }
-  }, [servers, selectedServerId, selectedChannelId]);
+  }, [servers, dmChannels, selectedServerId, selectedChannelId, selectedDMChannelId]);
 
   // Select pending channel after channels are loaded
   useEffect(() => {
@@ -133,7 +155,21 @@ export function ChatLayout() {
     }
   }, [selectedServerId, viewMode]);
 
-  // Save last visited server & channel
+  // Save last visited DM and clear server state
+  useEffect(() => {
+    if (selectedDMChannelId && viewMode === 'dm') {
+      const data = {
+        dmChannelId: selectedDMChannelId,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('lastVisitedDM', JSON.stringify(data));
+      // Clear server last visited to avoid conflict
+      localStorage.removeItem('lastVisited');
+      console.log('💾 Saved lastVisitedDM:', data);
+    }
+  }, [selectedDMChannelId, viewMode]);
+
+  // Save last visited server and clear DM state
   useEffect(() => {
     if (selectedServerId && viewMode === 'server') {
       const data = {
@@ -142,6 +178,8 @@ export function ChatLayout() {
         timestamp: Date.now()
       };
       localStorage.setItem('lastVisited', JSON.stringify(data));
+      // Clear DM last visited to avoid conflict
+      localStorage.removeItem('lastVisitedDM');
       console.log('💾 Saved lastVisited:', data);
     }
   }, [selectedServerId, selectedChannelId, viewMode]);
@@ -735,6 +773,26 @@ export function ChatLayout() {
   const selectedChannel = channels.find(c => c.id === selectedChannelId) || null;
   const selectedDMChannel = dmChannels.find(c => c.id === selectedDMChannelId) || null;
   
+  // Check if current user is the server owner
+  const getCurrentUserId = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Failed to parse user from localStorage:', e);
+    }
+    return null;
+  };
+  
+  const currentUserId = getCurrentUserId();
+  const isServerOwner = !!(selectedServer?.owner_id && currentUserId && selectedServer.owner_id === currentUserId);
+  console.log('[ChatLayout] selectedServer?.owner_id:', selectedServer?.owner_id);
+  console.log('[ChatLayout] currentUserId:', currentUserId);
+  console.log('[ChatLayout] isServerOwner:', isServerOwner);
+  
   // Debug log
   console.log('📊 selectedDMChannel:', selectedDMChannel);
   console.log('📊 dmChannels:', dmChannels);
@@ -871,6 +929,7 @@ export function ChatLayout() {
             onOpenInvite={() => setIsInviteOpen(true)}
             isMobile={true}
             onClose={() => setIsChannelDrawerOpen(false)}
+            isOwner={isServerOwner}
           />
         </MobileDrawer>
 
@@ -892,8 +951,8 @@ export function ChatLayout() {
           onClose={() => setIsSettingsOpen(false)}
         />
 
-        {/* Server Settings Modal */}
-        {selectedServer && (
+        {/* Server Settings Modal - Owner only */}
+        {selectedServer && isServerOwner && (
           <ServerSettingsModal
             isOpen={isServerSettingsOpen}
             onClose={() => setIsServerSettingsOpen(false)}
@@ -965,6 +1024,7 @@ export function ChatLayout() {
           onOpenServerSettings={() => setIsServerSettingsOpen(true)}
             onOpenUserSettings={() => setIsSettingsOpen(true)}
           onOpenInvite={() => setIsInviteOpen(true)}
+          isOwner={isServerOwner}
           onLeaveServer={() => {
             setServers(prev => prev.filter(s => s.id !== selectedServerId));
             setSelectedServerId(null);

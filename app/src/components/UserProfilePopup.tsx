@@ -11,7 +11,7 @@ const API_URL = isElectron
 
 interface UserProfilePopupProps {
   userId: string;
-  serverId: string;
+  serverId?: string; // Optional - if not provided (DM), role won't be shown
   isOpen: boolean;
   onClose: () => void;
   onStartDM?: (user: { id: string; username: string; avatar?: string; status?: string; email?: string }) => void;
@@ -26,6 +26,8 @@ interface UserProfile {
   status: 'online' | 'offline' | 'idle' | 'dnd';
   role: 'owner' | 'admin' | 'moderator' | 'member';
   created_at?: string;
+  joinedAt?: string;
+  bio?: string;
 }
 
 type FriendshipStatus = 'none' | 'pending_outgoing' | 'pending_incoming' | 'accepted' | 'blocked';
@@ -33,32 +35,39 @@ type FriendshipStatus = 'none' | 'pending_outgoing' | 'pending_incoming' | 'acce
 const roleConfig = {
   owner: {
     label: 'Owner',
-    color: 'text-yellow-400',
-    bgColor: 'bg-yellow-400/20',
-    borderColor: 'border-yellow-400/50',
+    color: 'text-[#f0b232]',
+    bgColor: 'bg-[#f0b232]/10',
+    borderColor: 'border-[#f0b232]/30',
     icon: Crown,
   },
   admin: {
     label: 'Admin',
-    color: 'text-red-400',
-    bgColor: 'bg-red-400/20',
-    borderColor: 'border-red-400/50',
+    color: 'text-[#ed4245]',
+    bgColor: 'bg-[#ed4245]/10',
+    borderColor: 'border-[#ed4245]/30',
     icon: Shield,
   },
   moderator: {
     label: 'Moderator',
-    color: 'text-green-400',
-    bgColor: 'bg-green-400/20',
-    borderColor: 'border-green-400/50',
+    color: 'text-[#43b581]',
+    bgColor: 'bg-[#43b581]/10',
+    borderColor: 'border-[#43b581]/30',
     icon: Shield,
   },
   member: {
     label: 'Member',
     color: 'text-[#b9bbbe]',
-    bgColor: 'bg-[#5865f2]/20',
-    borderColor: 'border-[#5865f2]/50',
+    bgColor: 'bg-[#5865f2]/10',
+    borderColor: 'border-[#5865f2]/30',
     icon: UserIcon,
   },
+};
+
+const statusConfig = {
+  online: { color: 'bg-[#3ba55d]', label: 'Online' },
+  idle: { color: 'bg-[#faa81a]', label: 'Idle' },
+  dnd: { color: 'bg-[#ed4245]', label: 'Do Not Disturb' },
+  offline: { color: 'bg-[#747f8d]', label: 'Offline' },
 };
 
 export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM }: UserProfilePopupProps) {
@@ -81,7 +90,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     : null;
 
   useEffect(() => {
-    if (isOpen && userId && serverId) {
+    if (isOpen && userId) {
       fetchUserProfile();
       fetchFriendshipStatus();
     }
@@ -91,7 +100,14 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/servers/${serverId}/users/${userId}`, {
+      
+      // If serverId provided, fetch from server endpoint (includes role)
+      // Otherwise fetch from users endpoint (DM view, no role)
+      const endpoint = serverId 
+        ? `${API_URL}/servers/${serverId}/users/${userId}`
+        : `${API_URL}/users/${userId}`;
+      
+      const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
@@ -319,198 +335,204 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
 
   if (!isOpen) return null;
 
-  const role = profile?.role || 'member';
-  const config = roleConfig[role];
+  // Handle loading and null profile
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+        <div 
+          className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-center">
+            <div className="w-10 h-10 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If profile is null after loading, show error
+  if (!profile) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+        <div 
+          className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-center text-[#b9bbbe]">Gagal memuat profil</p>
+        </div>
+      </div>
+    );
+  }
+
+  const role = profile.role || 'member';
+  const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.member;
   const RoleIcon = config.icon;
   const isSelf = currentUserId === userId;
+  const status = profile.status || 'offline';
+  const statusCfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.offline;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-[#36393f] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl"
+        className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with gradient */}
-        <div className="h-24 bg-gradient-to-r from-[#5865f2] to-[#4752c4] relative">
+        {/* Header with gradient banner */}
+        <div className="h-28 bg-gradient-to-br from-[#5865f2] via-[#4752c4] to-[#3b45a0] relative">
+          {/* Close button */}
           <button 
             onClick={onClose}
-            className="absolute top-2 right-2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+            className="absolute top-3 right-3 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 relative">
-          {/* Avatar */}
-          <div className="relative -mt-12 mb-4">
-            <img
-              src={profile?.avatar 
-                ? `${profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:3001${profile.avatar}`}?v=${avatarVersion}`
-                : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username}`}
-              alt={profile?.displayName || profile?.username}
-              className="w-24 h-24 rounded-full border-4 border-[#36393f] bg-[#36393f] object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username}`;
-              }}
-            />
-            <div className={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full ${config.bgColor} ${config.borderColor} border flex items-center gap-1`}>
-              <RoleIcon className={`w-3 h-3 ${config.color}`} />
-              <span className={`text-xs font-semibold ${config.color}`}>{config.label}</span>
+        <div className="px-4 pb-4 relative">
+          {/* Avatar with status */}
+          <div className="relative -mt-14 mb-3">
+            <div className="relative inline-block">
+              <div className="w-20 h-20 rounded-full border-[6px] border-[#232428] bg-[#232428] overflow-hidden">
+                <img
+                  src={profile.avatar 
+                    ? `${profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:3001${profile.avatar}`}?v=${avatarVersion}`
+                    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}
+                  alt={profile.displayName || profile.username}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`;
+                  }}
+                />
+              </div>
+              {/* Status indicator */}
+              <div className={`absolute bottom-1 right-1 w-6 h-6 ${statusCfg.color} rounded-full border-[4px] border-[#232428]`} />
             </div>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-4">
-              <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : profile ? (
-            <div className="space-y-4">
+          <div className="space-y-4">
+            {/* User Info Header */}
+            <div className="pb-3 border-b border-[#1e1f22]">
+              {/* Display Name */}
+              <h2 className="text-xl font-bold text-white leading-tight">
+                {profile.displayName || profile.username}
+              </h2>
+              
               {/* Username */}
-              <div>
-                <h2 className="text-xl font-bold text-white">{profile.displayName || profile.username}</h2>
-                <p className="text-sm text-[#b9bbbe]">{profile.email}</p>
-              </div>
-
-              {/* Friend Actions */}
-              {!isSelf && (
-                <div className="flex flex-wrap gap-2">
-                  {friendshipStatus === 'none' && (
-                    <Button
-                      onClick={handleAddFriend}
-                      disabled={isProcessing}
-                      className="flex-1 bg-[#5865f2] hover:bg-[#4752c4] text-white"
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Tambah Teman
-                    </Button>
-                  )}
-
-                  {friendshipStatus === 'pending_incoming' && (
-                    <>
-                      <Button
-                        onClick={handleAcceptRequest}
-                        disabled={isProcessing}
-                        className="flex-1 bg-[#3ba55d] hover:bg-[#2d7d46] text-white"
-                      >
-                        <Check className="w-4 h-4 mr-2" />
-                        Terima
-                      </Button>
-                      <Button
-                        onClick={handleRemoveFriend}
-                        disabled={isProcessing}
-                        variant="destructive"
-                        className="flex-1"
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Tolak
-                      </Button>
-                    </>
-                  )}
-
-                  {friendshipStatus === 'pending_outgoing' && (
-                    <Button
-                      onClick={handleRemoveFriend}
-                      disabled={isProcessing}
-                      variant="outline"
-                      className="flex-1 border-[#72767d] text-[#b9bbbe]"
-                    >
-                      <UserX className="w-4 h-4 mr-2" />
-                      Batalkan Permintaan
-                    </Button>
-                  )}
-
-                  {friendshipStatus === 'accepted' && (
-                    <>
-                      <Button
-                        onClick={handleStartDM}
-                        className="flex-1 bg-[#5865f2] hover:bg-[#4752c4] text-white"
-                      >
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Kirim Pesan
-                      </Button>
-                      <Button
-                        onClick={handleRemoveFriend}
-                        disabled={isProcessing}
-                        variant="outline"
-                        className="border-[#ed4245] text-[#ed4245] hover:bg-[#ed4245]/10"
-                      >
-                        <UserX className="w-4 h-4 mr-2" />
-                        Hapus Teman
-                      </Button>
-                    </>
-                  )}
-
-                  {friendshipStatus === 'blocked' ? (
-                    <Button
-                      onClick={handleUnblockUser}
-                      disabled={isProcessing}
-                      variant="outline"
-                      className="flex-1 border-[#72767d] text-[#b9bbbe]"
-                    >
-                      <Ban className="w-4 h-4 mr-2" />
-                      Unblock
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleBlockUser}
-                      disabled={isProcessing}
-                      variant="outline"
-                      className="border-[#ed4245] text-[#ed4245] hover:bg-[#ed4245]/10"
-                    >
-                      <Ban className="w-4 h-4 mr-2" />
-                      Blokir
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {/* Role Badge */}
-              <div className="flex items-center gap-3 p-3 bg-[#2f3136] rounded-lg">
-                <div className={`p-2 rounded-full ${config.bgColor}`}>
-                  <RoleIcon className={`w-5 h-5 ${config.color}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-[#72767d]">Role</p>
-                  <p className={`font-semibold ${config.color}`}>{config.label}</p>
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-3 p-3 bg-[#2f3136] rounded-lg">
-                <div className={`w-3 h-3 rounded-full ${
-                  profile.status === 'online' ? 'bg-[#3ba55d]' :
-                  profile.status === 'idle' ? 'bg-[#faa81a]' :
-                  profile.status === 'dnd' ? 'bg-[#ed4245]' :
-                  'bg-[#747f8d]'
-                }`} />
-                <div>
-                  <p className="text-sm text-[#72767d]">Status</p>
-                  <p className="text-white capitalize">{profile.status}</p>
-                </div>
-              </div>
-
-              {/* Join Date */}
-              {profile.created_at && (
-                <div className="flex items-center gap-3 p-3 bg-[#2f3136] rounded-lg">
-                  <Star className="w-5 h-5 text-[#b9bbbe]" />
-                  <div>
-                    <p className="text-sm text-[#72767d]">Bergabung</p>
-                    <p className="text-white">
-                      {new Date(profile.created_at).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </p>
+              <p className="text-[#b9bbbe] text-sm mt-1">
+                {profile.username}
+              </p>
+              
+              {/* Role Badge - Only show if in server context */}
+              {serverId && profile.role && (
+                <div className="mt-2 inline-flex">
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${config.bgColor} border ${config.borderColor}`}>
+                    <RoleIcon className={`w-3.5 h-3.5 ${config.color}`} />
+                    <span className={`text-xs font-semibold ${config.color}`}>{config.label}</span>
                   </div>
                 </div>
               )}
             </div>
-          ) : (
-            <p className="text-center text-[#b9bbbe] py-4">Gagal memuat profil</p>
-          )}
+
+            {/* Bio/About Section */}
+            {profile.bio && (
+              <div className="bg-[#111214] rounded-lg p-3">
+                <p className="text-[#dbdee1] text-sm">{profile.bio}</p>
+              </div>
+            )}
+
+            {/* Member Since */}
+            <div className="bg-[#111214] rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 flex items-center justify-center bg-[#5865f2]/20 rounded-lg">
+                  <Star className="w-4 h-4 text-[#5865f2]" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide">
+                    {serverId ? 'Member Since' : 'WorkGrid Member Since'}
+                  </p>
+                  <p className="text-[#dbdee1] text-sm">
+                    {serverId 
+                      ? (profile.joinedAt 
+                          ? new Date(profile.joinedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : 'Unknown')
+                      : (profile.created_at 
+                          ? new Date(profile.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : 'Unknown')
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+
+
+            {/* Action Buttons */}
+            {!isSelf && (
+              <div className="flex gap-2 pt-2">
+                {/* Message Button */}
+                {(friendshipStatus === 'accepted' || friendshipStatus === 'none') && (
+                  <Button
+                    onClick={handleStartDM}
+                    className="flex-1 h-10 bg-[#5865f2] hover:bg-[#4752c4] text-white font-medium rounded-md"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Message
+                  </Button>
+                )}
+
+                {/* Add Friend Button */}
+                {friendshipStatus === 'none' && (
+                  <Button
+                    onClick={handleAddFriend}
+                    disabled={isProcessing}
+                    className="flex-1 h-10 bg-[#248046] hover:bg-[#1a6334] text-white font-medium rounded-md"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Friend
+                  </Button>
+                )}
+
+                {/* Accept/Reject Buttons */}
+                {friendshipStatus === 'pending_incoming' && (
+                  <>
+                    <Button
+                      onClick={handleAcceptRequest}
+                      disabled={isProcessing}
+                      className="flex-1 h-10 bg-[#248046] hover:bg-[#1a6334] text-white font-medium rounded-md"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Accept
+                    </Button>
+                    <Button
+                      onClick={handleRemoveFriend}
+                      disabled={isProcessing}
+                      variant="outline"
+                      className="flex-1 h-10 border-[#ed4245] text-[#ed4245] hover:bg-[#ed4245]/10 font-medium rounded-md"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Ignore
+                    </Button>
+                  </>
+                )}
+
+                {/* Cancel Request Button */}
+                {friendshipStatus === 'pending_outgoing' && (
+                  <Button
+                    onClick={handleRemoveFriend}
+                    disabled={isProcessing}
+                    variant="outline"
+                    className="flex-1 h-10 border-[#72767d] text-[#b9bbbe] hover:bg-[#72767d]/10 font-medium rounded-md"
+                  >
+                    <UserX className="w-4 h-4 mr-2" />
+                    Cancel Request
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

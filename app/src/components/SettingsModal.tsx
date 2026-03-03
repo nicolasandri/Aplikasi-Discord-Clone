@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
-  X, User, Bell, Shield, LogOut, Camera,
+  X, User, Bell, LogOut, Camera,
   Search, Brush, Check, Eye, EyeOff,
   ChevronLeft
 } from 'lucide-react';
@@ -22,7 +22,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'account' | 'notifications' | 'privacy' | 'appearance';
+type SettingsTab = 'account' | 'notifications' | 'appearance';
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, logout, updateUser } = useAuth();
@@ -188,10 +188,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
-          currentPassword, 
-          newPassword 
-        }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
 
       if (response.ok) {
@@ -203,14 +200,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           setShowChangePassword(false);
           setPasswordSuccess('');
         }, 2000);
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        const errorMsg = errData.error || `Error ${response.status}: Failed to change password`;
-        console.error('Change password error:', errorMsg, errData);
-        setPasswordError(errorMsg);
       }
-    } catch (err) {
-      setPasswordError('Network error');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || 'Network error';
+      console.error('Change password error:', errorMsg, err.response?.data);
+      setPasswordError(errorMsg);
     } finally {
       setChangingPassword(false);
     }
@@ -236,12 +230,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/users/avatar`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('[handleAvatarUpload] Avatar uploaded:', data.avatar);
         
         // Update localStorage first
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -265,9 +262,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setTimeout(() => setSuccess(''), 3000);
       } else {
         const errData = await response.json().catch(() => ({}));
+        console.error('[handleAvatarUpload] Failed:', response.status, errData);
         setError(errData.error || 'Failed to upload avatar');
       }
     } catch (err) {
+      console.error('[handleAvatarUpload] Error:', err);
       setError('Network error');
     } finally {
       setLoading(false);
@@ -280,8 +279,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       label: 'User Settings',
       items: [
         { id: 'account' as SettingsTab, label: 'My Account', icon: User },
-
-
         { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
       ]
     },
@@ -289,7 +286,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       label: 'App Settings',
       items: [
         { id: 'appearance' as SettingsTab, label: 'Appearance', icon: Brush },
-        { id: 'privacy' as SettingsTab, label: 'Accessibility', icon: Shield },
       ]
     },
   ];
@@ -338,7 +334,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <h2 className="text-white font-semibold text-base">
                 {activeTab === 'account' && 'Akun Saya'}
                 {activeTab === 'notifications' && 'Notifikasi'}
-                {activeTab === 'privacy' && 'Privasi'}
+
                 {activeTab === 'appearance' && 'Tampilan'}
 
     
@@ -462,8 +458,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
             {activeTab === 'notifications' && <NotificationSettings />}
-
-            {activeTab !== 'account' && activeTab !== 'notifications' && (
+            {activeTab === 'appearance' && (
               <p className="text-[#b9bbbe] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
             )}
           </div>
@@ -556,7 +551,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <h2 className="text-white text-lg font-semibold">
               {activeTab === 'account' && 'My Account'}
               {activeTab === 'notifications' && 'Notifications'}
-              {activeTab === 'privacy' && 'Privacy & Security'}
+
               {activeTab === 'appearance' && 'Appearance'}
 
   
@@ -606,11 +601,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         disabled={loading}
                       />
                     </div>
-                  </div>
-                  <div className="absolute bottom-4 right-4">
-                    <Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-sm h-8">
-                      Edit User Profile
-                    </Button>
                   </div>
                 </div>
 
@@ -693,7 +683,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Email</Label>
                         <p className="text-white mt-1">{user?.email}</p>
                       </div>
-                      <Button variant="secondary" className="bg-[#4f545c] hover:bg-[#5d6269] text-white h-8">Edit</Button>
                     </div>
 
                   </div>
@@ -719,9 +708,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <NotificationSettings />
               </div>
             )}
-            {activeTab !== 'account' && activeTab !== 'notifications' && (
+
+            {activeTab === 'appearance' && (
               <div className="max-w-3xl">
-                <p className="text-[#b9bbbe] text-center py-12">This section is under development.</p>
+                <p className="text-[#b9bbbe] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
               </div>
             )}
           </div>

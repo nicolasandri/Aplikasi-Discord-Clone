@@ -196,7 +196,7 @@ const userDB = {
 
   async findById(id) {
     return await queryOne(
-      'SELECT id, username, email, avatar, status, created_at FROM users WHERE id = $1',
+      'SELECT id, username, email, avatar, status, token_version, created_at FROM users WHERE id = $1',
       [id]
     );
   },
@@ -217,6 +217,10 @@ const userDB = {
     if (updates.status) {
       fields.push(`status = $${paramIndex++}`);
       values.push(updates.status);
+    }
+    if (updates.token_version !== undefined) {
+      fields.push(`token_version = $${paramIndex++}`);
+      values.push(updates.token_version);
     }
     
     if (fields.length === 0) return true;

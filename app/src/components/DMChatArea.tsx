@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, FileText } from 'lucide-react';
 import { EmojiStickerGIFPicker } from './EmojiStickerGIFPicker';
 import { ImageViewer } from './ImageViewer';
+import { UserProfilePopup } from './UserProfilePopup';
 
 import {
   DropdownMenu,
@@ -48,10 +49,6 @@ const statusLabels = {
 };
 
 // Helper to convert UTC to Asia/Jakarta (WIB) timezone
-function toWIB(date: Date): Date {
-  return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-}
-
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
@@ -70,21 +67,34 @@ function formatDate(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
   
-  // Convert to WIB for comparison
-  const dateWIB = toWIB(date);
-  const nowWIB = toWIB(now);
+  // Get date parts in Asia/Jakarta timezone
+  const dateOptions: Intl.DateTimeFormatOptions = { 
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  };
+  const todayParts = new Intl.DateTimeFormat('id-ID', dateOptions).formatToParts(now);
+  const msgParts = new Intl.DateTimeFormat('id-ID', dateOptions).formatToParts(date);
   
-  const today = new Date(nowWIB);
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(
+    parseInt(todayParts.find(p => p.type === 'year')?.value || '0'),
+    parseInt(todayParts.find(p => p.type === 'month')?.value || '0') - 1,
+    parseInt(todayParts.find(p => p.type === 'day')?.value || '0')
+  );
+  
+  const messageDate = new Date(
+    parseInt(msgParts.find(p => p.type === 'year')?.value || '0'),
+    parseInt(msgParts.find(p => p.type === 'month')?.value || '0') - 1,
+    parseInt(msgParts.find(p => p.type === 'day')?.value || '0')
+  );
+  
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
-  const dateOnly = new Date(dateWIB);
-  dateOnly.setHours(0, 0, 0, 0);
 
-  if (dateOnly.getTime() === today.getTime()) {
+  if (messageDate.getTime() === today.getTime()) {
     return 'Hari Ini';
-  } else if (dateOnly.getTime() === yesterday.getTime()) {
+  } else if (messageDate.getTime() === yesterday.getTime()) {
     return 'Kemarin';
   }
   // Format: Selasa, 27 Januari 2026
@@ -143,6 +153,8 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -637,12 +649,6 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               <UserPlus className="w-5 h-5" />
             </button>
           )}
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Phone className="w-5 h-5" />
-          </button>
-          <button className="text-[#b9bbbe] hover:text-white transition-colors">
-            <Video className="w-5 h-5" />
-          </button>
           {channel.type === 'group' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -741,7 +747,16 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                         <div className={`max-w-[70%] ${isOwn ? 'items-end' : ''}`}>
                           {showAvatar && (
                             <div className={`flex items-baseline gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                              <span className="text-white font-medium text-sm hover:underline cursor-pointer">
+                              <span 
+                                className="text-white font-medium text-sm hover:underline cursor-pointer"
+                                onClick={() => {
+                                  const userId = isOwn ? currentUser?.id : (channel?.friend?.id || channel?.members?.find(m => m.id !== currentUser?.id)?.id);
+                                  if (userId) {
+                                    setSelectedUserId(userId);
+                                    setIsProfileOpen(true);
+                                  }
+                                }}
+                              >
                                 {senderName}
                               </span>
                               <span className="text-[11px] text-[#72767d]">
@@ -955,6 +970,17 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         alt={viewerImage?.alt || ''}
         isOpen={!!viewerImage}
         onClose={() => setViewerImage(null)}
+      />
+
+      {/* User Profile Popup */}
+      <UserProfilePopup
+        userId={selectedUserId || ''}
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        onStartDM={(user) => {
+          // Already in DM, just close popup
+          setIsProfileOpen(false);
+        }}
       />
     </div>
   );

@@ -11,6 +11,7 @@ export interface Server {
   id: string;
   name: string;
   icon: string;
+  owner_id?: string;
 }
 
 export interface ServerRole {
