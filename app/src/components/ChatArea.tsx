@@ -50,6 +50,7 @@ interface ChatAreaProps {
   servers?: Server[];
   dmChannels?: import('@/types').DMChannel[];
   onReaction?: (messageId: string, emoji: string, hasReacted: boolean) => void;
+  onFocusInput?: () => void;
 }
 
 // User permissions interface
@@ -707,7 +708,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [], onReaction }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [], onReaction, onFocusInput }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -1293,6 +1294,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         ref={scrollContainerRef}
         className={`flex-1 overflow-y-auto ${isMobile ? 'px-2 py-2 pb-20' : 'px-2 py-4'}`}
         onScroll={handleScroll}
+        onClick={(e) => {
+          // Focus input when clicking on empty area (not on messages or buttons)
+          if (e.target === e.currentTarget) {
+            onFocusInput?.();
+          }
+        }}
       >
         {groupedMessages.length === 0 ? (
 

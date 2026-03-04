@@ -338,13 +338,15 @@ const authLimiter = rateLimit({
 });
 
 const apiLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: isDev ? 1000 : 100, // Development: 1000, Production: 100
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: isDev ? 10000 : 300, // Development: 10000, Production: 300
   message: { error: 'Too many requests. Please slow down.' },
   skip: (req) => {
     // Skip rate limiting for /api/users/me (token verification)
     return req.path === '/users/me';
-  }
+  },
+  // Skip rate limiting completely in development for smoother experience
+  skipSuccessfulRequests: isDev // Skip counting successful requests in dev
 });
 
 app.use('/api/', apiLimiter);
@@ -2893,6 +2895,42 @@ function getUserSocket(userId) {
   return Array.from(io.sockets.sockets.values()).find(s => s.userId === userId);
 }
 
+// Rate limiting for messages - store last message time per user
+const userLastMessageTime = new Map();
+const userMessageCount = new Map();
+const MESSAGE_COOLDOWN_MS = 1000; // 1 second between messages
+const MESSAGE_BURST_LIMIT = 5; // Max 5 messages per 10 seconds
+const MESSAGE_BURST_WINDOW_MS = 10000; // 10 seconds window
+
+// Helper function to check rate limit for a user
+function checkMessageRateLimit(userId) {
+  const now = Date.now();
+  const lastMessageTime = userLastMessageTime.get(userId) || 0;
+  let userMessages = userMessageCount.get(userId) || { count: 0, firstMessageTime: now };
+  
+  // Reset burst count if window has passed
+  if (now - userMessages.firstMessageTime > MESSAGE_BURST_WINDOW_MS) {
+    userMessages = { count: 0, firstMessageTime: now };
+  }
+  
+  // Check cooldown between messages
+  if (now - lastMessageTime < MESSAGE_COOLDOWN_MS) {
+    return { allowed: false, reason: 'cooldown', retryAfter: MESSAGE_COOLDOWN_MS - (now - lastMessageTime) };
+  }
+  
+  // Check burst limit
+  if (userMessages.count >= MESSAGE_BURST_LIMIT) {
+    return { allowed: false, reason: 'burst_limit', retryAfter: MESSAGE_BURST_WINDOW_MS - (now - userMessages.firstMessageTime) };
+  }
+  
+  // Update counters
+  userMessages.count++;
+  userMessageCount.set(userId, userMessages);
+  userLastMessageTime.set(userId, now);
+  
+  return { allowed: true };
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   log('🔌 Client connected:', socket.id);
@@ -2969,6 +3007,8 @@ io.on('connection', (socket) => {
   socket.on('delete_message', async ({ messageId }) => {
     try {
       const userId = socket.userId;
+      console.log('[DELETE MESSAGE] Attempt by user:', userId, 'message:', messageId);
+      
       if (!userId) {
         socket.emit('error', { message: 'Not authenticated' });
         return;
@@ -2976,17 +3016,37 @@ io.on('connection', (socket) => {
 
       // Get the message to check ownership
       const message = await messageDB.getById(messageId);
+      console.log('[DELETE MESSAGE] Message found:', message ? 'yes' : 'no', 'channelId:', message?.channelId, 'msgUserId:', message?.userId);
+      
       if (!message) {
         socket.emit('error', { message: 'Message not found' });
         return;
       }
 
-      // Check if user is the message author or has manage messages permission
-      const hasManagePermission = await permissionDB.hasPermission(userId, message.channelId, Permissions.MANAGE_MESSAGES);
-      if (message.userId !== userId && !hasManagePermission) {
+      // Get channel to check server ownership
+      const channel = await channelDB.getById(message.channelId);
+      console.log('[DELETE MESSAGE] Channel found:', channel ? 'yes' : 'no', 'server_id:', channel?.server_id);
+      
+      const server = channel ? await serverDB.findById(channel.server_id) : null;
+      const isOwner = server && server.owner_id === userId;
+      console.log('[DELETE MESSAGE] Server found:', server ? 'yes' : 'no', 'isOwner:', isOwner, 'serverOwner:', server?.owner_id);
+      
+      // Check if user is the message author, server owner, or has manage messages permission
+      const serverId = channel ? channel.server_id : null;
+      // Owner bypass - no need to check permission if already owner
+      let hasManagePermission = false;
+      if (!isOwner && serverId) {
+        hasManagePermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_MESSAGES);
+      }
+      console.log('[DELETE MESSAGE] serverId:', serverId, 'hasManagePermission:', hasManagePermission);
+      console.log('[DELETE MESSAGE] Check:', message.userId !== userId, '!hasManagePermission:', !hasManagePermission, '!isOwner:', !isOwner);
+      
+      if (message.userId !== userId && !hasManagePermission && !isOwner) {
         socket.emit('error', { message: 'You can only delete your own messages' });
         return;
       }
+      
+      console.log('[DELETE MESSAGE] Permission granted, deleting...');
 
       // Delete the message
       await messageDB.delete(messageId);
@@ -2995,8 +3055,9 @@ io.on('connection', (socket) => {
       io.to(message.channelId).emit('message_deleted', { messageId });
       log('🗑️ Message deleted:', messageId, 'by user:', userId);
     } catch (error) {
-      console.error('Socket delete message error:', error);
-      socket.emit('error', { message: 'Failed to delete message' });
+      console.error('Socket delete message error:', error.message);
+      console.error('Stack:', error.stack);
+      socket.emit('error', { message: 'Failed to delete message: ' + error.message });
     }
   });
 
@@ -3018,6 +3079,16 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data) => {
     if (!socket.userId) {
       socket.emit('message_error', { error: 'Not authenticated' });
+      return;
+    }
+    
+    // Check rate limit
+    const rateLimit = checkMessageRateLimit(socket.userId);
+    if (!rateLimit.allowed) {
+      const errorMsg = rateLimit.reason === 'cooldown' 
+        ? 'Please wait before sending another message' 
+        : 'Too many messages sent. Please slow down.';
+      socket.emit('message_error', { error: errorMsg, retryAfter: rateLimit.retryAfter });
       return;
     }
     
@@ -3056,6 +3127,16 @@ io.on('connection', (socket) => {
   socket.on('send-dm-message', async (data) => {
     if (!socket.userId) {
       socket.emit('dm-error', { error: 'Not authenticated' });
+      return;
+    }
+    
+    // Check rate limit
+    const rateLimit = checkMessageRateLimit(socket.userId);
+    if (!rateLimit.allowed) {
+      const errorMsg = rateLimit.reason === 'cooldown' 
+        ? 'Please wait before sending another message' 
+        : 'Too many messages sent. Please slow down.';
+      socket.emit('dm-error', { error: errorMsg, retryAfter: rateLimit.retryAfter });
       return;
     }
     

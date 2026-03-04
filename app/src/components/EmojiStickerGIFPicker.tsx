@@ -12,6 +12,7 @@ interface EmojiStickerGIFPickerProps {
   onSelectSticker?: (sticker: { url: string; name: string }) => void;
   onSelectGIF?: (gif: { url: string; title: string }) => void;
   serverId?: string | null;
+  disabled?: boolean;
 }
 
 interface GIF {
@@ -45,7 +46,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelectGIF, serverId }: EmojiStickerGIFPickerProps) {
+export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelectGIF, serverId, disabled }: EmojiStickerGIFPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('emoji');
   const [customEmojis, setCustomEmojis] = useState<CustomEmoji[]>([]);
@@ -164,8 +165,9 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button 
-          className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors"
+          className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Emoji, Sticker & GIF"
+          disabled={disabled}
         >
           <Smile className="w-5 h-5" />
         </button>

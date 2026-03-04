@@ -7,6 +7,20 @@ import { RenameCategoryModal } from './RenameCategoryModal';
 import { CreateChannelModal } from './CreateChannelModal';
 import type { Channel, Server, Category } from '@/types';
 
+// Dnd-kit imports
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+} from '@dnd-kit/sortable';
+
 interface ChannelListProps {
   server: Server | null;
   channels: Channel[];
@@ -261,6 +275,76 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
     } catch (error) {
       console.error('Failed to convert to category:', error);
       alert('Terjadi kesalahan saat mengubah nama kategori');
+    }
+  };
+
+  // Setup sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Minimum distance to start drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: (event: KeyboardEvent & { active?: { rect?: { current?: { translated?: { left: number; top: number } } } } }) => {
+        const { active } = event;
+        const node = active?.rect?.current?.translated;
+        return node ? { x: node.left, y: node.top } : { x: 0, y: 0 };
+      },
+    })
+  );
+
+  // Handle channel reorder within a category
+  const handleDragEnd = async (event: DragEndEvent, categoryId: string) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id && server) {
+      const category = categories.find((c) => c.id === categoryId);
+      if (!category) return;
+
+      const oldChannels = category.channels || [];
+      const oldIndex = oldChannels.findIndex((c) => c.id === active.id);
+      const newIndex = oldChannels.findIndex((c) => c.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      // Create new array with reordered channels
+      const newChannels = arrayMove(oldChannels, oldIndex, newIndex);
+
+      // Update local state immediately for responsive UI
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId ? { ...cat, channels: newChannels } : cat
+        )
+      );
+
+      // Send reorder to server
+      try {
+        // Prepare channels array with position
+        const channelsToUpdate = newChannels.map((channel, index) => ({
+          id: channel.id,
+          categoryId: categoryId,
+          position: index,
+        }));
+
+        const response = await fetch(`${API_URL}/servers/${server.id}/channels/reorder`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ channels: channelsToUpdate }),
+        });
+
+        if (!response.ok) {
+          console.error('Failed to reorder channels');
+          // Revert on error by refetching
+          fetchCategories();
+        }
+      } catch (error) {
+        console.error('Failed to reorder channels:', error);
+        fetchCategories();
+      }
     }
   };
 
@@ -538,21 +622,27 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
       <div className="flex-1 overflow-y-auto p-2">
         {/* Categories */}
         {categories.map((category) => (
-          <CategoryItem
+          <DndContext
             key={category.id}
-            category={category}
-            channels={category.channels || []}
-            isExpanded={expandedCategories.has(category.id)}
-            selectedChannelId={selectedChannelId}
-            canManage={canManage}
-            onToggle={() => toggleCategory(category.id)}
-            onSelectChannel={onSelectChannel}
-            onCreateChannel={() => handleCreateChannel(category.id)}
-            onDeleteCategory={() => handleDeleteCategory(category.id)}
-            onRenameCategory={() => setRenameCategory(category)}
-            onDeleteChannel={handleDeleteChannel}
-            unreadCounts={unreadCounts}
-          />
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => handleDragEnd(event, category.id)}
+          >
+            <CategoryItem
+              category={category}
+              channels={category.channels || []}
+              isExpanded={expandedCategories.has(category.id)}
+              selectedChannelId={selectedChannelId}
+              canManage={canManage}
+              onToggle={() => toggleCategory(category.id)}
+              onSelectChannel={onSelectChannel}
+              onCreateChannel={() => handleCreateChannel(category.id)}
+              onDeleteCategory={() => handleDeleteCategory(category.id)}
+              onRenameCategory={() => setRenameCategory(category)}
+              onDeleteChannel={handleDeleteChannel}
+              unreadCounts={unreadCounts}
+            />
+          </DndContext>
         ))}
 
         {/* Uncategorized Channels */}

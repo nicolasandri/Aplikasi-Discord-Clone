@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, FileText } from 'lucide-react';
 import { EmojiStickerGIFPicker } from './EmojiStickerGIFPicker';
 import { ImageViewer } from './ImageViewer';
@@ -32,6 +32,7 @@ interface DMChatAreaProps {
   onBack?: () => void;
   onAddMember?: (channelId: string) => void;
   onLeaveGroup?: (channelId: string) => void;
+  onFocusInput?: () => void;
 }
 
 const statusColors = {
@@ -143,7 +144,7 @@ function groupMessagesByDate(messages: DMMessage[]): { date: string; messages: D
   }));
 }
 
-export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember, onLeaveGroup }: DMChatAreaProps) {
+export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember, onLeaveGroup, onFocusInput }: DMChatAreaProps) {
   const [messages, setMessages] = useState<DMMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -155,10 +156,14 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   const [isUploading, setIsUploading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastMessageTimeRef = useRef<number>(0);
+  const MESSAGE_COOLDOWN_MS = 1000; // 1 second cooldown between messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const token = localStorage.getItem('token');
   // Track scroll state for smart auto-scroll
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -168,6 +173,32 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   useEffect(() => {
     setAvatarVersion(Date.now());
   }, [currentUser?.avatar]);
+
+  // Keep focus on textarea after sending - track previous state
+  const prevIsSendingRef = useRef(isSending);
+  const prevIsUploadingRef = useRef(isUploading);
+  useEffect(() => {
+    // Focus when transitioning from sending/uploading to idle
+    const wasBusy = prevIsSendingRef.current || prevIsUploadingRef.current;
+    const isNowIdle = !isSending && !isUploading;
+    
+    if (wasBusy && isNowIdle) {
+      console.log('[DMChatArea] Was busy, now idle - scheduling focus');
+      // Use multiple RAF to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (textareaRef.current && document.activeElement !== textareaRef.current) {
+              textareaRef.current.focus();
+              console.log('[DMChatArea] Focus applied to textarea, activeElement:', document.activeElement?.tagName);
+            }
+          }, 50);
+        });
+      });
+    }
+    prevIsSendingRef.current = isSending;
+    prevIsUploadingRef.current = isUploading;
+  }, [isSending, isUploading]);
 
   // Check socket availability periodically
   useEffect(() => {
@@ -411,8 +442,18 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     }
   };
 
-  const sendMessage = async () => {
-    if ((!newMessage.trim() && attachments.length === 0) || !channel || !currentUser) return;
+  const sendMessage = useCallback(async () => {
+    if ((!newMessage.trim() && attachments.length === 0) || !channel || !currentUser || isSending) return;
+
+    // Check cooldown to prevent spam
+    const now = Date.now();
+    if (now - lastMessageTimeRef.current < MESSAGE_COOLDOWN_MS) {
+      console.log('[DMChatArea] Message cooldown active, please wait...');
+      return;
+    }
+
+    setIsSending(true);
+    lastMessageTimeRef.current = now;
 
     const messageContent = newMessage.trim();
     const tempId = 'temp-' + Date.now();
@@ -490,7 +531,10 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         setMessages(prev => prev.filter(m => m.id !== tempId));
       }
     }
-  };
+
+    setIsSending(false);
+    // Focus will be restored by useEffect when isSending changes back to false
+  }, [newMessage, attachments, channel, currentUser, isSending, token]);
 
   const handleTyping = () => {
     const socket = (window as any).socket;
@@ -503,6 +547,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+      // Focus will be restored by useEffect when isSending changes back to false
     }
   };
 
@@ -677,6 +722,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-4 py-4"
         onScroll={handleScroll}
+        onClick={(e) => {
+          // Focus input when clicking on empty area (not on messages)
+          if (e.target === e.currentTarget) {
+            onFocusInput?.();
+            textareaRef.current?.focus();
+          }
+        }}
       >
         {isLoading ? (
           <div className="flex justify-center py-8">
@@ -890,8 +942,11 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           </div>
         )}
         
-        <div className="bg-[#40444b] rounded-lg flex items-end gap-2 p-2">
-          <div className="flex items-center gap-1">
+        <div 
+          className="bg-[#40444b] rounded-lg flex items-end gap-2 p-2 cursor-text"
+          onClick={() => textareaRef.current?.focus()}
+        >
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <input
               type="file"
               ref={fileInputRef}
@@ -914,15 +969,17 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
             </button>
           </div>
           <textarea
+            ref={textareaRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleTyping}
+            disabled={isSending || isUploading}
             placeholder={channel.type === 'group' 
               ? `Kirim pesan ke grup`
               : `Kirim pesan ke @${channel.friend?.displayName || channel.friend?.username || 'Unknown'}`
             }
-            className="flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none min-h-[40px] max-h-[120px] py-2"
+            className="flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none min-h-[40px] max-h-[120px] py-2 disabled:opacity-50"
             rows={1}
             style={{ height: 'auto' }}
             onInputCapture={(e) => {
@@ -931,10 +988,16 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               target.style.height = target.scrollHeight + 'px';
             }}
           />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <EmojiStickerGIFPicker 
-              onSelectEmoji={(emoji) => setNewMessage(prev => prev + emoji)}
+              disabled={isSending}
+              onSelectEmoji={(emoji) => {
+                setNewMessage(prev => prev + emoji);
+                // Keep focus on textarea after selecting emoji
+                setTimeout(() => textareaRef.current?.focus(), 0);
+              }}
               onSelectSticker={(sticker) => {
+                if (isSending) return;
                 // Add sticker as attachment
                 const stickerAttachment: FileAttachment = {
                   url: sticker.url,
@@ -944,9 +1007,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                   size: 0,
                 };
                 setAttachments(prev => [...prev, stickerAttachment]);
-                setTimeout(() => sendMessage(), 100);
+                setTimeout(() => {
+                  sendMessage();
+                  textareaRef.current?.focus();
+                }, 100);
               }}
               onSelectGIF={(gif) => {
+                if (isSending) return;
                 // Add GIF as attachment
                 const gifAttachment: FileAttachment = {
                   url: gif.url,

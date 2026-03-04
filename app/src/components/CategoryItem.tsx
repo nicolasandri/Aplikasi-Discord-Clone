@@ -1,6 +1,116 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Edit2, Hash, Volume2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Edit2, Hash, Volume2, GripVertical } from 'lucide-react';
 import type { Category, Channel } from '@/types';
+
+// Dnd-kit imports
+import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortableChannelItemProps {
+  channel: Channel;
+  selectedChannelId: string | null;
+  canManage: boolean;
+  onSelectChannel: (channelId: string) => void;
+  onDeleteChannel?: (channelId: string) => void;
+  unreadCounts?: Record<string, { count: number; hasMention: boolean }>;
+}
+
+// Individual sortable channel item
+function SortableChannelItem({
+  channel,
+  selectedChannelId,
+  canManage,
+  onSelectChannel,
+  onDeleteChannel,
+  unreadCounts = {},
+}: SortableChannelItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: channel.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const unread = unreadCounts[channel.id];
+  const hasUnread = unread && unread.count > 0;
+  const hasMention = unread?.hasMention;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer ${
+        selectedChannelId === channel.id
+          ? 'bg-[#40444b] text-white'
+          : hasUnread
+            ? 'bg-[#2f3136] text-white'
+            : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
+      }`}
+    >
+      {/* Drag Handle */}
+      {canManage && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="p-0.5 hover:bg-[#4f545c] rounded opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing"
+          title="Drag to reorder"
+        >
+          <GripVertical className="w-3 h-3 text-[#72767d]" />
+        </button>
+      )}
+
+      {/* Channel Button */}
+      <button
+        onClick={() => onSelectChannel(channel.id)}
+        className="flex-1 flex items-center gap-2 min-w-0"
+      >
+        {channel.type === 'voice' ? (
+          <Volume2 className="w-4 h-4 text-[#72767d]" />
+        ) : (
+          <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#72767d]'}`} />
+        )}
+        <span className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : ''}`}>
+          {channel.name}
+        </span>
+
+        {/* Unread badge */}
+        {hasUnread && (
+          <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+            hasMention
+              ? 'bg-[#ed4245] text-white'
+              : 'bg-[#b9bbbe] text-[#2f3136]'
+          }`}>
+            {unread.count > 99 ? '99+' : unread.count}
+          </span>
+        )}
+      </button>
+
+      {/* Delete Channel Button (hover) */}
+      {canManage && onDeleteChannel && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm(`Hapus channel "#${channel.name}"?`)) {
+              onDeleteChannel(channel.id);
+            }
+          }}
+          className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Hapus Channel"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 interface CategoryItemProps {
   category: Category;
@@ -32,6 +142,13 @@ export function CategoryItem({
   unreadCounts = {},
 }: CategoryItemProps) {
   const [_showMenu, _setShowMenu] = useState(false);
+
+  // Sort channels by position if available
+  const sortedChannels = [...channels].sort((a, b) => {
+    const posA = a.position ?? 0;
+    const posB = b.position ?? 0;
+    return posA - posB;
+  });
 
   return (
     <div className="mb-2">
@@ -98,65 +215,22 @@ export function CategoryItem({
       {/* Channels List */}
       {isExpanded && (
         <div className="mt-0.5">
-          {channels.map((channel) => {
-            const unread = unreadCounts[channel.id];
-            const hasUnread = unread && unread.count > 0;
-            const hasMention = unread?.hasMention;
-            
-            return (
-              <div
+          <SortableContext
+            items={sortedChannels.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {sortedChannels.map((channel) => (
+              <SortableChannelItem
                 key={channel.id}
-                className={`group flex items-center gap-2 px-2 py-1.5 rounded ${
-                  selectedChannelId === channel.id
-                    ? 'bg-[#40444b] text-white'
-                    : hasUnread 
-                      ? 'bg-[#2f3136] text-white'
-                      : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
-                }`}
-              >
-                <button
-                  onClick={() => onSelectChannel(channel.id)}
-                  className="flex-1 flex items-center gap-2 min-w-0"
-                >
-                  {channel.type === 'voice' ? (
-                    <Volume2 className="w-4 h-4 text-[#72767d]" />
-                  ) : (
-                    <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#72767d]'}`} />
-                  )}
-                  <span className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : ''}`}>
-                    {channel.name}
-                  </span>
-                  
-                  {/* Unread badge */}
-                  {hasUnread && (
-                    <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                      hasMention 
-                        ? 'bg-[#ed4245] text-white' 
-                        : 'bg-[#b9bbbe] text-[#2f3136]'
-                    }`}>
-                      {unread.count > 99 ? '99+' : unread.count}
-                    </span>
-                  )}
-                </button>
-                
-                {/* Delete Channel Button (hover) */}
-                {canManage && onDeleteChannel && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Hapus channel "#${channel.name}"?`)) {
-                        onDeleteChannel(channel.id);
-                      }
-                    }}
-                    className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Hapus Channel"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                channel={channel}
+                selectedChannelId={selectedChannelId}
+                canManage={canManage}
+                onSelectChannel={onSelectChannel}
+                onDeleteChannel={onDeleteChannel}
+                unreadCounts={unreadCounts}
+              />
+            ))}
+          </SortableContext>
         </div>
       )}
     </div>

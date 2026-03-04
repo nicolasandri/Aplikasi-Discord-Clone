@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Compass, Download, MessageCircle } from 'lucide-react';
 import {
   Dialog,
@@ -68,41 +68,60 @@ function ServerIconButton({
   return (
     <button
       onClick={onClick}
-      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group overflow-hidden ${
+      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group ${
         isSelected
-          ? 'bg-[#5865f2] rounded-2xl'
-          : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
+          ? 'bg-[#5865f2]'
+          : 'bg-[#36393f] hover:bg-[#5865f2]'
       }`}
+      style={{ 
+        overflow: 'hidden',
+        borderRadius: '50%',
+        flexShrink: 0
+      }}
     >
       {iconUrl && !imgError ? (
-        <img 
-          src={iconUrl} 
-          alt={server.name} 
-          className="w-full h-full object-cover"
-          onError={() => setImgError(true)}
-        />
+        <div 
+          className="absolute inset-0 w-full h-full"
+          style={{ 
+            borderRadius: '50%',
+            overflow: 'hidden'
+          }}
+        >
+          <img 
+            src={iconUrl} 
+            alt={server.name} 
+            className="w-full h-full"
+            style={{ 
+              objectFit: 'cover',
+              width: '100%',
+              height: '100%',
+              display: 'block'
+            }}
+            onError={() => setImgError(true)}
+          />
+        </div>
       ) : (
-        <span className="text-xl font-bold text-white">{initial}</span>
+        <span className="text-xl font-bold text-white relative z-10">{initial}</span>
       )}
       
       {/* Selected indicator */}
       {isSelected && (
-        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full z-20" />
       )}
       
       {/* Unread indicator (white dot) */}
       {!isSelected && hasUnread && (
-        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full" />
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full z-20" />
       )}
       
       {/* Hover indicator */}
       {!isSelected && !hasUnread && (
-        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity z-20" />
       )}
 
       {/* Unread badge */}
       {hasUnread && (
-        <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#202225] ${
+        <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#202225] z-20 ${
           hasMention ? 'bg-[#ed4245] text-white' : 'bg-[#b9bbbe] text-[#2f3136]'
         }`}>
           {unreadCount > 99 ? '99+' : unreadCount}
@@ -133,11 +152,23 @@ export function ServerList({
   const [pendingCount, setPendingCount] = useState(0);
   const [onlineFriendCount, setOnlineFriendCount] = useState(0);
 
-  const token = localStorage.getItem('token');
+  const tokenRef = useRef(localStorage.getItem('token'));
+  const lastFetchTimeRef = useRef(0);
+  const isFetchingRef = useRef(false);
+  const FETCH_COOLDOWN_MS = 1000;
 
   // Fetch pending friend requests count
   useEffect(() => {
     const fetchPendingCount = async () => {
+      const token = tokenRef.current;
+      if (!token || isFetchingRef.current) return;
+      
+      const now = Date.now();
+      if (now - lastFetchTimeRef.current < FETCH_COOLDOWN_MS) return;
+      
+      isFetchingRef.current = true;
+      lastFetchTimeRef.current = now;
+      
       try {
         const response = await fetch(`${API_URL}/friends/pending`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -148,10 +179,21 @@ export function ServerList({
         }
       } catch (error) {
         console.error('Failed to fetch pending count:', error);
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 
     const fetchOnlineFriends = async () => {
+      const token = tokenRef.current;
+      if (!token || isFetchingRef.current) return;
+      
+      const now = Date.now();
+      if (now - lastFetchTimeRef.current < FETCH_COOLDOWN_MS) return;
+      
+      isFetchingRef.current = true;
+      lastFetchTimeRef.current = now;
+      
       try {
         const response = await fetch(`${API_URL}/friends`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -163,20 +205,23 @@ export function ServerList({
         }
       } catch (error) {
         console.error('Failed to fetch online friends:', error);
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 
     fetchPendingCount();
     fetchOnlineFriends();
 
-    // Poll for updates every 30 seconds
+    // Poll for updates every 60 seconds (increased to prevent rate limiting)
     const interval = setInterval(() => {
       fetchPendingCount();
       fetchOnlineFriends();
-    }, 30000);
+    }, 60000);
 
     return () => clearInterval(interval);
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Listen for socket events to update counts
   useEffect(() => {
@@ -189,6 +234,9 @@ export function ServerList({
 
     const handleFriendRequestAccepted = () => {
       // Refresh counts
+      const token = tokenRef.current;
+      if (!token) return;
+      
       fetch(`${API_URL}/friends`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => r.ok ? r.json() : []).then(data => {
@@ -204,7 +252,8 @@ export function ServerList({
       socket.off('friend_request_received', handleFriendRequestReceived);
       socket.off('friend_request_accepted', handleFriendRequestAccepted);
     };
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreateServer = () => {
     if (newServerName.trim()) {

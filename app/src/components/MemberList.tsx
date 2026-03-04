@@ -128,13 +128,13 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     };
   }, []);
 
-  // Re-fetch members every 10 seconds to ensure status is up to date
+  // Re-fetch members every 60 seconds to ensure status is up to date (reduced from 10s)
   useEffect(() => {
     if (!serverId) return;
     
     const interval = setInterval(() => {
       fetchMembers();
-    }, 10000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [serverId]);

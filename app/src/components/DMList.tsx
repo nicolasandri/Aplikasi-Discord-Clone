@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { MessageCircle, UserPlus, Users, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -42,10 +42,15 @@ export function DMList({
   unreadCounts 
 }: DMListProps) {
   const [dmChannels, setDmChannels] = useState<DMChannel[]>([]);
-  const token = localStorage.getItem('token');
+  const [isFetching, setIsFetching] = useState(false);
+  const tokenRef = useRef(localStorage.getItem('token'));
+  const lastFetchTime = useRef<number>(0);
+  const isFetchingRef = useRef<boolean>(false);
+  const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Decode token to get user ID
   const getUserIdFromToken = () => {
+    const token = tokenRef.current;
     if (!token) return null;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -56,7 +61,21 @@ export function DMList({
   };
   const currentUserId = getUserIdFromToken();
 
-  const fetchDMChannels = async () => {
+  const fetchDMChannels = useCallback(async (force = false) => {
+    const token = tokenRef.current;
+    if (!token) return;
+    
+    // Prevent multiple simultaneous requests using ref (not state to avoid dependency issues)
+    if (isFetchingRef.current) return;
+    
+    // Debounce: only fetch if last fetch was more than 1 second ago (unless forced)
+    const now = Date.now();
+    if (!force && now - lastFetchTime.current < 1000) return;
+    
+    isFetchingRef.current = true;
+    setIsFetching(true);
+    lastFetchTime.current = now;
+    
     try {
       const response = await fetch(`${API_URL}/dm/channels`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -86,28 +105,47 @@ export function DMList({
       }
     } catch (error) {
       console.error('Failed to fetch DM channels:', error);
+    } finally {
+      isFetchingRef.current = false;
+      setIsFetching(false);
     }
-  };
+  }, []);
 
+  // Initial fetch - only once when component mounts
   useEffect(() => {
-    fetchDMChannels();
+    if (!tokenRef.current) return;
+    
+    fetchDMChannels(true);
 
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchDMChannels, 10000);
+    // Poll for updates every 30 seconds (reduced to prevent rate limiting)
+    const interval = setInterval(() => {
+      fetchDMChannels();
+    }, 30000);
+    
     return () => clearInterval(interval);
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Listen for socket events
+  // Listen for socket events with debounce
   useEffect(() => {
     const socket = (window as any).socket;
     if (!socket) return;
 
+    const debouncedFetchDMChannels = () => {
+      if (fetchDebounceRef.current) {
+        clearTimeout(fetchDebounceRef.current);
+      }
+      fetchDebounceRef.current = setTimeout(() => {
+        fetchDMChannels();
+      }, 500);
+    };
+
     const handleDMMessageReceived = () => {
-      fetchDMChannels();
+      debouncedFetchDMChannels();
     };
 
     const handleDMChannelUpdated = () => {
-      fetchDMChannels();
+      debouncedFetchDMChannels();
     };
 
     const handleUserLeftDM = (data: { channelId: string; userId: string }) => {
@@ -128,6 +166,7 @@ export function DMList({
       socket.off('dm_message_received', handleDMMessageReceived);
       socket.off('dm_channel_updated', handleDMChannelUpdated);
       socket.off('user_left_dm', handleUserLeftDM);
+      if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
     };
   }, []);
 
@@ -138,7 +177,7 @@ export function DMList({
     try {
       const response = await fetch(`${API_URL}/dm/channels/${channelId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
       
       if (response.ok) {

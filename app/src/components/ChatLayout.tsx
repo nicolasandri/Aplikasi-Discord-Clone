@@ -60,6 +60,7 @@ export function ChatLayout() {
   const [loading, setLoading] = useState(true);
   const [pendingChannelId, setPendingChannelId] = useState<string | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
   
   // Mobile drawer states
   const [isServerDrawerOpen, setIsServerDrawerOpen] = useState(false);
@@ -67,6 +68,12 @@ export function ChatLayout() {
   const [isMemberDrawerOpen, setIsMemberDrawerOpen] = useState(false);
   
   const messageInputRef = useRef<{ focus: () => void }>(null);
+  const lastMessageTimeRef = useRef<number>(0);
+  const MESSAGE_COOLDOWN_MS = 1000; // 1 second cooldown between messages
+  
+  // Debounce refs for API calls
+  const dmUnreadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dmChannelsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Notification hook
   const { notify, hasPermission } = useNotification({
@@ -87,6 +94,7 @@ export function ChatLayout() {
     fetchServers();
     fetchDMChannels();
     fetchDMUnreadCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Auto-select last visited server & channel or DM
@@ -273,56 +281,72 @@ export function ChatLayout() {
     }
   }, [messages, jumpToMessageId]);
 
-  // Fetch DM channels
-  const fetchDMChannels = async () => {
-    try {
-      const response = await fetch(`${API_URL}/dm/channels`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // API returns nested data with support for group DMs
-        const mappedChannels: DMChannel[] = data.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          type: row.type || 'direct',
-          members: row.members || [],
-          friend: row.friend ? {
-            id: row.friend.id,
-            username: row.friend.username,
-            displayName: row.friend.displayName,
-            avatar: row.friend.avatar,
-            status: row.friend.status || 'offline',
-            email: '',
-          } : undefined,
-          lastMessage: row.last_message,
-          lastMessageAt: row.last_message_at,
-          unreadCount: row.unread_count || 0,
-          updatedAt: row.updated_at || row.last_message_at,
-          creatorId: row.creator_id,
-        }));
-        setDmChannels(mappedChannels);
-      }
-    } catch (error) {
-      console.error('Failed to fetch DM channels:', error);
+  // Fetch DM channels with debounce
+  const fetchDMChannels = useCallback(async () => {
+    // Clear existing debounce
+    if (dmChannelsDebounceRef.current) {
+      clearTimeout(dmChannelsDebounceRef.current);
     }
-  };
+    
+    // Debounce for 500ms
+    dmChannelsDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(`${API_URL}/dm/channels`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // API returns nested data with support for group DMs
+          const mappedChannels: DMChannel[] = data.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            type: row.type || 'direct',
+            members: row.members || [],
+            friend: row.friend ? {
+              id: row.friend.id,
+              username: row.friend.username,
+              displayName: row.friend.displayName,
+              avatar: row.friend.avatar,
+              status: row.friend.status || 'offline',
+              email: '',
+            } : undefined,
+            lastMessage: row.last_message,
+            lastMessageAt: row.last_message_at,
+            unreadCount: row.unread_count || 0,
+            updatedAt: row.updated_at || row.last_message_at,
+            creatorId: row.creator_id,
+          }));
+          setDmChannels(mappedChannels);
+        }
+      } catch (error) {
+        console.error('Failed to fetch DM channels:', error);
+      }
+    }, 500);
+  }, [token]);
 
-  // Fetch DM unread count
-  const fetchDMUnreadCount = async () => {
-    try {
-      const response = await fetch(`${API_URL}/dm/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDMUnreadCounts(data.perChannel || {});
-        setTotalDMUnread(data.total || 0);
-      }
-    } catch (error) {
-      console.error('Failed to fetch DM unread count:', error);
+  // Fetch DM unread count with debounce
+  const fetchDMUnreadCount = useCallback(async () => {
+    // Clear existing debounce
+    if (dmUnreadDebounceRef.current) {
+      clearTimeout(dmUnreadDebounceRef.current);
     }
-  };
+    
+    // Debounce for 500ms
+    dmUnreadDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(`${API_URL}/dm/unread-count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDMUnreadCounts(data.perChannel || {});
+          setTotalDMUnread(data.total || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch DM unread count:', error);
+      }
+    }, 500);
+  }, [token]);
 
   // Fetch channel unread count for a server
   const fetchChannelUnreadCount = async (serverId: string) => {
@@ -445,6 +469,9 @@ export function ChatLayout() {
       Object.entries(wrappedHandlers).forEach(([event, handler]) => {
         socket.off(event, handler);
       });
+      // Clear debounce timeouts
+      if (dmUnreadDebounceRef.current) clearTimeout(dmUnreadDebounceRef.current);
+      if (dmChannelsDebounceRef.current) clearTimeout(dmChannelsDebounceRef.current);
     };
   }, []); // ✅ Only run once on mount
 
@@ -661,7 +688,7 @@ export function ChatLayout() {
     }
   }, [selectedChannelId, isConnected, joinChannel, leaveChannel, viewMode]);
 
-  const fetchServers = async () => {
+  const fetchServers = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/servers`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -678,7 +705,7 @@ export function ChatLayout() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, selectedServerId, viewMode]);
 
   const fetchChannels = async (serverId: string) => {
     try {
@@ -719,11 +746,27 @@ export function ChatLayout() {
   };
 
   const handleSendMessage = useCallback((content: string, replyToMessage?: Message | null, attachments?: FileAttachment[]) => {
-    if (selectedChannelId) {
-      (sendMessage as any)(selectedChannelId, content, replyToMessage, attachments);
-      setReplyTo(null);
+    if (!selectedChannelId || isSending) return;
+    
+    // Check cooldown to prevent spam
+    const now = Date.now();
+    if (now - lastMessageTimeRef.current < MESSAGE_COOLDOWN_MS) {
+      console.log('[ChatLayout] Message cooldown active, please wait...');
+      return;
     }
-  }, [selectedChannelId, sendMessage]);
+    
+    setIsSending(true);
+    lastMessageTimeRef.current = now;
+    
+    (sendMessage as any)(selectedChannelId, content, replyToMessage, attachments);
+    setReplyTo(null);
+    
+    // Reset sending state - focus will be handled by MessageInput's useEffect
+    setTimeout(() => {
+      console.log('[ChatLayout] Resetting isSending');
+      setIsSending(false);
+    }, 100);
+  }, [selectedChannelId, sendMessage, isSending]);
 
   const handleReply = useCallback((message: Message) => {
     console.log('Setting replyTo:', message);
@@ -1038,6 +1081,7 @@ export function ChatLayout() {
                     setIsAddMemberModalOpen(true);
                   }}
                   onLeaveGroup={handleLeaveGroup}
+                  onFocusInput={() => {/* DMChatArea handles its own textarea */}}
                 />
               </div>
             </>
@@ -1066,12 +1110,13 @@ export function ChatLayout() {
                   servers={servers}
                   dmChannels={dmChannels}
                   onReaction={handleReaction}
+                  onFocusInput={() => messageInputRef.current?.focus()}
                 />
                 <MessageInput
                   ref={messageInputRef}
                   onSendMessage={handleSendMessage}
                   onTyping={handleTyping}
-                  disabled={!selectedChannelId}
+                  disabled={!selectedChannelId || isSending}
                   replyTo={replyTo}
                   onCancelReply={handleCancelReply}
                   isMobile={true}
@@ -1265,6 +1310,7 @@ export function ChatLayout() {
             setIsAddMemberModalOpen(true);
           }}
           onLeaveGroup={handleLeaveGroup}
+          onFocusInput={() => {/* DMChatArea handles its own textarea */}}
         />
       ) : (
         <>
@@ -1282,12 +1328,13 @@ export function ChatLayout() {
               servers={servers}
               dmChannels={dmChannels}
               onReaction={handleReaction}
+              onFocusInput={() => messageInputRef.current?.focus()}
             />
             <MessageInput
               ref={messageInputRef}
               onSendMessage={handleSendMessage}
               onTyping={handleTyping}
-              disabled={!selectedChannelId}
+              disabled={!selectedChannelId || isSending}
               replyTo={replyTo}
               onCancelReply={handleCancelReply}
               serverId={selectedServerId || undefined}

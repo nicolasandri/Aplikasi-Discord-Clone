@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, forwardRef, useImperativeHandle, useEffect } from 'react';
+import { useState, useRef, useCallback, forwardRef, useImperativeHandle, useEffect, useMemo } from 'react';
 import { PlusCircle, Gift, Send, X, FileText, Image, File, Smile, AtSign } from 'lucide-react';
 import type { Message, FileAttachment } from '@/types';
 import { GIFPicker } from './GIFPicker';
@@ -49,6 +49,30 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     }
   }));
 
+  // Keep focus on input after sending - track previous disabled state
+  const prevDisabledRef = useRef(disabled);
+  useEffect(() => {
+    // Focus when transitioning from disabled to enabled
+    const wasDisabled = prevDisabledRef.current;
+    const isNowEnabled = !disabled;
+    
+    if (wasDisabled && isNowEnabled) {
+      console.log('[MessageInput] Was disabled, now enabled - scheduling focus');
+      // Use multiple RAF to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (textareaRef.current && document.activeElement !== textareaRef.current) {
+              textareaRef.current.focus();
+              console.log('[MessageInput] Focus applied to textarea, activeElement:', document.activeElement?.tagName);
+            }
+          }, 50);
+        });
+      });
+    }
+    prevDisabledRef.current = disabled;
+  }, [disabled]);
+
   const handleSubmit = useCallback((e?: React.FormEvent) => {
     e?.preventDefault();
     
@@ -93,6 +117,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     if (e.key === 'Enter' && !e.shiftKey && !showMentionAutocomplete) {
       e.preventDefault();
       handleSubmit();
+      // Focus will be restored by useEffect when disabled changes back to false
     }
   };
 
@@ -212,10 +237,19 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     onSendMessage('', replyTo, newAttachments);
     setAttachments([]);
     onCancelReply?.();
+    // Keep focus on input after sending GIF
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
   }, [onSendMessage, replyTo, attachments, onCancelReply]);
 
+  // Click on input area to focus
+  const handleInputAreaClick = () => {
+    textareaRef.current?.focus();
+  };
+
   return (
-    <form onSubmit={handleSubmit} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#36393f] border-t border-[#202225] z-40' : 'px-4 pb-4'}`}>
+    <form onSubmit={handleSubmit} onClick={handleInputAreaClick} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#36393f] border-t border-[#202225] z-40 cursor-text' : 'px-4 pb-4 cursor-text'}`}>
       {/* Reply Indicator */}
       {replyTo && (
         <div className={`bg-[#40444b] px-3 py-1.5 flex items-center justify-between ${isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
@@ -268,7 +302,10 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
         {/* Attachment Button */}
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
           className={`text-[#b9bbbe] hover:text-[#dcddde] transition-colors disabled:opacity-50 flex-shrink-0 ${isMobile ? 'p-2' : 'p-3'}`}
           disabled={disabled || uploading}
         >
@@ -314,13 +351,14 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             <>
               <button
                 type="button"
+                onClick={(e) => e.stopPropagation()}
                 className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
                 disabled={disabled}
               >
                 <Gift className="w-5 h-5" />
               </button>
               {/* GIF Picker */}
-              <div className="flex items-center">
+              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                 <GIFPicker onSelect={handleGIFSelect} />
               </div>
             </>
@@ -328,11 +366,11 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           
           {/* Emoji Picker -- Mobile only */}
           {isMobile && (
-            <div className="flex items-center">
+            <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
               <GIFPicker onSelect={handleGIFSelect} />
             </div>
           )}
-          <div className="relative">
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -370,7 +408,8 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           {/* Mention Button */}
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               const cursorPosition = textareaRef.current?.selectionStart || message.length;
               const newMessage = message.substring(0, cursorPosition) + '@' + message.substring(cursorPosition);
               setMessage(newMessage);
@@ -388,6 +427,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           {/* Send Button */}
           <button
             type="submit"
+            onClick={(e) => e.stopPropagation()}
             disabled={disabled || (!message.trim() && attachments.length === 0)}
             className={`text-[#5865f2] hover:text-[#4752c4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-1 ${isMobile ? 'p-1.5' : 'p-2'}`}
           >

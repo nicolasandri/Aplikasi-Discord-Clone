@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   UserPlus, 
   Users, 
@@ -88,17 +88,28 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const { toast } = useToast();
 
-  const token = localStorage.getItem('token');
+  const tokenRef = useRef(localStorage.getItem('token'));
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
+  const FETCH_COOLDOWN_MS = 1000; // Minimum 1 second between fetches
 
   const fetchFriends = useCallback(async () => {
+    const token = tokenRef.current;
+    if (!token || isFetchingRef.current) return;
+    
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < FETCH_COOLDOWN_MS) return;
+    
+    isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
+    
     try {
       const response = await fetch(`${API_URL}/friends`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
       if (response.ok) {
         const data = await response.json();
         console.log('[FriendsPage] Friends data:', data);
-        // Map display_name to displayName if needed
         const mappedData = data.map((friend: any) => ({
           ...friend,
           displayName: friend.displayName || friend.display_name || friend.username,
@@ -107,18 +118,28 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       }
     } catch (error) {
       console.error('Failed to fetch friends:', error);
+    } finally {
+      isFetchingRef.current = false;
     }
-  }, [token]);
+  }, []);
 
   const fetchPendingRequests = useCallback(async () => {
+    const token = tokenRef.current;
+    if (!token || isFetchingRef.current) return;
+    
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < FETCH_COOLDOWN_MS) return;
+    
+    isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
+    
     try {
       const response = await fetch(`${API_URL}/friends/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
       if (response.ok) {
         const data = await response.json();
         console.log('[FriendsPage] Pending data:', data);
-        // Map display_name to displayName for incoming and outgoing
         const mappedData = {
           incoming: (data.incoming || []).map((req: any) => ({
             ...req,
@@ -133,18 +154,22 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       }
     } catch (error) {
       console.error('Failed to fetch pending requests:', error);
+    } finally {
+      isFetchingRef.current = false;
     }
-  }, [token]);
+  }, []);
 
   const fetchBlockedUsers = useCallback(async () => {
+    const token = tokenRef.current;
+    if (!token) return;
+    
     try {
       const response = await fetch(`${API_URL}/friends/blocked`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
       if (response.ok) {
         const data = await response.json();
         console.log('[FriendsPage] Blocked data:', data);
-        // Map display_name to displayName
         const mappedData = data.map((user: any) => ({
           ...user,
           display_name: user.display_name || user.displayName || user.username,
@@ -154,8 +179,9 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     } catch (error) {
       console.error('Failed to fetch blocked users:', error);
     }
-  }, [token]);
+  }, []);
 
+  // Initial data load - only once
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -163,18 +189,20 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       setIsLoading(false);
     };
     loadData();
-  }, [fetchFriends, fetchPendingRequests, fetchBlockedUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Polling for sync between desktop and web (every 5 seconds)
+  // Polling for sync between desktop and web (every 60 seconds)
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isLoading) {
         Promise.all([fetchFriends(), fetchPendingRequests()]);
       }
-    }, 5000);
+    }, 60000);
 
     return () => clearInterval(interval);
-  }, [fetchFriends, fetchPendingRequests, isLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   // Listen for socket events - with retry mechanism for Electron
   useEffect(() => {
@@ -256,7 +284,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${tokenRef.current}`,
         },
         body: JSON.stringify({ username: addFriendUsername.trim() }),
       });
@@ -291,7 +319,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     try {
       const response = await fetch(`${API_URL}/friends/${requestId}/accept`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
 
       if (response.ok) {
@@ -322,7 +350,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     try {
       const response = await fetch(`${API_URL}/friends/${requestId}/reject`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
 
       if (response.ok) {
@@ -352,7 +380,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     try {
       const response = await fetch(`${API_URL}/friends/${requestId}/cancel`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
 
       if (response.ok) {
@@ -384,7 +412,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     try {
       const response = await fetch(`${API_URL}/friends/${friendId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
 
       if (response.ok) {
@@ -416,7 +444,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     try {
       const response = await fetch(`${API_URL}/friends/${userId}/block`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
 
       if (response.ok) {
@@ -447,7 +475,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     try {
       const response = await fetch(`${API_URL}/friends/${userId}/unblock`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
 
       if (response.ok) {
