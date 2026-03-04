@@ -24,7 +24,10 @@ interface UserProfile {
   email: string;
   avatar: string;
   status: 'online' | 'offline' | 'idle' | 'dnd';
-  role: 'owner' | 'admin' | 'moderator' | 'member';
+  role: 'owner' | 'admin' | 'moderator' | 'member' | 'custom';
+  role_id?: string | null;
+  role_name?: string;
+  role_color?: string;
   created_at?: string;
   joinedAt?: string;
   bio?: string;
@@ -366,6 +369,8 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   }
 
   const role = profile.role || 'member';
+  const roleName = profile.role_name || roleConfig[role as keyof typeof roleConfig]?.label || 'Member';
+  const roleColor = profile.role_color || (roleConfig[role as keyof typeof roleConfig]?.color.replace('text-', '') || '#b9bbbe');
   const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.member;
   const RoleIcon = config.icon;
   const isSelf = currentUserId === userId;
@@ -428,9 +433,23 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
               {/* Role Badge - Only show if in server context */}
               {serverId && profile.role && (
                 <div className="mt-2 inline-flex">
-                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${config.bgColor} border ${config.borderColor}`}>
-                    <RoleIcon className={`w-3.5 h-3.5 ${config.color}`} />
-                    <span className={`text-xs font-semibold ${config.color}`}>{config.label}</span>
+                  <div 
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
+                    style={{ 
+                      backgroundColor: `${roleColor}20`,
+                      borderColor: `${roleColor}40`
+                    }}
+                  >
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: roleColor }}
+                    />
+                    <span 
+                      className="text-xs font-semibold"
+                      style={{ color: roleColor }}
+                    >
+                      {roleName}
+                    </span>
                   </div>
                 </div>
               )}

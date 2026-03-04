@@ -38,7 +38,8 @@ export function useSocket(
   onReactionUpdate?: (data: { messageId: string; reactions: any[] }) => void,
   onMessageEdit?: (message: Message) => void,
   onMessageDelete?: (data: { messageId: string }) => void,
-  onStatusChange?: (data: { userId: string; status: string }) => void
+  onStatusChange?: (data: { userId: string; status: string }) => void,
+  onMemberJoined?: (data: { userId: string; serverId: string; username: string; displayName?: string; avatar?: string }) => void
 ): UseSocketReturn {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -56,7 +57,8 @@ export function useSocket(
     onReactionUpdate,
     onMessageEdit,
     onMessageDelete,
-    onStatusChange
+    onStatusChange,
+    onMemberJoined
   });
 
   // Update ref when callbacks change
@@ -66,9 +68,10 @@ export function useSocket(
       onReactionUpdate,
       onMessageEdit,
       onMessageDelete,
-      onStatusChange
+      onStatusChange,
+      onMemberJoined
     };
-  }, [onMessage, onReactionUpdate, onMessageEdit, onMessageDelete, onStatusChange]);
+  }, [onMessage, onReactionUpdate, onMessageEdit, onMessageDelete, onStatusChange, onMemberJoined]);
 
   useEffect(() => {
     if (!token) return;
@@ -117,12 +120,14 @@ export function useSocket(
 
     // Listen for reaction updates
     socket.on('reaction_added', (data: { messageId: string; reactions: any[] }) => {
+      console.log('🔌 Socket: reaction_added received', data);
       if (callbacksRef.current.onReactionUpdate) {
         callbacksRef.current.onReactionUpdate(data);
       }
     });
 
     socket.on('reaction_removed', (data: { messageId: string; reactions: any[] }) => {
+      console.log('🔌 Socket: reaction_removed received', data);
       if (callbacksRef.current.onReactionUpdate) {
         callbacksRef.current.onReactionUpdate(data);
       }
@@ -166,6 +171,14 @@ export function useSocket(
       });
       if (callbacksRef.current.onStatusChange) {
         callbacksRef.current.onStatusChange(data);
+      }
+    });
+
+    // Listen for member joined
+    socket.on('member_joined', (data: { userId: string; serverId: string; username: string; displayName?: string; avatar?: string }) => {
+      log('useSocket: Member joined:', data);
+      if (callbacksRef.current.onMemberJoined) {
+        callbacksRef.current.onMemberJoined(data);
       }
     });
 

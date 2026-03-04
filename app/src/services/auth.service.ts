@@ -26,7 +26,7 @@ interface RefreshResponse {
 
 class AuthService {
   private accessToken: string | null = null;
-  private refreshPromise: Promise<string> | null = null;
+  private refreshPromise: Promise<string | null> | null = null;
   private deviceId: string;
   private tokenExpiryTime: number | null = null;
   private refreshCallbacks: (() => void)[] = [];

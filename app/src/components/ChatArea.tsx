@@ -49,6 +49,7 @@ interface ChatAreaProps {
   onOpenSearch?: () => void;
   servers?: Server[];
   dmChannels?: import('@/types').DMChannel[];
+  onReaction?: (messageId: string, emoji: string, hasReacted: boolean) => void;
 }
 
 // User permissions interface
@@ -83,12 +84,12 @@ function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
   if (isNaN(date.getTime())) return '';
   
-  return date.toLocaleTimeString('id-ID', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Jakarta'
-  });
+  // Format manually to ensure HH:MM:SS format with colons
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  
+  return `${hours}:${minutes}:${seconds}`;
 }
 
 // Format timestamp like Discord (Asia/Jakarta timezone)
@@ -125,13 +126,11 @@ function formatDiscordTimestamp(timestamp: string): string {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   
-  // Format time in Asia/Jakarta
-  const timeStr = date.toLocaleTimeString('id-ID', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Jakarta'
-  });
+  // Format time manually to ensure HH:MM:SS format with colons
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  const timeStr = `${hours}:${minutes}:${seconds}`;
   
   // Today - show only time
   if (messageDate.getTime() === today.getTime()) {
@@ -163,24 +162,22 @@ function formatDiscordTimestamp(timestamp: string): string {
   return `${dateStr} pukul ${timeStr}`;
 }
 
-// Format tooltip timestamp (full datetime with Asia/Jakarta timezone)
+// Format tooltip timestamp (full datetime)
 function formatTooltipTimestamp(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
   if (isNaN(date.getTime())) return '';
   
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  
   return date.toLocaleDateString('id-ID', { 
     weekday: 'long',
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric',
-    timeZone: 'Asia/Jakarta'
-  }) + ' pukul ' + date.toLocaleTimeString('id-ID', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Jakarta'
-  });
+    year: 'numeric'
+  }) + ' pukul ' + `${hours}:${minutes}:${seconds}`;
 }
 
 function formatDate(timestamp: string): string {
@@ -228,6 +225,58 @@ function formatDate(timestamp: string): string {
   });
 }
 
+// Welcome Message Component
+interface WelcomeMessageProps {
+  message: Message;
+  onWave: () => void;
+}
+
+function WelcomeMessage({ message, onWave }: WelcomeMessageProps) {
+  const timestamp = message.timestamp || (message as any).createdAt;
+  const newMember = message.newMember;
+  
+  return (
+    <div className="flex flex-col items-center my-4 px-4">
+      {/* Join announcement */}
+      <div className="flex items-center gap-2 text-[#96989d] text-sm">
+        <span className="text-[#3ba55d]">→</span>
+        <span>Everyone welcome</span>
+        <span 
+          className="font-semibold cursor-pointer hover:underline"
+          style={{ color: newMember?.role_color || '#faa61a' }}
+        >
+          {newMember?.displayName || newMember?.username || 'New Member'}
+        </span>
+        <span className="text-[#72767d] text-xs">
+          {new Date(timestamp).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'numeric', 
+            day: 'numeric' 
+          })}
+        </span>
+        <span className="text-[#72767d] text-xs">
+          {(() => {
+            const d = new Date(timestamp);
+            const h = d.getHours().toString().padStart(2, '0');
+            const m = d.getMinutes().toString().padStart(2, '0');
+            const s = d.getSeconds().toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+          })()}
+        </span>
+      </div>
+      
+      {/* Wave button */}
+      <button
+        onClick={onWave}
+        className="mt-2 flex items-center gap-2 px-3 py-2 bg-[#2f3136] hover:bg-[#36393f] border border-[#40444b] rounded-md transition-colors group"
+      >
+        <span className="text-xl">👋</span>
+        <span className="text-[#b9bbbe] text-sm group-hover:text-white">Wave to say hi!</span>
+      </button>
+    </div>
+  );
+}
+
 function groupMessagesByDate(messages: Message[]): { date: string; messages: Message[] }[] {
   const groups: { [key: string]: Message[] } = {};
   
@@ -272,6 +321,7 @@ interface MessageItemProps {
   isMobile?: boolean;
   avatarVersion?: number;
   userMap?: Map<string, string>;
+  serverId?: string | null;
   // Edit mode props
   isEditing?: boolean;
   editContent?: string;
@@ -282,7 +332,7 @@ interface MessageItemProps {
 }
 
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, isMobile = false, avatarVersion = 0, userMap = new Map(), isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
 
   const [showActions, setShowActions] = useState(false);
   
@@ -329,6 +379,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   const canEdit = isOwnMessage;
 
   const handleReaction = (emoji: string) => {
+    console.log('📦 MessageItem.handleReaction called:', message.id, emoji);
     onReaction(message.id, emoji);
   };
 
@@ -383,7 +434,8 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           <div className="flex items-center gap-2 mb-0.5">
             <button 
               onClick={() => onUserClick?.(message.userId)}
-              className="text-white font-medium hover:underline cursor-pointer text-sm bg-transparent border-none p-0"
+              className="font-bold hover:underline cursor-pointer text-sm bg-transparent border-none p-0"
+              style={{ color: message.user?.role_color || '#dcddde' }}
             >
               {isOwnMessage 
                 ? (currentUser?.displayName || currentUser?.username || 'You')
@@ -424,7 +476,12 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     {(message.replyTo.user?.displayName || message.replyTo.user?.username || 'U')[0].toUpperCase()}
                   </div>
                 )}
-                <span className="text-[#5865f2] font-medium">{message.replyTo.user?.displayName || message.replyTo.user?.username}</span>
+                <span 
+                  className="font-medium"
+                  style={{ color: message.replyTo.user?.role_color || '#5865f2' }}
+                >
+                  {message.replyTo.user?.displayName || message.replyTo.user?.username}
+                </span>
               </div>
               <p className="text-[#b9bbbe] text-xs mt-0.5 truncate">
                 {message.replyTo.content}
@@ -472,7 +529,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             </div>
           </div>
         ) : (
-          <MessageContent content={message.content} />
+          <MessageContent content={message.content} serverId={serverId || undefined} />
         )}
         
         {/* Attachments */}
@@ -540,7 +597,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         
         {/* Reactions */}
         {message.reactions && message.reactions.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             {message.reactions.map((reaction, index) => {
               const hasReacted = reaction.users?.includes(currentUser?.id || '');
               const count = reaction.count || reaction.users?.length || 0;
@@ -568,20 +625,24 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                   usernames={getUsernames()}
                 >
                   <button
-                    onClick={() => handleReaction(reaction.emoji)}
-                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-sm transition-all ${
+                    onClick={(e) => {
+                      console.log('👆 Reaction button clicked:', reaction.emoji, 'on message:', message.id);
+                      e.stopPropagation();
+                      handleReaction(reaction.emoji);
+                    }}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-sm transition-all ${
                       hasReacted
                         ? 'bg-[#5865f2]/20 border border-[#5865f2] hover:bg-[#5865f2]/30'
                         : 'bg-[#2f3136] border border-[#40444b] hover:border-[#5865f2]/50 hover:bg-[#40444b]'
                     }`}
                   >
                     <span 
-                      className="text-base leading-none"
+                      className="text-lg leading-none"
                       style={{ fontFamily: '"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", sans-serif' }}
                     >
                       {reaction.emoji}
                     </span>
-                    <span className={`text-xs font-semibold ${hasReacted ? 'text-[#5865f2]' : 'text-[#b9bbbe]'}`}>
+                    <span className={`text-sm font-semibold ${hasReacted ? 'text-[#5865f2]' : 'text-[#b9bbbe]'}`}>
                       {count}
                     </span>
                   </button>
@@ -646,7 +707,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [] }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [], onReaction }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -955,38 +1016,29 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
 
   const handleReaction = async (messageId: string, emoji: string) => {
-    console.log('handleReaction called:', messageId, emoji);
-    const token = localStorage.getItem('token');
+    console.log('🔥 ChatArea.handleReaction called:', messageId, emoji);
+    console.log('🔥 Available messages:', messages.length);
+    console.log('🔥 onReaction callback exists:', !!onReaction);
+    
     const message = messages.find(m => m.id === messageId);
     if (!message) {
-      console.log('Message not found:', messageId);
+      console.log('❌ Message not found:', messageId);
       return;
     }
     
     const hasReacted = message.reactions?.some(r => 
       r.emoji === emoji && r.users.includes(currentUser?.id || '')
-    );
+    ) ?? false;
     
-    try {
-      const response = await fetch(`${API_URL}/messages/${messageId}/reactions`, {
-        method: hasReacted ? 'DELETE' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ emoji }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Reaction success:', data);
-        // Refresh messages to show updated reactions
-        onRefresh?.();
-      } else {
-        console.error('Reaction failed:', response.status);
-      }
-    } catch (error) {
-      console.error('Failed to add reaction:', error);
+    console.log('🔥 Has reacted:', hasReacted);
+    console.log('🔥 Message reactions:', message.reactions);
+    
+    // Optimistic update - notify parent component (ChatLayout handles API call)
+    console.log('🎨 Calling onReaction prop:', messageId, emoji, hasReacted);
+    if (onReaction) {
+      onReaction(messageId, emoji, hasReacted);
+    } else {
+      console.log('❌ onReaction prop is missing!');
     }
   };
 
@@ -1205,7 +1257,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-white">{msg.user?.displayName || msg.user?.username}</span>
+                      <span 
+                        className="font-medium"
+                        style={{ color: msg.user?.role_color || '#dcddde' }}
+                      >
+                        {msg.user?.displayName || msg.user?.username}
+                      </span>
                       <span 
                         className="text-xs text-[#72767d] cursor-default hover:underline"
                         title={formatTooltipTimestamp(msg.timestamp || (msg as any).createdAt)}
@@ -1273,6 +1330,17 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                     // Compact mode: reduce spacing for same user messages
                     const compactClass = isSameUser ? 'mt-0.5' : 'mt-4';
 
+                    // Render welcome message for system messages
+                    if (message.isSystem || message.type === 'system') {
+                      return (
+                        <WelcomeMessage
+                          key={message.id}
+                          message={message}
+                          onWave={() => handleReaction(message.id, '👋')}
+                        />
+                      );
+                    }
+
                     return (
                       <div key={message.id} className={`relative ${compactClass}`}>
                         <MessageItem
@@ -1292,6 +1360,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           isMobile={isMobile}
                           avatarVersion={avatarVersion}
                           userMap={userMap}
+                          serverId={serverId}
                           isEditing={editingMessageId === message.id}
                           editContent={editContent}
                           onEditContentChange={setEditContent}

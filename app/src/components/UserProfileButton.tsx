@@ -151,7 +151,7 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
 
         {/* User Info */}
         <div className="flex-1 text-left min-w-0">
-          <p className="text-white font-semibold text-sm truncate">{user.displayName || user.username}</p>
+          <p className="text-white font-bold text-sm truncate">{user.displayName || user.username}</p>
           <p className="text-[#b9bbbe] text-xs truncate">Online</p>
         </div>
 

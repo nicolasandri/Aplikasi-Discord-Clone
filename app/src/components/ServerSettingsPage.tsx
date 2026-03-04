@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Settings, Shield, Users, UserPlus, UserX, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck } from 'lucide-react';
+import { ServerRoles } from './ServerRoles';
+import { DaftarNamaStaff } from './DaftarNamaStaff';
 import type { Server, ServerMember } from '@/types';
 import {
   AlertDialog,
@@ -393,106 +395,11 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
           )}
 
           {activeTab === 'roles' && (
-            <div className="max-w-2xl text-center py-12 text-[#949ba4]">
-              <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Fitur Roles sedang dalam pengembangan.</p>
-            </div>
+            <ServerRoles serverId={server.id} isOwner={isOwner} />
           )}
 
           {activeTab === 'members' && (
-            <div className="max-w-2xl">
-              <h3 className="text-white font-semibold mb-4">Members ({members.length})</h3>
-              <div className="space-y-2">
-                {members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between gap-3 bg-[#1e1f22] p-3 rounded group">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={member.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`}
-                        alt={member.username}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div>
-                        <div className="text-white font-medium flex items-center gap-2">
-                          {member.displayName || member.username}
-                          {member.role === 'owner' && <Crown className="w-4 h-4 text-[#ffd700]" />}
-                          {member.role === 'admin' && <ShieldCheck className="w-4 h-4 text-[#ed4245]" />}
-                        </div>
-                        <div className="text-[#949ba4] text-sm capitalize">{member.role}</div>
-                      </div>
-                    </div>
-                    
-                    {/* Menu button - only show for owner and not self */}
-                    {isOwner && member.id !== currentUserId && (
-                      <div className="relative">
-                        <button
-                          onClick={() => setMenuOpen(menuOpen === member.id ? null : member.id)}
-                          className="p-2 hover:bg-[#2f3136] rounded text-[#949ba4] hover:text-white transition-colors"
-                          title="Transfer Ownership"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                        
-                        {menuOpen === member.id && (
-                          <>
-                            {/* Backdrop to close menu */}
-                            <div 
-                              className="fixed inset-0 z-40" 
-                              onClick={() => setMenuOpen(null)}
-                            />
-                            <div className="absolute right-0 top-full mt-1 w-56 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136]">
-                              <button
-                                onClick={() => { setTransferConfirmOpen(member.id); setMenuOpen(null); }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-[#ffd700] hover:bg-[#ffd700] hover:text-black text-sm"
-                              >
-                                <KeyRound className="w-4 h-4" />
-                                Transfer Ownership
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Transfer Ownership Confirmation Dialog */}
-              <AlertDialog open={!!transferConfirmOpen} onOpenChange={() => setTransferConfirmOpen(null)}>
-                <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-white flex items-center gap-2">
-                      <KeyRound className="w-5 h-5 text-[#ffd700]" />
-                      Transfer Server Ownership
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-[#b9bbbe]">
-                      Are you sure you want to transfer ownership of this server to{' '}
-                      <span className="text-white font-semibold">
-                        {members.find(m => m.id === transferConfirmOpen)?.displayName || 
-                         members.find(m => m.id === transferConfirmOpen)?.username}
-                      </span>?
-                      <br /><br />
-                      <span className="text-[#ed4245] font-medium">
-                        This action cannot be undone. You will lose owner privileges and become an admin instead.
-                      </span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel 
-                      className="bg-[#40444b] text-white border-[#40444b] hover:bg-[#35373c] hover:text-white"
-                      onClick={() => setTransferConfirmOpen(null)}
-                    >
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-[#ffd700] text-black hover:bg-[#e6c200]"
-                      onClick={() => transferConfirmOpen && handleTransferOwnership(transferConfirmOpen)}
-                    >
-                      Transfer Ownership
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            <DaftarNamaStaff serverId={server.id} />
           )}
 
           {activeTab === 'invites' && (

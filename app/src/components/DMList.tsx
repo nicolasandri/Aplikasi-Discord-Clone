@@ -164,9 +164,12 @@ export function DMList({
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     
-    // Less than 24 hours - show time
+    // Less than 24 hours - show time with seconds
     if (diff < 24 * 60 * 60 * 1000) {
-      return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const seconds = date.getSeconds().toString().padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
     }
     // Less than 7 days - show day name
     if (diff < 7 * 24 * 60 * 60 * 1000) {
@@ -261,7 +264,7 @@ export function DMList({
                 {/* Content */}
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex items-center justify-between">
-                    <span className={`font-medium text-sm truncate ${
+                    <span className={`font-bold text-sm truncate ${
                       (unreadCounts[channel.id] || 0) > 0 ? 'text-white' : ''
                     }`}>
                       {displayName}
@@ -275,7 +278,7 @@ export function DMList({
                   <div className="flex items-center justify-between">
                     <span className={`text-xs truncate ${
                       (unreadCounts[channel.id] || 0) > 0 
-                        ? 'text-white font-medium' 
+                        ? 'text-white font-semibold' 
                         : 'text-[#72767d]'
                     }`}>
                       {isGroup && channel.lastMessage && (

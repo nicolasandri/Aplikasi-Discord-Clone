@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Users, Shield, UserPlus, ScrollText, Ban, Settings, ChevronRight } from 'lucide-react';
-import { ServerMembers } from './ServerMembers';
+import { DaftarNamaStaff } from './DaftarNamaStaff';
 import { ServerInvites } from './ServerInvites';
 import { ServerAuditLog } from './ServerAuditLog';
 import type { Server } from '@/types';
@@ -302,7 +302,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
           </div>
         );
       case 'members':
-        return server ? <ServerMembers serverId={server.id} /> : null;
+        return server ? <DaftarNamaStaff serverId={server.id} /> : null;
       case 'roles':
         return (
           <div className="flex items-center justify-center h-64">

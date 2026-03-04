@@ -20,6 +20,7 @@ interface ChannelListProps {
   isMobile?: boolean;
   onClose?: () => void;
   isOwner?: boolean;
+  unreadCounts?: Record<string, { count: number; hasMention: boolean }>;
 }
 
 // Detect if running in Electron
@@ -30,7 +31,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, onLeaveServer, isMobile = false, onClose, isOwner: propIsOwner }: ChannelListProps) {
+export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, onLeaveServer, isMobile = false, onClose, isOwner: propIsOwner, unreadCounts = {} }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [uncategorizedChannels, setUncategorizedChannels] = useState<Channel[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -550,6 +551,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             onDeleteCategory={() => handleDeleteCategory(category.id)}
             onRenameCategory={() => setRenameCategory(category)}
             onDeleteChannel={handleDeleteChannel}
+            unreadCounts={unreadCounts}
           />
         ))}
 
@@ -589,47 +591,68 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
               )}
             </div>
             <div className="mt-0.5">
-              {uncategorizedChannels.map((channel) => (
-                <div
-                  key={channel.id}
-                  className={`group flex items-center gap-2 px-2 py-1.5 rounded ${
-                    selectedChannelId === channel.id
-                      ? 'bg-[#40444b] text-white'
-                      : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
-                  }`}
-                >
-                  <button
-                    onClick={() => {
-                      onSelectChannel(channel.id);
-                      if (isMobile) onClose?.();
-                    }}
-                    className="flex-1 flex items-center gap-2 min-w-0"
+              {uncategorizedChannels.map((channel) => {
+                const unread = unreadCounts[channel.id];
+                const hasUnread = unread && unread.count > 0;
+                const hasMention = unread?.hasMention;
+                
+                return (
+                  <div
+                    key={channel.id}
+                    className={`group flex items-center gap-2 px-2 py-1.5 rounded ${
+                      selectedChannelId === channel.id
+                        ? 'bg-[#40444b] text-white'
+                        : hasUnread 
+                          ? 'bg-[#2f3136] text-white'
+                          : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
+                    }`}
                   >
-                    {channel.type === 'voice' ? (
-                      <Volume2 className="w-4 h-4 text-[#72767d]" />
-                    ) : (
-                      <Hash className="w-4 h-4 text-[#72767d]" />
-                    )}
-                    <span className="text-sm truncate">{channel.name}</span>
-                  </button>
-                  
-                  {/* Delete Channel Button (hover) */}
-                  {canManage && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Hapus channel "#${channel.name}"?`)) {
-                          handleDeleteChannel(channel.id);
-                        }
+                      onClick={() => {
+                        onSelectChannel(channel.id);
+                        if (isMobile) onClose?.();
                       }}
-                      className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Hapus Channel"
+                      className="flex-1 flex items-center gap-2 min-w-0"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      {channel.type === 'voice' ? (
+                        <Volume2 className="w-4 h-4 text-[#72767d]" />
+                      ) : (
+                        <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#72767d]'}`} />
+                      )}
+                      <span className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : ''}`}>
+                        {channel.name}
+                      </span>
+                      
+                      {/* Unread badge */}
+                      {hasUnread && (
+                        <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                          hasMention 
+                            ? 'bg-[#ed4245] text-white' 
+                            : 'bg-[#b9bbbe] text-[#2f3136]'
+                        }`}>
+                          {unread.count > 99 ? '99+' : unread.count}
+                        </span>
+                      )}
                     </button>
-                  )}
-                </div>
-              ))}
+                    
+                    {/* Delete Channel Button (hover) */}
+                    {canManage && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Hapus channel "#${channel.name}"?`)) {
+                            handleDeleteChannel(channel.id);
+                          }
+                        }}
+                        className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Hapus Channel"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

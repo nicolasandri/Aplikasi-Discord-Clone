@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Search, Loader2, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface GIF {
@@ -171,7 +170,8 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[400px] h-[500px] p-0 bg-[#2f3136] border-[#202225]" 
+        className="w-[400px] p-0 bg-[#2f3136] border-[#202225]" 
+        style={{ height: '500px', maxHeight: '500px' }}
         align="end"
         side="top"
       >
@@ -215,8 +215,14 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
             </div>
           )}
 
-          {/* Content */}
-          <ScrollArea className="flex-1 p-4">
+          {/* Content - Scrollable area */}
+          <div 
+            className="flex-1 overflow-y-auto p-4 gif-picker-scroll"
+            style={{ 
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#40444b transparent'
+            }}
+          >
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-8 h-8 text-[#5865f2] animate-spin" />
@@ -248,7 +254,7 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Footer - API Info */}
           {useMockData && (

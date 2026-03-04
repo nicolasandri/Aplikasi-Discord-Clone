@@ -24,6 +24,187 @@ function formatDateTime(date) {
   return date.toISOString();
 }
 
+// Helper function to convert mention tags to readable text for notifications
+async function formatMentionsForNotification(content, serverId = null) {
+  if (!content) return '';
+  
+  let formatted = content;
+  
+  // Replace user mentions: <@userId> -> @username
+  const userMentionRegex = /<@([a-f0-9-]+)>/g;
+  let match;
+  while ((match = userMentionRegex.exec(content)) !== null) {
+    const userId = match[1];
+    try {
+      const user = await userDB.findById(userId);
+      if (user) {
+        formatted = formatted.replace(match[0], `@${user.display_name || user.username}`);
+      } else {
+        formatted = formatted.replace(match[0], '@Unknown User');
+      }
+    } catch (err) {
+      formatted = formatted.replace(match[0], '@Unknown User');
+    }
+  }
+  
+  // Replace role mentions: <@&roleId> -> @roleName (if serverId provided)
+  if (serverId) {
+    const roleMentionRegex = /<@&([a-f0-9-]+)>/g;
+    while ((match = roleMentionRegex.exec(content)) !== null) {
+      const roleId = match[1];
+      try {
+        const roles = await roleDB.getByServer(serverId);
+        const role = roles.find(r => r.id === roleId);
+        if (role) {
+          formatted = formatted.replace(match[0], `@${role.name}`);
+        } else {
+          formatted = formatted.replace(match[0], '@Unknown Role');
+        }
+      } catch (err) {
+        formatted = formatted.replace(match[0], '@Unknown Role');
+      }
+    }
+  }
+  
+  // Replace @everyone mention: <@everyone> -> @everyone
+  formatted = formatted.replace(/<@everyone>/g, '@everyone');
+  
+  // Replace @here mention: <@here> -> @here
+  formatted = formatted.replace(/<@here>/g, '@here');
+  
+  return formatted;
+}
+
+// Helper function to send mention notifications
+async function sendMentionNotifications(content, senderId, serverId, channelId, channelName, senderName) {
+  if (!content || !pushService.isConfigured()) return;
+  
+  console.log('📱 Checking for mentions in message...');
+  
+  // Find user mentions: <@userId>
+  const userMentionRegex = /<@([a-f0-9-]+)>/g;
+  let match;
+  const mentionedUserIds = new Set();
+  
+  while ((match = userMentionRegex.exec(content)) !== null) {
+    const userId = match[1];
+    if (userId !== senderId) { // Don't notify sender
+      mentionedUserIds.add(userId);
+    }
+  }
+  
+  // Find role mentions: <@&roleId>
+  const roleMentionRegex = /<@&([a-f0-9-]+)>/g;
+  const mentionedRoleIds = new Set();
+  
+  while ((match = roleMentionRegex.exec(content)) !== null) {
+    mentionedRoleIds.add(match[1]);
+  }
+  
+  // Check for @everyone and @here mentions
+  const hasEveryoneMention = content.includes('<@everyone>');
+  const hasHereMention = content.includes('<@here>');
+  
+  console.log('📱 Mentioned users:', [...mentionedUserIds]);
+  console.log('📱 Mentioned roles:', [...mentionedRoleIds]);
+  console.log('📱 @everyone mention:', hasEveryoneMention);
+  console.log('📱 @here mention:', hasHereMention);
+  
+  // Get server members
+  const members = await serverDB.getMembers(serverId);
+  
+  // Send notification to mentioned users
+  for (const userId of mentionedUserIds) {
+    const member = members.find(m => m.id === userId);
+    if (member) {
+      const formattedContent = await formatMentionsForNotification(content, serverId);
+      console.log('📱 Sending mention notification to user:', userId);
+      try {
+        await pushService.sendMentionNotification(
+          userId,
+          senderName,
+          channelName,
+          formattedContent,
+          `/channels/${channelId}`
+        );
+        console.log('📱 Mention notification sent to:', userId);
+      } catch (err) {
+        console.error('📱 Failed to send mention notification:', err);
+      }
+    }
+  }
+  
+  // Send notification to users with mentioned roles
+  for (const roleId of mentionedRoleIds) {
+    const roleMembers = members.filter(m => m.role_id === roleId);
+    for (const member of roleMembers) {
+      if (member.id !== senderId && !mentionedUserIds.has(member.id)) {
+        const formattedContent = await formatMentionsForNotification(content, serverId);
+        console.log('📱 Sending role mention notification to user:', member.id);
+        try {
+          await pushService.sendMentionNotification(
+            member.id,
+            senderName,
+            channelName,
+            formattedContent,
+            `/channels/${channelId}`
+          );
+          console.log('📱 Role mention notification sent to:', member.id);
+        } catch (err) {
+          console.error('📱 Failed to send role mention notification:', err);
+        }
+      }
+    }
+  }
+  
+  // Send notification to all server members for @everyone
+  if (hasEveryoneMention) {
+    console.log('📱 Sending @everyone notification to all server members');
+    for (const member of members) {
+      if (member.id !== senderId && !mentionedUserIds.has(member.id)) {
+        const formattedContent = await formatMentionsForNotification(content, serverId);
+        console.log('📱 Sending @everyone notification to user:', member.id);
+        try {
+          await pushService.sendMentionNotification(
+            member.id,
+            senderName,
+            channelName,
+            formattedContent,
+            `/channels/${channelId}`
+          );
+          console.log('📱 @everyone notification sent to:', member.id);
+        } catch (err) {
+          console.error('📱 Failed to send @everyone notification:', err);
+        }
+      }
+    }
+  }
+  
+  // Send notification to online server members for @here
+  // For now, @here behaves like @everyone (all members) since we don't have precise online tracking
+  if (hasHereMention) {
+    console.log('📱 Sending @here notification to server members');
+    for (const member of members) {
+      if (member.id !== senderId && !mentionedUserIds.has(member.id)) {
+        const formattedContent = await formatMentionsForNotification(content, serverId);
+        console.log('📱 Sending @here notification to user:', member.id);
+        try {
+          await pushService.sendMentionNotification(
+            member.id,
+            senderName,
+            channelName,
+            formattedContent,
+            `/channels/${channelId}`
+          );
+          console.log('📱 @here notification sent to:', member.id);
+        } catch (err) {
+          console.error('📱 Failed to send @here notification:', err);
+        }
+      }
+    }
+  }
+}
+
 // Database selection: SQLite or PostgreSQL
 const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
 const dbModule = usePostgres ? require('./database-postgres') : require('./database');
@@ -88,6 +269,19 @@ if (!JWT_SECRET) {
 // Initialize database
 initDatabase();
 
+// Reset all users status to offline on server start
+async function resetAllUsersStatus() {
+  try {
+    await userDB.resetAllStatus();
+    console.log('🔄 All users status reset to offline');
+  } catch (error) {
+    console.error('Error resetting user statuses:', error);
+  }
+}
+
+// Call reset status on startup
+resetAllUsersStatus();
+
 // Seed data
 async function seedData() {
   const admin = await userDB.findByEmail('admin@workgrid.com');
@@ -146,7 +340,11 @@ const authLimiter = rateLimit({
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: isDev ? 1000 : 100, // Development: 1000, Production: 100
-  message: { error: 'Too many requests. Please slow down.' }
+  message: { error: 'Too many requests. Please slow down.' },
+  skip: (req) => {
+    // Skip rate limiting for /api/users/me (token verification)
+    return req.path === '/users/me';
+  }
 });
 
 app.use('/api/', apiLimiter);
@@ -643,7 +841,7 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Server not found' });
     }
     
-    // Check if user is owner or admin
+    // Check if user has MANAGE_SERVER permission
     const members = await serverDB.getMembers(serverId);
     const member = members.find(m => m.id === userId);
     
@@ -651,7 +849,8 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'You are not a member of this server' });
     }
     
-    if (member.role !== 'owner' && member.role !== 'admin') {
+    const hasManagePermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
+    if (!hasManagePermission && member.role !== 'owner' && member.role !== 'admin') {
       return res.status(403).json({ error: 'Only owner or admin can update server' });
     }
     
@@ -1099,6 +1298,153 @@ app.delete('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req
   } catch (error) {
     console.error('Delete role error:', error);
     res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
+// Assign custom role to member
+app.put('/api/servers/:serverId/members/:userId/custom-role', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const { roleId } = req.body;
+    const requesterId = req.userId;
+    
+    if (!roleId) {
+      return res.status(400).json({ error: 'roleId is required' });
+    }
+    
+    // Check if requester has permission to manage roles
+    const hasPermission = await permissionDB.hasPermission(requesterId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Check if role exists and belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Assign role to member
+    await roleDB.assignRole(serverId, userId, roleId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Assign role error:', error);
+    res.status(500).json({ error: 'Failed to assign role' });
+  }
+});
+
+// ==================== MESSAGE REACTION ROUTES ====================
+
+// Add reaction to message
+app.post('/api/messages/:messageId/reactions', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.userId;
+    
+    if (!emoji) {
+      return res.status(400).json({ error: 'Emoji is required' });
+    }
+    
+    // Check if message exists
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Add reaction
+    await reactionDB.add(messageId, userId, emoji);
+    
+    // Get updated reactions
+    const reactions = await reactionDB.getGroupedByMessage(messageId);
+    
+    // Broadcast to channel
+    console.log('📡 Server: Broadcasting reaction_added to channel:', message.channel_id, 'Message:', messageId);
+    console.log('📡 Server: Reactions:', JSON.stringify(reactions));
+    io.to(message.channel_id).emit('reaction_added', { messageId, reactions });
+    
+    // Send notification to message owner (if not self)
+    if (message.userId !== userId) {
+      try {
+        // Get reactor info
+        const reactor = await userDB.findById(userId);
+        // Get channel info
+        const channel = await channelDB.getById(message.channel_id);
+        
+        if (reactor && channel && pushService.isConfigured()) {
+          await pushService.sendReactionNotification(
+            message.userId,
+            reactor.display_name || reactor.username,
+            emoji,
+            channel.name,
+            `/channels/${message.channel_id}?message=${messageId}`
+          );
+        }
+      } catch (notifError) {
+        console.error('Failed to send reaction notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
+    
+    res.json({ success: true, reactions });
+  } catch (error) {
+    console.error('Add reaction error:', error);
+    res.status(500).json({ error: 'Failed to add reaction' });
+  }
+});
+
+// Remove reaction from message
+app.delete('/api/messages/:messageId/reactions', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.userId;
+    
+    if (!emoji) {
+      return res.status(400).json({ error: 'Emoji is required' });
+    }
+    
+    // Check if message exists
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Remove reaction
+    await reactionDB.remove(messageId, userId, emoji);
+    
+    // Get updated reactions
+    const reactions = await reactionDB.getGroupedByMessage(messageId);
+    
+    // Broadcast to channel
+    io.to(message.channel_id).emit('reaction_removed', { messageId, reactions });
+    
+    res.json({ success: true, reactions });
+  } catch (error) {
+    console.error('Remove reaction error:', error);
+    res.status(500).json({ error: 'Failed to remove reaction' });
+  }
+});
+
+// Get reactions for a message
+app.get('/api/messages/:messageId/reactions', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    
+    // Check if message exists
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Get reactions
+    const reactions = await reactionDB.getGroupedByMessage(messageId);
+    
+    res.json(reactions);
+  } catch (error) {
+    console.error('Get reactions error:', error);
+    res.status(500).json({ error: 'Failed to get reactions' });
   }
 });
 
@@ -1776,6 +2122,17 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     // Emit socket event
     io.to(channelId).emit('new_message', message);
     
+    // Send mention notifications (async, don't block response)
+    const sender = await userDB.findById(req.userId);
+    sendMentionNotifications(
+      content,
+      req.userId,
+      channel.server_id,
+      channelId,
+      channel.name,
+      sender.display_name || sender.username
+    ).catch(err => console.error('📱 Error sending mention notifications:', err));
+    
     res.status(201).json(message);
   } catch (error) {
     console.error('Send message error:', error);
@@ -1911,12 +2268,23 @@ app.post('/api/dm/channels/:channelId/messages', authenticateToken, async (req, 
         });
       } else if (pushService.isConfigured()) {
         // Send push notification if recipient is offline
-        await pushService.sendDMNotification(
-          member.id,
-          sender.username,
-          content || 'Sent an attachment',
-          `/dm/${channelId}`
-        );
+        // Format mentions to readable text
+        console.log('📱 Sending push notification to:', member.id);
+        const formattedContent = await formatMentionsForNotification(content || 'Sent an attachment');
+        console.log('📱 Formatted content:', formattedContent);
+        try {
+          await pushService.sendDMNotification(
+            member.id,
+            sender.username,
+            formattedContent,
+            `/dm/${channelId}`
+          );
+          console.log('📱 Push notification sent successfully');
+        } catch (notifError) {
+          console.error('📱 Failed to send push notification:', notifError);
+        }
+      } else {
+        console.log('📱 Push service not configured, skipping notification');
       }
     }
     
@@ -1950,6 +2318,41 @@ app.get('/api/dm/unread-count', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Get unread count error:', error);
     res.status(500).json({ error: 'Failed to get unread count' });
+  }
+});
+
+// Get unread count for all channels in a server
+app.get('/api/servers/:serverId/unread-count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { serverId } = req.params;
+    
+    // Verify user is member of this server
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Not a member of this server' });
+    }
+    
+    const unreadCounts = await messageDB.getUnreadCountForAllChannels(userId, serverId);
+    res.json({ unreadCounts });
+  } catch (error) {
+    console.error('Get server unread count error:', error);
+    res.status(500).json({ error: 'Failed to get unread count' });
+  }
+});
+
+// Mark channel as read
+app.post('/api/channels/:channelId/read', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { channelId } = req.params;
+    const { messageId } = req.body;
+    
+    await messageDB.updateReadStatus(userId, channelId, messageId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark channel as read error:', error);
+    res.status(500).json({ error: 'Failed to mark as read' });
   }
 });
 
@@ -2214,11 +2617,43 @@ app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
     // Get user info for notification
     const user = await userDB.findById(userId);
     
+    // Create welcome message in "selamat-datang" channel
+    try {
+      const channels = await channelDB.getByServerId(invite.server_id);
+      const welcomeChannel = channels.find(ch => ch.name === 'selamat-datang') || channels[0];
+      
+      if (welcomeChannel) {
+        const welcomeMessage = await messageDB.create(
+          welcomeChannel.id,
+          null, // system message has no user
+          `Selamat datang ${user.display_name || user.username}! 👋`,
+          null,
+          'system' // message type
+        );
+        
+        // Broadcast welcome message
+        io.to(welcomeChannel.id).emit('new_message', {
+          ...welcomeMessage,
+          isSystem: true,
+          newMember: {
+            id: userId,
+            username: user.username,
+            displayName: user.display_name,
+            avatar: user.avatar
+          }
+        });
+      }
+    } catch (welcomeError) {
+      console.error('Failed to create welcome message:', welcomeError);
+      // Don't fail the join if welcome message fails
+    }
+    
     // Notify server members via socket
     io.to(invite.server_id).emit('member_joined', {
       userId,
       serverId: invite.server_id,
       username: user.username,
+      displayName: user.display_name,
       avatar: user.avatar
     });
     
@@ -2469,6 +2904,22 @@ io.on('connection', (socket) => {
       socket.userId = decoded.id;
       socket.emit('authenticated', { success: true, userId: decoded.id });
       log('✅ Socket authenticated:', socket.id, 'User:', decoded.id);
+      
+      // Update user status to online and broadcast
+      try {
+        await userDB.updateProfile(decoded.id, { status: 'online' });
+        const user = await userDB.findById(decoded.id);
+        if (user) {
+          io.emit('user_status_changed', {
+            userId: decoded.id,
+            status: 'online',
+            username: user.username
+          });
+          log('🟢 User status changed to online:', decoded.id);
+        }
+      } catch (statusError) {
+        console.error('Error updating user status on connect:', statusError);
+      }
     } catch (error) {
       socket.emit('auth_error', { error: 'Invalid token' });
       log('❌ Socket authentication failed:', socket.id);
@@ -2660,8 +3111,38 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     log('👋 Client disconnected:', socket.id);
+    
+    // Handle user status change on disconnect
+    const userId = socket.userId;
+    if (userId) {
+      // Wait a moment to check if user has other active sockets
+      setTimeout(async () => {
+        const userStillOnline = Array.from(io.sockets.sockets.values()).some(s => s.userId === userId);
+        
+        if (!userStillOnline) {
+          // User has no more active connections, set status to offline
+          try {
+            await userDB.updateProfile(userId, { status: 'offline' });
+            
+            // Get user info for broadcast
+            const user = await userDB.findById(userId);
+            if (user) {
+              // Broadcast status change to all connected clients
+              io.emit('user_status_changed', { 
+                userId, 
+                status: 'offline',
+                username: user.username 
+              });
+              log('📴 User status changed to offline:', userId);
+            }
+          } catch (error) {
+            console.error('Error updating user status on disconnect:', error);
+          }
+        }
+      }, 2000); // Wait 2 seconds to allow for reconnects
+    }
   });
 });
 

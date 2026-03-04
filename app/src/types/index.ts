@@ -5,6 +5,7 @@ export interface User {
   avatar: string;
   status: 'online' | 'offline' | 'idle' | 'dnd';
   displayName?: string;
+  role_color?: string; // Optional role color for message display
 }
 
 export interface Server {
@@ -68,6 +69,15 @@ export interface Message {
   reactions?: Reaction[];
   editedAt?: string;
   attachments?: FileAttachment[];
+  type?: 'user' | 'system';
+  isSystem?: boolean;
+  newMember?: {
+    id: string;
+    username: string;
+    displayName?: string;
+    avatar?: string;
+    role_color?: string;
+  };
 }
 
 export interface ServerMember extends User {

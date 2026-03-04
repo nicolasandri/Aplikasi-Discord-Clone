@@ -423,3 +423,38 @@
 .tippy-arrow {
   color: #2B2D31;
 }
+/* GIF Picker scrollbar styling */
+.gif-picker-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gif-picker-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gif-picker-scroll::-webkit-scrollbar-thumb {
+  background: #40444b;
+  border-radius: 4px;
+}
+
+.gif-picker-scroll::-webkit-scrollbar-thumb:hover {
+  background: #4f545c;
+}
+
+/* Member Profile Popup scrollbar styling */
+.member-profile-popup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.member-profile-popup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.member-profile-popup::-webkit-scrollbar-thumb {
+  background: #2b2d31;
+  border-radius: 3px;
+}
+
+.member-profile-popup::-webkit-scrollbar-thumb:hover {
+  background: #40444b;
+}

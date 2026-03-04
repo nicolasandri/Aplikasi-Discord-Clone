@@ -86,6 +86,10 @@ const RoleHierarchy = {
 const permissionDB = {
   // Check if user has a specific permission
   async hasPermission(userId, serverId, permission) {
+    // First check if user is owner
+    const isOwner = await this.isServerOwner(userId, serverId);
+    if (isOwner) return true;
+    
     const role = await this.getUserRole(userId, serverId);
     if (!role) return false;
     
@@ -123,6 +127,10 @@ const permissionDB = {
 
   // Get all permissions for a user in a server
   async getUserPermissions(userId, serverId) {
+    // Owner has all permissions
+    const isOwner = await this.isServerOwner(userId, serverId);
+    if (isOwner) return RolePermissions.owner;
+    
     const role = await this.getUserRole(userId, serverId);
     if (!role) return 0;
     return RolePermissions[role] || 0;
@@ -540,6 +548,18 @@ function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
 
+    // Channel Read Status table for tracking last read message per user per channel
+    db.run(`CREATE TABLE IF NOT EXISTS channel_read_status (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      last_read_message_id TEXT,
+      last_read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (channel_id) REFERENCES channels(id),
+      UNIQUE(user_id, channel_id)
+    )`);
+
     console.log('✅ Database initialized');
     
     // Run migrations
@@ -714,6 +734,19 @@ const userDB = {
     return bcrypt.compare(password, hashedPassword);
   },
 
+  // Reset all users status to offline
+  async resetAllStatus() {
+    return new Promise((resolve, reject) => {
+      db.run(
+        "UPDATE users SET status = 'offline'",
+        function(err) {
+          if (err) reject(err);
+          else resolve(true);
+        }
+      );
+    });
+  },
+
   // Search users (for Bug #4 - replace direct db.all in server.js)
   async search(query, excludeUserId = null, serverId = null, limit = 20) {
     return new Promise((resolve, reject) => {
@@ -841,9 +874,17 @@ const serverDB = {
   async getMembers(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.display_name, u.avatar, u.status, sm.role, sm.role_id,
-                COALESCE(sr.name, sm.role) as role_name, 
-                COALESCE(sr.color, CASE 
+        `SELECT u.id, u.username, u.display_name, u.avatar, COALESCE(u.status, 'offline') as status, sm.role, sm.role_id,
+                COALESCE(NULLIF(sr.name, ''), 
+                  CASE sm.role
+                    WHEN 'owner' THEN 'Owner'
+                    WHEN 'admin' THEN 'Admin'
+                    WHEN 'moderator' THEN 'Moderator'
+                    WHEN 'custom' THEN 'Custom Role'
+                    ELSE 'Member'
+                  END
+                ) as role_name, 
+                COALESCE(NULLIF(sr.color, ''), CASE 
                   WHEN sm.role = 'owner' THEN '#ffd700'
                   WHEN sm.role = 'admin' THEN '#ed4245'
                   WHEN sm.role = 'moderator' THEN '#43b581'
@@ -879,8 +920,16 @@ const serverDB = {
       db.get(
         `SELECT u.id, u.username, u.display_name, u.avatar, u.status, u.email, u.created_at,
                 sm.role, sm.role_id, sm.joined_at, sm.join_method,
-                COALESCE(sr.name, sm.role) as role_name, 
-                COALESCE(sr.color, CASE 
+                COALESCE(NULLIF(sr.name, ''), 
+                  CASE sm.role
+                    WHEN 'owner' THEN 'Owner'
+                    WHEN 'admin' THEN 'Admin'
+                    WHEN 'moderator' THEN 'Moderator'
+                    WHEN 'custom' THEN 'Custom Role'
+                    ELSE 'Member'
+                  END
+                ) as role_name, 
+                COALESCE(NULLIF(sr.color, ''), CASE 
                   WHEN sm.role = 'owner' THEN '#ffd700'
                   WHEN sm.role = 'admin' THEN '#ed4245'
                   WHEN sm.role = 'moderator' THEN '#43b581'
@@ -1590,18 +1639,22 @@ const channelDB = {
 
 // Message operations
 const messageDB = {
-  async create(channelId, userId, content, replyToId = null, attachments = null) {
+  async create(channelId, userId, content, replyToId = null, attachments = null, type = 'user') {
     const id = uuidv4();
     const timestamp = getCurrentTimestamp();
+    
+    // For system messages, userId can be null
+    const actualUserId = type === 'system' ? (userId || 'system') : userId;
+    
     return new Promise((resolve, reject) => {
       db.run(
         'INSERT INTO messages (id, channel_id, user_id, content, reply_to_id, attachments, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [id, channelId, userId, content, replyToId, attachments ? JSON.stringify(attachments) : null, timestamp],
+        [id, channelId, actualUserId, content, replyToId, attachments ? JSON.stringify(attachments) : null, timestamp],
         async function(err) {
           if (err) reject(err);
           else {
             const message = await messageDB.getById(id);
-            resolve(message);
+            resolve({ ...message, type });
           }
         }
       );
@@ -1612,12 +1665,21 @@ const messageDB = {
     return new Promise((resolve, reject) => {
       db.get(
         `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+                c.server_id,
+                sm.role_id, sr.name as role_name, sr.color as role_color,
                 rm.id as reply_id, rm.content as reply_content,
-                ru.id as reply_user_id, ru.username as reply_username, ru.display_name as reply_display_name, ru.avatar as reply_user_avatar
+                ru.id as reply_user_id, ru.username as reply_username, ru.display_name as reply_display_name, ru.avatar as reply_user_avatar,
+                rsm.role_id as reply_role_id, rsr.name as reply_role_name, rsr.color as reply_role_color
          FROM messages m
          JOIN users u ON m.user_id = u.id
+         JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN server_members sm ON m.user_id = sm.user_id AND c.server_id = sm.server_id
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
          LEFT JOIN messages rm ON m.reply_to_id = rm.id
          LEFT JOIN users ru ON rm.user_id = ru.id
+         LEFT JOIN channels rc ON rm.channel_id = rc.id
+         LEFT JOIN server_members rsm ON rm.user_id = rsm.user_id AND rc.server_id = rsm.server_id
+         LEFT JOIN server_roles rsr ON rsm.role_id = rsr.id
          WHERE m.id = ?`,
         [id],
         (err, row) => {
@@ -1631,12 +1693,13 @@ const messageDB = {
                   row.attachments = [];
                 }
               }
-              // Format user object with displayName
+              // Format user object with displayName and role info
               row.user = {
                 id: row.user_id,
                 username: row.username,
                 displayName: row.display_name,
-                avatar: row.avatar
+                avatar: row.avatar,
+                role_color: row.role_color
               };
               // Format replyTo object if exists
               if (row.reply_to_id) {
@@ -1682,8 +1745,11 @@ const messageDB = {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+                c.server_id,
+                sm.role_id, sr.name as role_name, sr.color as role_color,
                 rm.id as reply_id, rm.content as reply_content,
                 ru.id as reply_user_id, ru.username as reply_username, ru.display_name as reply_display_name, ru.avatar as reply_user_avatar,
+                rsm.role_id as reply_role_id, rsr.name as reply_role_name, rsr.color as reply_role_color,
                 (SELECT GROUP_CONCAT(emoji || ':' || COUNT || ':' || user_ids, ';')
                  FROM (
                    SELECT emoji, COUNT(*) as COUNT, GROUP_CONCAT(user_id) as user_ids
@@ -1694,8 +1760,13 @@ const messageDB = {
                 ) as reactions_data
          FROM messages m
          JOIN users u ON m.user_id = u.id
+         JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN server_members sm ON m.user_id = sm.user_id AND c.server_id = sm.server_id
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
          LEFT JOIN messages rm ON m.reply_to_id = rm.id
          LEFT JOIN users ru ON rm.user_id = ru.id
+         LEFT JOIN server_members rsm ON rm.user_id = rsm.user_id AND c.server_id = rsm.server_id
+         LEFT JOIN server_roles rsr ON rsm.role_id = rsr.id
          WHERE m.channel_id = ?
          ORDER BY m.created_at DESC
          LIMIT ? OFFSET ?`,
@@ -1730,12 +1801,13 @@ const messageDB = {
               }
               delete row.reactions_data;
               
-              // Format user object with displayName
+              // Format user object with displayName and role info
               row.user = {
                 id: row.user_id,
                 username: row.username,
                 displayName: row.display_name,
-                avatar: row.avatar
+                avatar: row.avatar,
+                role_color: row.role_color
               };
               // Format replyTo object if exists
               if (row.reply_to_id) {
@@ -2050,6 +2122,85 @@ const messageDB = {
         if (err) reject(err);
         else resolve(row?.count || 0);
       });
+    });
+  },
+
+  // Channel Read Status operations
+  async updateReadStatus(userId, channelId, messageId) {
+    const id = uuidv4();
+    const timestamp = getCurrentTimestamp();
+    
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO channel_read_status (id, user_id, channel_id, last_read_message_id, last_read_at) 
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(user_id, channel_id) 
+         DO UPDATE SET last_read_message_id = excluded.last_read_message_id, last_read_at = excluded.last_read_at`,
+        [id, userId, channelId, messageId, timestamp],
+        function(err) {
+          if (err) reject(err);
+          else resolve(true);
+        }
+      );
+    });
+  },
+
+  async getUnreadCountForChannel(userId, channelId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COUNT(*) as count 
+         FROM messages m
+         JOIN channels c ON m.channel_id = c.id
+         JOIN server_members sm ON c.server_id = sm.server_id
+         WHERE m.channel_id = ? 
+           AND sm.user_id = ?
+           AND m.user_id != ?
+           AND m.created_at > IFNULL(
+             (SELECT last_read_at FROM channel_read_status 
+              WHERE user_id = ? AND channel_id = ?), 
+             datetime('1970-01-01')
+           )`,
+        [channelId, userId, userId, userId, channelId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row?.count || 0);
+        }
+      );
+    });
+  },
+
+  async getUnreadCountForAllChannels(userId, serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT c.id as channel_id, 
+                COUNT(m.id) as unread_count,
+                MAX(CASE WHEN m.content LIKE '%<@' || ? || '>%' THEN 1 ELSE 0 END) as has_mention
+         FROM channels c
+         JOIN server_members sm ON c.server_id = sm.server_id
+         LEFT JOIN messages m ON m.channel_id = c.id 
+           AND m.user_id != ?
+           AND m.created_at > IFNULL(
+             (SELECT last_read_at FROM channel_read_status 
+              WHERE user_id = ? AND channel_id = c.id), 
+             datetime('1970-01-01')
+           )
+         WHERE c.server_id = ? AND sm.user_id = ?
+         GROUP BY c.id`,
+        [userId, userId, userId, serverId, userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            const result = {};
+            rows.forEach(row => {
+              result[row.channel_id] = {
+                count: row.unread_count || 0,
+                hasMention: row.has_mention === 1
+              };
+            });
+            resolve(result);
+          }
+        }
+      );
     });
   }
 };

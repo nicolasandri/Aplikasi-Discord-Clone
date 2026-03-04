@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ServerList } from './ServerList';
 import { ChannelList } from './ChannelList';
 import { ChatArea } from './ChatArea';
@@ -48,6 +48,7 @@ export function ChatLayout() {
   const [mobileView, setMobileView] = useState<ViewMode>('chat');
   const [dmUnreadCounts, setDMUnreadCounts] = useState<Record<string, number>>({});
   const [totalDMUnread, setTotalDMUnread] = useState(0);
+  const [channelUnreadCounts, setChannelUnreadCounts] = useState<Record<string, { count: number; hasMention: boolean }>>({});
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
@@ -152,6 +153,7 @@ export function ChatLayout() {
   useEffect(() => {
     if (selectedServerId && viewMode === 'server') {
       fetchChannels(selectedServerId);
+      fetchChannelUnreadCount(selectedServerId);
     }
   }, [selectedServerId, viewMode]);
 
@@ -322,6 +324,42 @@ export function ChatLayout() {
     }
   };
 
+  // Fetch channel unread count for a server
+  const fetchChannelUnreadCount = async (serverId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/servers/${serverId}/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChannelUnreadCounts(data.unreadCounts || {});
+      }
+    } catch (error) {
+      console.error('Failed to fetch channel unread count:', error);
+    }
+  };
+
+  // Mark channel as read
+  const markChannelAsRead = async (channelId: string, messageId?: string) => {
+    try {
+      await fetch(`${API_URL}/channels/${channelId}/read`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ messageId }),
+      });
+      // Update local state
+      setChannelUnreadCounts(prev => ({
+        ...prev,
+        [channelId]: { count: 0, hasMention: false }
+      }));
+    } catch (error) {
+      console.error('Failed to mark channel as read:', error);
+    }
+  };
+
   // BUG-019: Socket Event Listeners Re-registration - Use ref pattern
   const dmHandlersRef = useRef({
     handleDMMessageReceived: (data: { channelId: string; sender?: any }) => {
@@ -417,6 +455,20 @@ export function ChatLayout() {
     const isOwnMessage = message.userId === user?.id;
     const isCurrentChannel = message.channelId === selectedChannelId;
     
+    // Update unread count for the channel
+    if (!isOwnMessage && !isCurrentChannel && selectedServerId) {
+      const hasMention = message.content?.includes(`<@${user?.id}>`) || 
+                         message.content?.includes('<@everyone>') || 
+                         message.content?.includes('<@here>');
+      setChannelUnreadCounts(prev => ({
+        ...prev,
+        [message.channelId]: {
+          count: (prev[message.channelId]?.count || 0) + 1,
+          hasMention: prev[message.channelId]?.hasMention || hasMention
+        }
+      }));
+    }
+    
     if (!isOwnMessage) {
       const shouldNotify = !isCurrentChannel || document.visibilityState === 'hidden';
       
@@ -448,13 +500,16 @@ export function ChatLayout() {
   }, [user?.id, selectedChannelId, channels, notify, viewMode]);
 
   const handleReactionUpdate = useCallback((data: { messageId: string; reactions: any[] }) => {
-    setMessages(prev => 
-      prev.map(msg => 
+    console.log('📡 Socket: handleReactionUpdate received:', data.messageId, data.reactions);
+    setMessages(prev => {
+      const msg = prev.find(m => m.id === data.messageId);
+      console.log('📡 Found message:', msg?.id, 'Current reactions:', msg?.reactions);
+      return prev.map(msg => 
         msg.id === data.messageId 
           ? { ...msg, reactions: data.reactions }
           : msg
-      )
-    );
+      );
+    });
   }, []);
 
   const handleMessageEdit = useCallback((message: Message) => {
@@ -471,6 +526,122 @@ export function ChatLayout() {
     setMessages(prev => prev.filter(msg => msg.id !== data.messageId));
   }, []);
 
+  // Handle member joined - add welcome message
+  const handleMemberJoined = useCallback((data: { userId: string; serverId: string; username: string; displayName?: string; avatar?: string }) => {
+    console.log('👋 Member joined:', data);
+    
+    // Only show welcome message if user is viewing the server
+    if (selectedServerId === data.serverId) {
+      // Create a welcome message
+      const welcomeMessage: Message = {
+        id: `welcome-${Date.now()}`,
+        channelId: selectedChannelId || '',
+        userId: 'system',
+        content: `Selamat datang ${data.displayName || data.username}! 👋`,
+        timestamp: new Date().toISOString(),
+        user: {
+          id: 'system',
+          username: 'System',
+          email: '',
+          avatar: '',
+          status: 'online',
+          displayName: 'System'
+        },
+        type: 'system',
+        isSystem: true,
+        newMember: {
+          id: data.userId,
+          username: data.username,
+          displayName: data.displayName,
+          avatar: data.avatar
+        }
+      };
+      
+      // Add welcome message to current messages
+      setMessages(prev => [...prev, welcomeMessage]);
+      
+      // Refresh messages to get the actual welcome message from server
+      if (selectedChannelId) {
+        fetchMessages(selectedChannelId, true);
+      }
+    }
+  }, [selectedServerId, selectedChannelId]);
+
+  // Handle reaction with optimistic update and API call
+  const handleReaction = useCallback(async (messageId: string, emoji: string, hasReacted: boolean) => {
+    console.log('🏠 ChatLayout.handleReaction called:', messageId, emoji, hasReacted);
+    const token = localStorage.getItem('token');
+    
+    // Optimistic update - update UI immediately
+    console.log('🎨 Performing optimistic update...');
+    setMessages(prev => {
+      console.log('🎨 setMessages callback, prev length:', prev.length);
+      return prev.map(msg => {
+        if (msg.id !== messageId) return msg;
+        
+        let updatedReactions = [...(msg.reactions || [])];
+        
+        if (hasReacted) {
+          // Remove reaction
+          updatedReactions = updatedReactions.map(r => {
+            if (r.emoji === emoji) {
+              return {
+                ...r,
+                count: r.count - 1,
+                users: r.users.filter(u => u !== user?.id)
+              };
+            }
+            return r;
+          }).filter(r => r.count > 0);
+        } else {
+          // Add reaction
+          const existingReaction = updatedReactions.find(r => r.emoji === emoji);
+          if (existingReaction) {
+            updatedReactions = updatedReactions.map(r => 
+              r.emoji === emoji 
+                ? { ...r, count: r.count + 1, users: [...r.users, user?.id || ''] }
+                : r
+            );
+          } else {
+            updatedReactions.push({
+              emoji,
+              count: 1,
+              users: [user?.id || '']
+            });
+          }
+        }
+        
+        return { ...msg, reactions: updatedReactions };
+      });
+    });
+    
+    // API call
+    try {
+      const response = await fetch(`${API_URL}/messages/${messageId}/reactions`, {
+        method: hasReacted ? 'DELETE' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ emoji }),
+      });
+      
+      if (!response.ok) {
+        console.error('Reaction failed:', response.status);
+        // Revert by refetching
+        if (selectedChannelId) {
+          fetchMessages(selectedChannelId, true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+      // Revert by refetching
+      if (selectedChannelId) {
+        fetchMessages(selectedChannelId, true);
+      }
+    }
+  }, [user?.id, selectedChannelId]);
+
   const { 
     isConnected, 
     joinChannel, 
@@ -479,7 +650,7 @@ export function ChatLayout() {
     sendTyping, 
     typingUsers,
     userStatuses
-  } = useSocket(handleNewMessage, handleReactionUpdate, handleMessageEdit, handleMessageDelete);
+  } = useSocket(handleNewMessage, handleReactionUpdate, handleMessageEdit, handleMessageDelete, undefined, handleMemberJoined);
 
   useEffect(() => {
     if (selectedChannelId && isConnected && viewMode === 'server') {
@@ -604,6 +775,8 @@ export function ChatLayout() {
       setViewMode('server');
       setSelectedServerId(serverId);
       setSelectedDMChannelId(null);
+      // Fetch unread count for this server
+      fetchChannelUnreadCount(serverId);
     }
     setIsServerDrawerOpen(false);
     if (isMobile) {
@@ -612,9 +785,14 @@ export function ChatLayout() {
   };
 
   const handleSelectChannel = (channelId: string) => {
+    const prevChannelId = selectedChannelId;
     setSelectedChannelId(channelId);
     setIsChannelDrawerOpen(false);
     setMobileView('chat');
+    // Mark channel as read
+    if (channelId && channelUnreadCounts[channelId]?.count > 0) {
+      markChannelAsRead(channelId);
+    }
   };
 
   const handleSelectDMChannel = (channelId: string) => {
@@ -773,6 +951,27 @@ export function ChatLayout() {
   const selectedChannel = channels.find(c => c.id === selectedChannelId) || null;
   const selectedDMChannel = dmChannels.find(c => c.id === selectedDMChannelId) || null;
   
+  // Calculate server unread counts from channel unread counts
+  const serverUnreadCounts = useMemo(() => {
+    const counts: Record<string, { count: number; hasMention: boolean }> = {};
+    
+    Object.entries(channelUnreadCounts).forEach(([channelId, unread]) => {
+      // Find which server this channel belongs to
+      const channel = channels.find(c => c.id === channelId);
+      if (channel && channel.serverId) {
+        if (!counts[channel.serverId]) {
+          counts[channel.serverId] = { count: 0, hasMention: false };
+        }
+        counts[channel.serverId].count += unread.count;
+        if (unread.hasMention) {
+          counts[channel.serverId].hasMention = true;
+        }
+      }
+    });
+    
+    return counts;
+  }, [channelUnreadCounts, channels]);
+  
   // Check if current user is the server owner
   const getCurrentUserId = () => {
     try {
@@ -866,6 +1065,7 @@ export function ChatLayout() {
                   onOpenSearch={() => setIsSearchOpen(true)}
                   servers={servers}
                   dmChannels={dmChannels}
+                  onReaction={handleReaction}
                 />
                 <MessageInput
                   ref={messageInputRef}
@@ -910,6 +1110,7 @@ export function ChatLayout() {
               }}
               isFriendsOpen={viewMode === 'friends'}
               isMobile={true}
+              serverUnreadCounts={serverUnreadCounts}
             />
           </div>
         </MobileDrawer>
@@ -930,6 +1131,7 @@ export function ChatLayout() {
             isMobile={true}
             onClose={() => setIsChannelDrawerOpen(false)}
             isOwner={isServerOwner}
+            unreadCounts={channelUnreadCounts}
           />
         </MobileDrawer>
 
@@ -942,6 +1144,7 @@ export function ChatLayout() {
           <MemberList 
             serverId={selectedServerId} 
             isMobile={true}
+            onStartDM={handleStartDM}
           />
         </MobileDrawer>
 
@@ -1012,6 +1215,7 @@ export function ChatLayout() {
         onCreateServer={handleCreateServer}
         onOpenFriends={() => setViewMode('friends')}
         isFriendsOpen={viewMode === 'friends'}
+        serverUnreadCounts={serverUnreadCounts}
       />
 
       {/* Left Sidebar */}
@@ -1030,6 +1234,7 @@ export function ChatLayout() {
             setSelectedServerId(null);
             setViewMode('dm');
           }}
+          unreadCounts={channelUnreadCounts}
         />
       )}
       
@@ -1076,6 +1281,7 @@ export function ChatLayout() {
               onOpenSearch={() => setIsSearchOpen(true)}
               servers={servers}
               dmChannels={dmChannels}
+              onReaction={handleReaction}
             />
             <MessageInput
               ref={messageInputRef}
@@ -1089,7 +1295,11 @@ export function ChatLayout() {
             />
           </div>
 
-          <MemberList serverId={selectedServerId} userStatuses={userStatuses} />
+          <MemberList 
+            serverId={selectedServerId} 
+            userStatuses={userStatuses} 
+            onStartDM={handleStartDM}
+          />
         </>
       )}
 

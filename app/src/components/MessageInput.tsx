@@ -1,6 +1,8 @@
-import { useState, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { PlusCircle, Gift, Send, X, FileText, Image, File, Smile } from 'lucide-react';
+import { useState, useRef, useCallback, forwardRef, useImperativeHandle, useEffect } from 'react';
+import { PlusCircle, Gift, Send, X, FileText, Image, File, Smile, AtSign } from 'lucide-react';
 import type { Message, FileAttachment } from '@/types';
+import { GIFPicker } from './GIFPicker';
+import { MentionAutocomplete } from './MentionAutocomplete';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -30,10 +32,13 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>(
-  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId: _serverId, channelId: _channelId, placeholder }, ref) => {
+  ({ onSendMessage, onTyping, disabled, replyTo, onCancelReply, isMobile = false, serverId, channelId: _channelId, placeholder }, ref) => {
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+  const [showMentionAutocomplete, setShowMentionAutocomplete] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,15 +62,60 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   }, [message, attachments, disabled, onSendMessage, replyTo, onCancelReply]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
+    const value = e.target.value;
+    setMessage(value);
     onTyping();
+
+    // Check for mention trigger
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      // Check if there's a space before @ or it's at the start
+      const isValidMention = lastAtIndex === 0 || textBeforeCursor[lastAtIndex - 1] === ' ';
+      
+      if (isValidMention && !textAfterAt.includes(' ')) {
+        setMentionQuery(textAfterAt);
+        setMentionStartIndex(lastAtIndex);
+        setShowMentionAutocomplete(true);
+      } else {
+        setShowMentionAutocomplete(false);
+      }
+    } else {
+      setShowMentionAutocomplete(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Don't submit if mention autocomplete is open
+    if (e.key === 'Enter' && !e.shiftKey && !showMentionAutocomplete) {
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleMentionSelect = (mention: string) => {
+    if (mentionStartIndex !== -1) {
+      const beforeMention = message.substring(0, mentionStartIndex);
+      const afterMention = message.substring(mentionStartIndex + mentionQuery.length + 1);
+      const newMessage = beforeMention + mention + ' ' + afterMention;
+      setMessage(newMessage);
+      setShowMentionAutocomplete(false);
+      
+      // Focus back to textarea after selection
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        const newCursorPosition = beforeMention.length + mention.length + 1;
+        textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
+      }, 0);
+    }
+  };
+
+  const handleMentionClose = () => {
+    setShowMentionAutocomplete(false);
+    textareaRef.current?.focus();
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,6 +196,24 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     textareaRef.current?.focus();
   };
 
+  // Handle GIF selection
+  const handleGIFSelect = useCallback((gif: { url: string; title: string }) => {
+    // Add GIF as attachment
+    const gifAttachment: FileAttachment = {
+      url: gif.url,
+      filename: `gif_${Date.now()}.gif`,
+      originalName: gif.title || 'GIF',
+      mimetype: 'image/gif',
+      size: 0, // Size not available from GIPHY
+    };
+    const newAttachments = [...attachments, gifAttachment];
+    setAttachments(newAttachments);
+    // Auto send message with GIF
+    onSendMessage('', replyTo, newAttachments);
+    setAttachments([]);
+    onCancelReply?.();
+  }, [onSendMessage, replyTo, attachments, onCancelReply]);
+
   return (
     <form onSubmit={handleSubmit} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#36393f] border-t border-[#202225] z-40' : 'px-4 pb-4'}`}>
       {/* Reply Indicator */}
@@ -211,8 +279,8 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           )}
         </button>
 
-        {/* Textarea Input */}
-        <div className={`flex-1 min-w-0 ${isMobile ? 'py-2' : 'py-3'}`}>
+        {/* Textarea Input with Mention Autocomplete */}
+        <div className={`flex-1 min-w-0 relative ${isMobile ? 'py-2' : 'py-3'}`}>
           <textarea
             ref={textareaRef}
             value={message}
@@ -228,21 +296,42 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
               lineHeight: '1.5'
             }}
           />
+          
+          {/* Mention Autocomplete */}
+          {showMentionAutocomplete && serverId && (
+            <MentionAutocomplete
+              query={mentionQuery}
+              serverId={serverId}
+              onSelect={handleMentionSelect}
+              onClose={handleMentionClose}
+            />
+          )}
         </div>
 
         {/* Action Buttons */}
         <div className={`flex items-center gap-1 flex-shrink-0 ${isMobile ? 'pr-1' : 'pr-2'}`}>
           {!isMobile && (
-            <button
-              type="button"
-              className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
-              disabled={disabled}
-            >
-              <Gift className="w-5 h-5" />
-            </button>
+            <>
+              <button
+                type="button"
+                className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
+                disabled={disabled}
+              >
+                <Gift className="w-5 h-5" />
+              </button>
+              {/* GIF Picker */}
+              <div className="flex items-center">
+                <GIFPicker onSelect={handleGIFSelect} />
+              </div>
+            </>
           )}
           
-          {/* Emoji Picker */}
+          {/* Emoji Picker -- Mobile only */}
+          {isMobile && (
+            <div className="flex items-center">
+              <GIFPicker onSelect={handleGIFSelect} />
+            </div>
+          )}
           <div className="relative">
             <button
               type="button"
@@ -277,6 +366,24 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
               </>
             )}
           </div>
+
+          {/* Mention Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const cursorPosition = textareaRef.current?.selectionStart || message.length;
+              const newMessage = message.substring(0, cursorPosition) + '@' + message.substring(cursorPosition);
+              setMessage(newMessage);
+              setMentionQuery('');
+              setMentionStartIndex(cursorPosition);
+              setShowMentionAutocomplete(true);
+              setTimeout(() => textareaRef.current?.focus(), 0);
+            }}
+            disabled={disabled}
+            className={`text-[#b9bbbe] hover:text-[#dcddde] transition-colors disabled:opacity-50 ${isMobile ? 'p-1.5' : 'p-2'}`}
+          >
+            <AtSign className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'}`} />
+          </button>
 
           {/* Send Button */}
           <button

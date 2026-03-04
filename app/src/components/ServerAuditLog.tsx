@@ -141,25 +141,34 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
     const now = new Date();
     const diff = now.getTime() - d.getTime();
     
+    // Helper to format time with colons
+    const formatTime = (date: Date) => {
+      const hours = date.getHours();
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = (hours % 12 || 12).toString();
+      return `${displayHours}:${minutes} ${ampm}`;
+    };
+    
     // If less than 24 hours, show "Today at XX:XX AM/PM"
     if (diff < 24 * 60 * 60 * 1000 && d.getDate() === now.getDate()) {
-      return `Today at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      return `Today at ${formatTime(d)}`;
     }
     
     // If yesterday
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth()) {
-      return `Yesterday at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      return `Yesterday at ${formatTime(d)}`;
     }
     
     // Otherwise show "Last Monday at XX:XX AM/PM" or date
     if (diff < 7 * 24 * 60 * 60 * 1000) {
-      return `Last ${d.toLocaleDateString('en-US', { weekday: 'long' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      return `Last ${d.toLocaleDateString('en-US', { weekday: 'long' })} at ${formatTime(d)}`;
     }
     
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
-           ` at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+           ` at ${formatTime(d)}`;
   };
 
   const getActionIcon = (actionType: string) => {

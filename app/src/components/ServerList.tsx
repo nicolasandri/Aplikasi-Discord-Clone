@@ -43,21 +43,27 @@ interface ServerListProps {
   onOpenFriends?: () => void;
   isFriendsOpen?: boolean;
   isMobile?: boolean;
+  serverUnreadCounts?: Record<string, { count: number; hasMention: boolean }>;
 }
 
 // Separate component for server icon to handle image errors properly
 function ServerIconButton({ 
   server, 
   isSelected, 
-  onClick 
+  onClick,
+  unreadCount,
+  hasMention
 }: { 
   server: Server; 
   isSelected: boolean;
   onClick: () => void;
+  unreadCount?: number;
+  hasMention?: boolean;
 }) {
   const [imgError, setImgError] = useState(false);
   const iconUrl = getServerIconUrl(server.icon);
   const initial = server.name.charAt(0).toUpperCase();
+  const hasUnread = unreadCount && unreadCount > 0;
   
   return (
     <button
@@ -84,9 +90,23 @@ function ServerIconButton({
         <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
       )}
       
+      {/* Unread indicator (white dot) */}
+      {!isSelected && hasUnread && (
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full" />
+      )}
+      
       {/* Hover indicator */}
-      {!isSelected && (
+      {!isSelected && !hasUnread && (
         <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity" />
+      )}
+
+      {/* Unread badge */}
+      {hasUnread && (
+        <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#202225] ${
+          hasMention ? 'bg-[#ed4245] text-white' : 'bg-[#b9bbbe] text-[#2f3136]'
+        }`}>
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </div>
       )}
 
       {/* Tooltip */}
@@ -104,7 +124,8 @@ export function ServerList({
   onCreateServer,
   onOpenFriends,
   isFriendsOpen = false,
-  isMobile = false
+  isMobile = false,
+  serverUnreadCounts = {}
 }: ServerListProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newServerName, setNewServerName] = useState('');
@@ -356,14 +377,23 @@ export function ServerList({
       <div className="w-8 h-[2px] bg-[#36393f] rounded-full my-1" />
 
       {/* Server List */}
-      {servers.map((server) => (
-        <ServerIconButton
-          key={server.id}
-          server={server}
-          isSelected={selectedServerId === server.id && !isFriendsOpen}
-          onClick={() => onSelectServer(server.id)}
-        />
-      ))}
+      {servers.map((server) => {
+        // Calculate total unread for this server
+        const serverUnread = serverUnreadCounts[server.id];
+        const totalUnread = serverUnread?.count || 0;
+        const hasMention = serverUnread?.hasMention || false;
+        
+        return (
+          <ServerIconButton
+            key={server.id}
+            server={server}
+            isSelected={selectedServerId === server.id && !isFriendsOpen}
+            onClick={() => onSelectServer(server.id)}
+            unreadCount={totalUnread}
+            hasMention={hasMention}
+          />
+        );
+      })}
 
       {/* Add Server Button -->
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

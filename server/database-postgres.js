@@ -291,7 +291,7 @@ const serverDB = {
 
   async getMembers(serverId) {
     return await queryMany(
-      `SELECT u.id, u.username, u.avatar, u.status, sm.role 
+      `SELECT u.id, u.username, u.avatar, COALESCE(u.status, 'offline') as status, sm.role 
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
        WHERE sm.server_id = $1`,

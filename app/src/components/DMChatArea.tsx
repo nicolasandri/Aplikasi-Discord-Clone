@@ -48,18 +48,18 @@ const statusLabels = {
   dnd: 'Do Not Disturb',
 };
 
-// Helper to convert UTC to Asia/Jakarta (WIB) timezone
+// Helper to format time
 function formatTime(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
   if (isNaN(date.getTime())) return '';
-  // Format: 11:28 PM in Asia/Jakarta timezone
-  return date.toLocaleTimeString('id-ID', { 
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Asia/Jakarta'
-  });
+  // Format: 11:28:30 PM
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = (hours % 12 || 12).toString().padStart(2, '0');
+  return `${displayHours}:${minutes}:${seconds} ${ampm}`;
 }
 
 function formatDate(timestamp: string): string {
@@ -977,7 +977,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         userId={selectedUserId || ''}
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        onStartDM={(user) => {
+        onStartDM={() => {
           // Already in DM, just close popup
           setIsProfileOpen(false);
         }}

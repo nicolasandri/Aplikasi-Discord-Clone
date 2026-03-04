@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**WorkGrid** (also referred to as ChatCord in some configurations) adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android via Capacitor), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
+**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android via Capacitor), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
 
 **Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
 
@@ -22,6 +22,8 @@
 - Search messages
 - Audit logging untuk server
 - Server invites dengan kode
+- Transfer server ownership
+- Mention system (@user, @role, @everyone, @here)
 - Responsive UI untuk mobile, tablet, dan desktop
 
 ---
@@ -63,6 +65,7 @@
 | express-validator | 7.3.1 | Input validation |
 | pg | 8.13.3 | PostgreSQL driver |
 | web-push | 3.6.7 | Push notifications |
+| Redis | 5.11.0 | Session store, rate limiting |
 
 ### Infrastructure
 | Teknologi | Tujuan |
@@ -118,11 +121,15 @@
 │   │   │   ├── ServerInvites.tsx # Server invite management
 │   │   │   ├── ServerMembers.tsx # Server member management
 │   │   │   ├── ServerRoles.tsx  # Server roles configuration
+│   │   │   ├── ServerSettingsPage.tsx # Server settings page
 │   │   │   ├── ForwardModal.tsx # Message forwarding
 │   │   │   ├── GroupDMModal.tsx # Group DM creation
+│   │   │   ├── AddMemberToGroupModal.tsx
 │   │   │   ├── MemberProfilePanel.tsx # Member profile sidebar
 │   │   │   ├── ReactionTooltip.tsx # Reaction display
-│   │   │   └── RichTextEditor.tsx # TipTap editor wrapper
+│   │   │   ├── RichTextEditor.tsx # TipTap editor wrapper
+│   │   │   ├── EmojiStickerGIFPicker.tsx
+│   │   │   └── GIFPicker.tsx
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/
@@ -158,6 +165,7 @@
 │   ├── tsconfig.json            # TypeScript config
 │   ├── tsconfig.app.json        # App TypeScript config
 │   ├── tsconfig.node.json       # Node TypeScript config
+│   ├── nginx.conf               # Nginx config for Docker
 │   ├── Dockerfile               # Frontend Docker image
 │   └── package.json             # Dependencies
 │
@@ -168,6 +176,7 @@
 │   ├── config/
 │   │   └── database.js          # PostgreSQL connection pool
 │   ├── middleware/
+│   │   ├── auth.js              # JWT authentication middleware
 │   │   └── permissions.js       # RBAC middleware
 │   ├── webrtc/
 │   │   └── signaling.js         # Voice signaling server
@@ -436,6 +445,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | GET | `/api/servers/:id/invites` | Get server invites | Yes |
 | POST | `/api/servers/:id/invites` | Create invite | Yes |
 | GET | `/api/servers/:serverId/audit-logs` | Get audit logs | Yes (Manage Server) |
+| POST | `/api/servers/:serverId/transfer-ownership` | Transfer ownership | Yes (Owner) |
 
 #### Channels & Messages
 | Method | Endpoint | Description | Auth |
@@ -520,6 +530,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | `message_deleted` | `{ messageId }` | Message deleted |
 | `message_pinned` | `{ messageId, channelId }` | Message pinned |
 | `message_unpinned` | `{ messageId, channelId }` | Message unpinned |
+| `ownership_transferred` | `{ serverId, newOwnerId }` | Ownership transferred |
 | `voice-channel-joined` | `{ channelId, participants }` | Joined voice |
 | `user-joined-voice` | `{ userId, socketId }` | User joined voice |
 | `user-left-voice` | `{ userId, socketId }` | User left voice |

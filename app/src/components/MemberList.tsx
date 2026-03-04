@@ -14,11 +14,13 @@ import {
 import { useToast } from '@/hooks/use-toast.tsx';
 import { Button } from '@/components/ui/button';
 import { RoleManagerModal } from './RoleManagerModal';
+import { MemberProfilePopup } from './MemberProfilePopup';
 
 interface MemberListProps {
   serverId: string | null;
   isMobile?: boolean;
   userStatuses?: Map<string, string>;
+  onStartDM?: (user: { id: string; username: string; displayName?: string; avatar?: string; status?: string }) => void;
 }
 
 interface CustomRole {
@@ -69,7 +71,7 @@ const roleHierarchy: Record<string, number> = {
   member: 10,
 };
 
-export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses }: MemberListProps) {
+export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses, onStartDM }: MemberListProps) {
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
@@ -77,15 +79,16 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
   const [isOwner, setIsOwner] = useState(false);
   const [showRoleManager, setShowRoleManager] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
+  const [selectedMember, setSelectedMember] = useState<ServerMember | null>(null);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const { toast } = useToast();
 
   // Apply userStatuses overrides to members
+  // Normalize status: null/undefined dianggap sebagai 'offline'
   const membersWithLiveStatus = members.map(member => {
     const liveStatus = userStatuses?.get(member.id);
-    if (liveStatus) {
-      return { ...member, status: liveStatus as 'online' | 'offline' | 'idle' | 'dnd' };
-    }
-    return member;
+    const effectiveStatus = liveStatus || member.status || 'offline';
+    return { ...member, status: effectiveStatus as 'online' | 'offline' | 'idle' | 'dnd' };
   });
 
   useEffect(() => {
@@ -145,11 +148,12 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     if (!serverId) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/servers/${serverId}/members`, {
+      const response = await fetch(`${API_URL}/servers/${serverId}/members?_t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('Members from API:', data.map((m: any) => ({ id: m.id, username: m.username, role_name: m.role_name, role: m.role, role_id: m.role_id })));
         setMembers(data);
       }
     } catch (error) {
@@ -397,15 +401,62 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     );
   }
 
-  const onlineMembers = membersWithLiveStatus.filter(m => m.status !== 'offline');
-  const offlineMembers = membersWithLiveStatus.filter(m => m.status === 'offline');
+  // Get all roles sorted by position (highest first)
+  const sortedRoles = [...customRoles].sort((a, b) => b.position - a.position);
+  
+  // Split members by status
+  const onlineMembers = membersWithLiveStatus.filter(m => m.status && m.status !== 'offline');
+  const offlineMembers = membersWithLiveStatus.filter(m => !m.status || m.status === 'offline');
+  
+  // Build role groups for online members
+  const onlineRoleGroups: { roleName: string; roleColor: string; members: ServerMember[] }[] = [];
+  
+  // Owner first
+  const onlineOwners = onlineMembers.filter(m => m.role === 'owner');
+  onlineRoleGroups.push({ 
+    roleName: 'Owner', 
+    roleColor: '#ffd700', 
+    members: onlineOwners 
+  });
+  
+  // Custom roles in position order
+  sortedRoles.forEach(role => {
+    const membersWithThisRole = onlineMembers.filter(m => m.role_id === role.id);
+    onlineRoleGroups.push({
+      roleName: role.name,
+      roleColor: role.color,
+      members: membersWithThisRole
+    });
+  });
+  
+  // Admin (legacy)
+  const onlineAdmins = onlineMembers.filter(m => m.role === 'admin' && !m.role_id);
+  onlineRoleGroups.push({ 
+    roleName: 'Admin', 
+    roleColor: '#ed4245', 
+    members: onlineAdmins 
+  });
+  
+  // Moderator (legacy)
+  const onlineModerators = onlineMembers.filter(m => m.role === 'moderator' && !m.role_id);
+  onlineRoleGroups.push({ 
+    roleName: 'Moderator', 
+    roleColor: '#43b581', 
+    members: onlineModerators 
+  });
+  
+  // Regular members
+  const onlineRegular = onlineMembers.filter(m => 
+    (m.role === 'member' && !m.role_id) || 
+    (!m.role_id && m.role !== 'owner' && m.role !== 'admin' && m.role !== 'moderator')
+  );
+  onlineRoleGroups.push({ 
+    roleName: 'Member', 
+    roleColor: '#99aab5', 
+    members: onlineRegular 
+  });
 
-  const groupedMembers = [
-    { title: `Online — ${onlineMembers.length}`, members: onlineMembers },
-    { title: `Offline — ${offlineMembers.length}`, members: offlineMembers },
-  ];
-
-  const MemberItem = ({ member }: { member: ServerMember }) => {
+  const MemberItem = ({ member, showRole = true }: { member: ServerMember; showRole?: boolean }) => {
     const display = getMemberDisplay(member);
     const canManage = canManageUser(member.role, member.id);
     // Only show context menu for admins, moderators, and owners
@@ -427,8 +478,19 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       return `${BASE_URL}${member.avatar}${member.avatar.includes('?') ? '&' : '?'}_v=${avatarVersion}`;
     };
 
+    const handleMemberClick = (e: React.MouseEvent) => {
+      // Only open popup on left click
+      if (e.button === 0) {
+        setSelectedMember(member);
+        setShowProfilePopup(true);
+      }
+    };
+
     const memberContent = (
-      <div className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[#34373c] cursor-pointer group">
+      <div 
+        className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[#34373c] cursor-pointer group"
+        onClick={handleMemberClick}
+      >
         <div className="relative">
           <img
             src={getAvatarUrl()}
@@ -440,22 +502,33 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
             }}
           />
           <div
-            className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[member.status]} rounded-full border-2 border-[#2f3136]`}
+            className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[member.status || 'offline']} rounded-full border-2 border-[#2f3136]`}
           />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <span className="text-[#dcddde] text-sm font-medium truncate group-hover:text-white">
-              {member.username}
+            <span 
+              className={`text-sm font-bold truncate group-hover:text-white ${
+                member.status === 'offline' ? 'text-[#72767d]' : ''
+              }`}
+              style={{ 
+                color: member.status === 'offline' 
+                  ? '#72767d' 
+                  : (member.role_color || display.color)
+              }}
+            >
+              {displayName}
             </span>
             {member.role === 'owner' && <Crown className="w-3 h-3 text-[#ffd700]" />}
           </div>
-          <div 
-            className="text-[10px] uppercase tracking-wide"
-            style={{ color: display.color }}
-          >
-            {display.name}
-          </div>
+          {showRole && (
+            <div 
+              className="text-[10px] uppercase tracking-wide truncate"
+              style={{ color: display.color }}
+            >
+              {display.name}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -577,20 +650,44 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         </div>
         
         <div className="flex-1 overflow-y-auto p-4">
-          {groupedMembers.map((group) => (
-            group.members.length > 0 && (
-              <div key={group.title} className="mb-6">
-                <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide mb-2 px-2">
-                  {group.title}
+          {/* Online Members grouped by Role - only show groups with members */}
+          {onlineRoleGroups
+            .filter(group => group.members.length > 0)
+            .map((group) => (
+              <div key={group.roleName} className="mb-4">
+                <h3 
+                  className="text-xs font-semibold uppercase tracking-wide mb-2 px-2"
+                  style={{ color: group.roleColor }}
+                >
+                  {group.roleName} — {group.members.length}
                 </h3>
                 <div className="space-y-1">
                   {group.members.map((member) => (
-                    <MemberItem key={member.id} member={member} />
+                    <MemberItem key={member.id} member={member} showRole={false} />
                   ))}
                 </div>
               </div>
-            )
-          ))}
+            ))}
+          
+          {/* Offline Members */}
+          {offlineMembers.length > 0 && (
+            <div className="mb-6 mt-6">
+              <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide mb-2 px-2">
+                Offline — {offlineMembers.length}
+              </h3>
+              <div className="space-y-1">
+                {offlineMembers.map((member) => (
+                  <MemberItem key={member.id} member={member} />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {onlineMembers.length === 0 && offlineMembers.length === 0 && (
+            <div className="text-center text-[#72767d] text-sm py-4">
+              Tidak ada member di server ini
+            </div>
+          )}
         </div>
       </div>
 
@@ -605,6 +702,29 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         serverId={serverId}
         currentUserRole={currentUserRole || undefined}
         isOwner={isOwner}
+      />
+
+      {/* Member Profile Popup */}
+      <MemberProfilePopup
+        member={selectedMember ? membersWithLiveStatus.find(m => m.id === selectedMember.id) || selectedMember : null}
+        isOpen={showProfilePopup}
+        onClose={() => {
+          setShowProfilePopup(false);
+          setSelectedMember(null);
+        }}
+        onSendMessage={() => {
+          if (onStartDM && selectedMember) {
+            onStartDM({
+              id: selectedMember.id,
+              username: selectedMember.username,
+              displayName: selectedMember.displayName,
+              avatar: selectedMember.avatar,
+              status: selectedMember.status
+            });
+          }
+          setShowProfilePopup(false);
+        }}
+        serverId={serverId}
       />
     </>
   );

@@ -108,6 +108,25 @@ class PushNotificationService {
   }
 
   /**
+   * Send reaction notification
+   * @param {string} userId - Message owner user ID
+   * @param {string} reactorName - Name of user who reacted
+   * @param {string} emoji - The emoji reaction
+   * @param {string} channelName - Channel name
+   * @param {string} url - URL to navigate to when clicked
+   */
+  async sendReactionNotification(userId, reactorName, emoji, channelName, url) {
+    return this.sendToUser(userId, {
+      title: `Reaksi dari ${reactorName}`,
+      body: `${reactorName} memberikan reaksi ${emoji} di #${channelName}`,
+      icon: '/icon-192x192.png',
+      tag: 'reaction',
+      url,
+      data: { type: 'reaction' }
+    });
+  }
+
+  /**
    * Check if push notifications are configured
    * @returns {boolean}
    */
