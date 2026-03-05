@@ -358,3 +358,4 @@ export function VoiceChannelPanel({ channelId, channelName }: VoiceChannelPanelP
     </TooltipProvider>
   );
 }
+

@@ -295,9 +295,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="fixed inset-0 z-[100] w-full h-full bg-[#36393f] flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-[100] w-full h-full bg-[#1a1b2e] flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <div className="h-14 px-4 flex items-center justify-between border-b border-[#202225] bg-[#2f3136] flex-shrink-0">
+        <div className="h-14 px-4 flex items-center justify-between border-b border-[#0f0f1a] bg-[#232438] flex-shrink-0">
           {showMobileMenu ? (
             <>
               <div className="flex items-center gap-3">
@@ -312,12 +312,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 />
                 <div>
                   <p className="text-white font-semibold text-base">{user?.displayName || user?.username}</p>
-                  <p className="text-[#b9bbbe] text-xs">Pengaturan</p>
+                  <p className="text-[#a0a0b0] text-xs">Pengaturan</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center text-[#b9bbbe] hover:text-white"
+                className="w-10 h-10 flex items-center justify-center text-[#a0a0b0] hover:text-white"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -326,7 +326,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <>
               <button
                 onClick={() => setShowMobileMenu(true)}
-                className="flex items-center gap-2 text-[#b9bbbe] hover:text-white"
+                className="flex items-center gap-2 text-[#a0a0b0] hover:text-white"
               >
                 <ChevronLeft className="w-5 h-5" />
                 <span className="text-sm">Kembali</span>
@@ -341,7 +341,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </h2>
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center text-[#b9bbbe] hover:text-white"
+                className="w-10 h-10 flex items-center justify-center text-[#a0a0b0] hover:text-white"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -351,7 +351,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         {/* Mobile Content */}
         {showMobileMenu ? (
-          <div className="flex-1 overflow-y-auto py-2 bg-[#36393f]">
+          <div className="flex-1 overflow-y-auto py-2 bg-[#1a1b2e]">
             {menuSections.map((section, idx) => (
               <div key={idx} className="px-3 mb-4">
                 <p className="px-3 py-1 text-[#96989d] text-xs font-bold uppercase tracking-wider">
@@ -367,7 +367,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           setActiveTab(item.id);
                           setShowMobileMenu(false);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-3.5 rounded-lg text-sm transition-colors text-left text-[#b9bbbe] hover:bg-[#40444b] hover:text-white active:bg-[#3c3f45]"
+                        className="w-full flex items-center gap-3 px-3 py-3.5 rounded-lg text-sm transition-colors text-left text-[#a0a0b0] hover:bg-[#2a2b3d] hover:text-white active:bg-[#3c3f45]"
                       >
                         <Icon className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium">{item.label}</span>
@@ -378,7 +378,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             ))}
             {/* Log Out */}
-            <div className="p-3 border-t border-[#202225] mt-4">
+            <div className="p-3 border-t border-[#0f0f1a] mt-4">
               <button
                 onClick={logout}
                 className="w-full flex items-center gap-3 px-3 py-3.5 rounded-lg text-sm text-[#ed4245] hover:bg-[#ed4245]/10 transition-colors active:bg-[#ed4245]/20"
@@ -389,17 +389,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-4 bg-[#36393f]">
+          <div className="flex-1 overflow-y-auto p-4 bg-[#1a1b2e]">
             {activeTab === 'account' && (
               <div className="space-y-4 max-w-lg mx-auto">
                 {/* Banner */}
-                <div className="bg-[#5865f2] h-20 rounded-t-lg relative">
+                <div className="bg-[#00d4ff] h-20 rounded-t-lg relative">
                   <div className="absolute -bottom-8 left-4">
                     <div className="relative">
                       <img
                         src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `http://localhost:3001${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
                         alt={user?.displayName || user?.username}
-                        className="w-16 h-16 rounded-full border-4 border-[#36393f] bg-[#36393f] object-cover"
+                        className="w-16 h-16 rounded-full border-4 border-[#0d0d14] bg-[#1a1b2e] object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`;
@@ -408,7 +408,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={loading}
-                        className="absolute bottom-0 right-0 w-6 h-6 bg-[#5865f2] rounded-full flex items-center justify-center hover:bg-[#4752c4] border-2 border-[#36393f]"
+                        className="absolute bottom-0 right-0 w-6 h-6 bg-[#00d4ff] rounded-full flex items-center justify-center hover:bg-[#00b8db] border-2 border-[#0d0d14]"
                       >
                         <Camera className="w-3 h-3 text-white" />
                       </button>
@@ -427,7 +427,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="pt-8">
                   <h3 className="text-white text-lg font-bold">{user?.displayName || user?.username}</h3>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 bg-[#5865f2] text-white text-xs rounded font-semibold">VIP</span>
+                    <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>
                     <span>👑</span>
                     <span className="text-[#43b581]">✓</span>
                   </div>
@@ -435,23 +435,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                 {/* Info Cards */}
                 <div className="space-y-3 mt-4">
-                  <div className="bg-[#2f3136] rounded-lg p-3">
-                    <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Display Name</Label>
+                  <div className="bg-[#232438] rounded-lg p-3">
+                    <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Display Name</Label>
                     <p className="text-white mt-1">{user?.displayName || user?.username}</p>
                   </div>
-                  <div className="bg-[#2f3136] rounded-lg p-3">
-                    <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Username</Label>
+                  <div className="bg-[#232438] rounded-lg p-3">
+                    <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Username</Label>
                     <p className="text-white mt-1">{getUsernameFromEmail(user?.email)}</p>
                   </div>
-                  <div className="bg-[#2f3136] rounded-lg p-3">
-                    <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Email</Label>
+                  <div className="bg-[#232438] rounded-lg p-3">
+                    <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Email</Label>
                     <p className="text-white mt-1">{user?.email}</p>
                   </div>
                 </div>
 
                 <Button 
                   onClick={() => setShowChangePassword(true)}
-                  className="w-full bg-[#5865f2] hover:bg-[#4752c4] text-white mt-4"
+                  className="w-full bg-[#00d4ff] hover:bg-[#00b8db] text-white mt-4"
                 >
                   Ubah Password
                 </Button>
@@ -459,7 +459,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             )}
             {activeTab === 'notifications' && <NotificationSettings />}
             {activeTab === 'appearance' && (
-              <p className="text-[#b9bbbe] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
+              <p className="text-[#a0a0b0] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
             )}
           </div>
         )}
@@ -471,9 +471,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
       {/* Modal Container */}
-      <div className="w-[900px] max-w-[95vw] h-[600px] max-h-[90vh] bg-[#36393f] rounded-lg overflow-hidden flex shadow-2xl">
+      <div className="w-[900px] max-w-[95vw] h-[600px] max-h-[90vh] bg-[#1a1b2e] rounded-lg overflow-hidden flex shadow-2xl">
         {/* Sidebar */}
-        <div className="w-[240px] bg-[#2f3136] flex flex-col h-full border-r border-[#202225]">
+        <div className="w-[240px] bg-[#232438] flex flex-col h-full border-r border-[#0f0f1a]">
           {/* Header with Search */}
           <div className="p-4 pb-2">
             <div className="flex items-center gap-3 mb-4">
@@ -488,16 +488,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               />
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold text-sm truncate">{user?.displayName || user?.username}</p>
-                <p className="text-[#b9bbbe] text-xs">Edit Profile</p>
+                <p className="text-[#a0a0b0] text-xs">Edit Profile</p>
               </div>
             </div>
             
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#72767d]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6a6a7a]" />
               <input
                 type="text"
                 placeholder="Search"
-                className="w-full h-8 bg-[#202225] text-white text-sm rounded pl-9 pr-3 outline-none placeholder:text-[#72767d]"
+                className="w-full h-8 bg-[#0f0f1a] text-white text-sm rounded pl-9 pr-3 outline-none placeholder:text-[#6a6a7a]"
               />
             </div>
           </div>
@@ -519,7 +519,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-left ${
                           activeTab === item.id
                             ? 'bg-[#3c3f45] text-white'
-                            : 'text-[#b9bbbe] hover:bg-[#3c3f45] hover:text-white'
+                            : 'text-[#a0a0b0] hover:bg-[#3c3f45] hover:text-white'
                         }`}
                       >
                         <Icon className="w-4 h-4 flex-shrink-0" />
@@ -533,7 +533,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
 
           {/* Log Out */}
-          <div className="p-3 border-t border-[#202225]">
+          <div className="p-3 border-t border-[#0f0f1a]">
             <button
               onClick={logout}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-[#ed4245] hover:bg-[#ed4245]/10 transition-colors"
@@ -545,9 +545,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col h-full bg-[#36393f]">
+        <div className="flex-1 flex flex-col h-full bg-[#1a1b2e]">
           {/* Header */}
-          <div className="h-14 px-6 flex items-center justify-between border-b border-[#202225] flex-shrink-0">
+          <div className="h-14 px-6 flex items-center justify-between border-b border-[#0f0f1a] flex-shrink-0">
             <h2 className="text-white text-lg font-semibold">
               {activeTab === 'account' && 'My Account'}
               {activeTab === 'notifications' && 'Notifications'}
@@ -558,7 +558,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center text-[#b9bbbe] hover:text-white transition-colors"
+              className="w-8 h-8 flex items-center justify-center text-[#a0a0b0] hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -569,13 +569,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {activeTab === 'account' && (
               <div className="max-w-3xl space-y-6">
                 {/* Banner */}
-                <div className="bg-[#5865f2] h-32 rounded-t-lg relative">
+                <div className="bg-[#00d4ff] h-32 rounded-t-lg relative">
                   <div className="absolute -bottom-12 left-6">
                     <div className="relative">
                       <img
                         src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `http://localhost:3001${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
                         alt={user?.displayName || user?.username}
-                        className="w-24 h-24 rounded-full border-4 border-[#36393f] bg-[#36393f] object-cover"
+                        className="w-24 h-24 rounded-full border-4 border-[#0d0d14] bg-[#1a1b2e] object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`;
@@ -584,7 +584,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={loading}
-                        className="absolute bottom-0 right-0 w-8 h-8 bg-[#5865f2] rounded-full flex items-center justify-center hover:bg-[#4752c4] border-2 border-[#36393f] transition-colors"
+                        className="absolute bottom-0 right-0 w-8 h-8 bg-[#00d4ff] rounded-full flex items-center justify-center hover:bg-[#00b8db] border-2 border-[#0d0d14] transition-colors"
                       >
                         {loading ? (
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -605,31 +605,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
 
                 {/* User Info Card */}
-                <div className="bg-[#2f3136] rounded-b-lg p-6 pt-16">
+                <div className="bg-[#232438] rounded-b-lg p-6 pt-16">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-white text-xl font-bold">{user?.displayName || user?.username}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 bg-[#5865f2] text-white text-xs rounded font-semibold">VIP</span>
+                        <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>
                         <span>👑</span>
                         <span className="text-[#43b581]">✓</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="h-px bg-[#202225] my-4" />
+                  <div className="h-px bg-[#0f0f1a] my-4" />
 
                   <div className="space-y-4">
                     {/* Display Name - Editable */}
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Display Name</Label>
+                        <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Display Name</Label>
                         {editingDisplayName ? (
                           <div className="flex items-center gap-2 mt-1">
                             <Input
                               value={displayName}
                               onChange={(e) => setDisplayName(e.target.value)}
-                              className="h-8 bg-[#202225] border-[#040405] text-white text-sm w-64"
+                              className="h-8 bg-[#0f0f1a] border-[#040405] text-white text-sm w-64"
                               placeholder="Display name"
                               disabled={loading}
                               onKeyDown={(e) => {
@@ -645,7 +645,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                               size="sm"
                               onClick={handleSaveDisplayName}
                               disabled={loading}
-                              className="h-8 bg-[#5865f2] hover:bg-[#4752c4] text-white px-3"
+                              className="h-8 bg-[#00d4ff] hover:bg-[#00b8db] text-white px-3"
                             >
                               {loading ? (
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -672,7 +672,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     {/* Username - Not editable, extracted from email */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Username</Label>
+                        <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Username</Label>
                         <p className="text-white mt-1">{getUsernameFromEmail(user?.email)}</p>
                       </div>
                       {/* No Edit button for username */}
@@ -680,7 +680,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-[#b9bbbe] text-xs font-bold uppercase">Email</Label>
+                        <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Email</Label>
                         <p className="text-white mt-1">{user?.email}</p>
                       </div>
                     </div>
@@ -692,7 +692,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <h3 className="text-white font-bold mb-3">Password and Authentication</h3>
                   <Button 
                     onClick={() => setShowChangePassword(true)}
-                    className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                    className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                   >
                     Change Password
                   </Button>
@@ -711,7 +711,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
             {activeTab === 'appearance' && (
               <div className="max-w-3xl">
-                <p className="text-[#b9bbbe] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
+                <p className="text-[#a0a0b0] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
               </div>
             )}
           </div>
@@ -721,9 +721,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       {/* Change Password Modal */}
       {showChangePassword && (
         <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#36393f] rounded-lg shadow-2xl overflow-hidden">
+          <div className="w-full max-w-md bg-[#1a1b2e] rounded-lg shadow-2xl overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-[#202225] flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-[#0f0f1a] flex items-center justify-between">
               <h3 className="text-white text-xl font-bold">Change Password</h3>
               <button
                 onClick={() => {
@@ -734,7 +734,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   setNewPassword('');
                   setConfirmPassword('');
                 }}
-                className="text-[#b9bbbe] hover:text-white transition-colors"
+                className="text-[#a0a0b0] hover:text-white transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -755,7 +755,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               {/* Current Password */}
               <div>
-                <Label className="text-[#b9bbbe] text-xs font-bold uppercase mb-2 block">
+                <Label className="text-[#a0a0b0] text-xs font-bold uppercase mb-2 block">
                   Current Password
                 </Label>
                 <div className="relative">
@@ -763,14 +763,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     type={showCurrentPassword ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="h-10 bg-[#202225] border-[#040405] text-white pr-10"
+                    className="h-10 bg-[#0f0f1a] border-[#040405] text-white pr-10"
                     placeholder="Enter current password"
                     disabled={changingPassword}
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#72767d] hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6a6a7a] hover:text-white"
                   >
                     {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -779,7 +779,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               {/* New Password */}
               <div>
-                <Label className="text-[#b9bbbe] text-xs font-bold uppercase mb-2 block">
+                <Label className="text-[#a0a0b0] text-xs font-bold uppercase mb-2 block">
                   New Password
                 </Label>
                 <div className="relative">
@@ -787,14 +787,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="h-10 bg-[#202225] border-[#040405] text-white pr-10"
+                    className="h-10 bg-[#0f0f1a] border-[#040405] text-white pr-10"
                     placeholder="Enter new password"
                     disabled={changingPassword}
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#72767d] hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6a6a7a] hover:text-white"
                   >
                     {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -803,14 +803,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               {/* Confirm Password */}
               <div>
-                <Label className="text-[#b9bbbe] text-xs font-bold uppercase mb-2 block">
+                <Label className="text-[#a0a0b0] text-xs font-bold uppercase mb-2 block">
                   Confirm New Password
                 </Label>
                 <Input
                   type={showNewPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="h-10 bg-[#202225] border-[#040405] text-white"
+                  className="h-10 bg-[#0f0f1a] border-[#040405] text-white"
                   placeholder="Confirm new password"
                   disabled={changingPassword}
                 />
@@ -836,7 +836,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <Button
                   onClick={handleChangePassword}
                   disabled={changingPassword}
-                  className="flex-1 bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                  className="flex-1 bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                 >
                   {changingPassword ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -852,3 +852,4 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     </div>
   );
 }
+

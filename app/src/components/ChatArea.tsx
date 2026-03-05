@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hash, Volume2, Users, Phone, Video, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw } from 'lucide-react';
+import { Hash, Volume2, Users, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw, Keyboard, MessageCircle, Bell, AtSign, Phone, Video, X } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
 import { UserProfilePopup } from './UserProfilePopup';
 import { Lightbox } from './Lightbox';
@@ -8,24 +8,18 @@ import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
 import { ReactionTooltip } from './ReactionTooltip';
 import { ForwardModal } from './ForwardModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Channel, Message, User, Server } from '@/types';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
-// Use absolute URL for Electron, relative for web
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || '/api');
+// Use absolute URL for API calls to backend
+// Hardcode to ensure it works
+const API_URL = 'http://localhost:3001/api';
 
 // Get base URL for backend (without /api)
-const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
-    return API_URL.replace(/\/api\/?$/, '');
-  }
-  // For relative API URL in dev mode, use localhost:3001
-  return 'http://localhost:3001';
-})();
+const BASE_URL = 'http://localhost:3001';
 
 // Helper to get full file URL
 const getFileUrl = (url: string): string => {
@@ -33,6 +27,19 @@ const getFileUrl = (url: string): string => {
   if (url.startsWith('http')) return url;
   // Ensure url starts with /
   const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${BASE_URL}${normalizedUrl}`;
+};
+
+// Helper to get full avatar URL
+const getAvatarUrl = (avatar: string | null, username: string): string => {
+  if (!avatar) {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+  }
+  if (avatar.startsWith('http')) {
+    return avatar;
+  }
+  // Relative URL - prepend base URL
+  const normalizedUrl = avatar.startsWith('/') ? avatar : `/${avatar}`;
   return `${BASE_URL}${normalizedUrl}`;
 };
 
@@ -51,6 +58,8 @@ interface ChatAreaProps {
   dmChannels?: import('@/types').DMChannel[];
   onReaction?: (messageId: string, emoji: string, hasReacted: boolean) => void;
   onFocusInput?: () => void;
+  showMemberList?: boolean;
+  onToggleMemberList?: () => void;
 }
 
 // User permissions interface
@@ -248,14 +257,14 @@ function WelcomeMessage({ message, onWave }: WelcomeMessageProps) {
         >
           {newMember?.displayName || newMember?.username || 'New Member'}
         </span>
-        <span className="text-[#72767d] text-xs">
+        <span className="text-[#6a6a7a] text-xs">
           {new Date(timestamp).toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'numeric', 
             day: 'numeric' 
           })}
         </span>
-        <span className="text-[#72767d] text-xs">
+        <span className="text-[#6a6a7a] text-xs">
           {(() => {
             const d = new Date(timestamp);
             const h = d.getHours().toString().padStart(2, '0');
@@ -269,10 +278,10 @@ function WelcomeMessage({ message, onWave }: WelcomeMessageProps) {
       {/* Wave button */}
       <button
         onClick={onWave}
-        className="mt-2 flex items-center gap-2 px-3 py-2 bg-[#2f3136] hover:bg-[#36393f] border border-[#40444b] rounded-md transition-colors group"
+        className="mt-2 flex items-center gap-2 px-3 py-2 bg-[#12121a] hover:bg-[#0d0d14] border border-[#40444b] rounded-md transition-colors group"
       >
         <span className="text-xl">👋</span>
-        <span className="text-[#b9bbbe] text-sm group-hover:text-white">Wave to say hi!</span>
+        <span className="text-[#a0a0b0] text-sm group-hover:text-white">Wave to say hi!</span>
       </button>
     </div>
   );
@@ -318,7 +327,9 @@ interface MessageItemProps {
   onAttachmentClick?: (message: Message, index: number) => void;
   onForward?: (message: Message) => void;
   onCopy?: (content: string) => void;
-  onPin?: (messageId: string) => void;
+  onPin?: (message: Message) => void;
+  onUnpin?: (messageId: string) => void;
+  pinnedMessageIds?: Set<string>;
   isMobile?: boolean;
   avatarVersion?: number;
   userMap?: Map<string, string>;
@@ -333,7 +344,7 @@ interface MessageItemProps {
 }
 
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, onUnpin, pinnedMessageIds, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
 
   const [showActions, setShowActions] = useState(false);
   
@@ -391,7 +402,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
 
   return (
     <div
-      className={`flex gap-3 group hover:bg-[#2f3136] ${isMobile ? 'px-2 py-1' : 'px-4 py-0.5'}`}
+      className={`flex gap-3 group hover:bg-[#12121a] ${isMobile ? 'px-2 py-1' : 'px-4 py-0.5'}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       onContextMenu={handleContextMenu}
@@ -423,7 +434,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
       ) : (
         <div className={`flex-shrink-0 flex justify-end pt-1 ${isMobile ? 'w-8' : 'w-10'}`}>
           <span 
-            className="text-[10px] text-[#72767d] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block cursor-default"
+            className="text-[10px] text-[#6a6a7a] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block cursor-default"
             title={formatTooltipTimestamp(timestamp)}
           >
             {formatTime(timestamp)}
@@ -443,23 +454,23 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 : (message.user?.displayName || message.user?.username)}
             </button>
             <span 
-              className="text-[11px] text-[#72767d] cursor-default hover:underline"
+              className="text-[11px] text-[#6a6a7a] cursor-default hover:underline"
               title={formatTooltipTimestamp(timestamp)}
             >
               {formatDiscordTimestamp(timestamp)}
             </span>
             {message.editedAt && (
-              <span className="text-[11px] text-[#72767d]">(edited)</span>
+              <span className="text-[11px] text-[#6a6a7a]">(edited)</span>
             )}
             {!message.timestamp && !(message as any).createdAt && (
-              <span className="text-[11px] text-[#72767d]">(sending...)</span>
+              <span className="text-[11px] text-[#6a6a7a]">(sending...)</span>
             )}
           </div>
         )}
         
         {/* Reply reference */}
         {message.replyTo && (
-          <div className="flex items-start gap-2 mb-2 p-2 rounded-md bg-[#2f3136]/50 border-l-2 border-[#5865f2]">
+          <div className="flex items-start gap-2 mb-2 p-2 rounded-md bg-[#12121a]/50 border-l-2 border-[#00d4ff]">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-xs">
                 {message.replyTo?.user?.avatar ? (
@@ -473,18 +484,18 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     }}
                   />
                 ) : (
-                  <div className="w-4 h-4 rounded-full bg-[#5865f2] flex items-center justify-center text-[8px] text-white font-bold">
+                  <div className="w-4 h-4 rounded-full bg-[#00d4ff] flex items-center justify-center text-[8px] text-white font-bold">
                     {(message.replyTo.user?.displayName || message.replyTo.user?.username || 'U')[0].toUpperCase()}
                   </div>
                 )}
                 <span 
                   className="font-medium"
-                  style={{ color: message.replyTo.user?.role_color || '#5865f2' }}
+                  style={{ color: message.replyTo.user?.role_color || '#00d4ff' }}
                 >
                   {message.replyTo.user?.displayName || message.replyTo.user?.username}
                 </span>
               </div>
-              <p className="text-[#b9bbbe] text-xs mt-0.5 truncate">
+              <p className="text-[#a0a0b0] text-xs mt-0.5 truncate">
                 {message.replyTo.content}
               </p>
             </div>
@@ -507,24 +518,24 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                   onEditCancel?.();
                 }
               }}
-              className="w-full bg-[#40444b] text-white text-sm rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#5865f2]"
+              className="w-full bg-[#2a2b3d] text-white text-sm rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
               rows={2}
               style={{ minHeight: '44px' }}
             />
             <div className="flex items-center gap-2 mt-2">
               <button
                 onClick={onEditSave}
-                className="px-3 py-1.5 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-medium rounded transition-colors"
+                className="px-3 py-1.5 bg-[#00d4ff] hover:bg-[#00b8db] text-white text-xs font-medium rounded transition-colors"
               >
                 Simpan
               </button>
               <button
                 onClick={onEditCancel}
-                className="px-3 py-1.5 bg-transparent hover:bg-[#40444b] text-[#b9bbbe] hover:text-white text-xs font-medium rounded transition-colors"
+                className="px-3 py-1.5 bg-transparent hover:bg-[#2a2b3d] text-[#a0a0b0] hover:text-white text-xs font-medium rounded transition-colors"
               >
                 Batal
               </button>
-              <span className="text-[#72767d] text-xs ml-2">
+              <span className="text-[#6a6a7a] text-xs ml-2">
                 Tekan Enter untuk menyimpan, Escape untuk membatalkan
               </span>
             </div>
@@ -557,7 +568,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     <img 
                       src={getFileUrl(file.url)} 
                       alt={file.originalName}
-                      className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#2f3136] ${
+                      className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#12121a] ${
                         isMobile ? 'max-h-[200px]' : 'max-h-[300px]'
                       }`}
                       loading="lazy"
@@ -581,13 +592,13 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     </div>
                   </div>
                 ) : (
-                  <div className={`flex items-center gap-2 bg-[#2f3136] hover:bg-[#36393f] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-md'}`}>
-                    <div className={`bg-[#5865f2] rounded-lg flex items-center justify-center flex-shrink-0 ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
+                  <div className={`flex items-center gap-2 bg-[#12121a] hover:bg-[#0d0d14] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-md'}`}>
+                    <div className={`bg-[#00d4ff] rounded-lg flex items-center justify-center flex-shrink-0 ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
                       <FileText className={`text-white ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm truncate">{file.originalName}</p>
-                      <p className="text-[#72767d] text-xs">{(file.size / 1024).toFixed(1)} KB</p>
+                      <p className="text-[#6a6a7a] text-xs">{(file.size / 1024).toFixed(1)} KB</p>
                     </div>
                   </div>
                 )}
@@ -633,8 +644,8 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     }}
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-sm transition-all ${
                       hasReacted
-                        ? 'bg-[#5865f2]/20 border border-[#5865f2] hover:bg-[#5865f2]/30'
-                        : 'bg-[#2f3136] border border-[#40444b] hover:border-[#5865f2]/50 hover:bg-[#40444b]'
+                        ? 'bg-[#00d4ff]/20 border border-[#00d4ff] hover:bg-[#00d4ff]/30'
+                        : 'bg-[#12121a] border border-[#40444b] hover:border-[#00d4ff]/50 hover:bg-[#2a2b3d]'
                     }`}
                   >
                     <span 
@@ -643,7 +654,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     >
                       {reaction.emoji}
                     </span>
-                    <span className={`text-sm font-semibold ${hasReacted ? 'text-[#5865f2]' : 'text-[#b9bbbe]'}`}>
+                    <span className={`text-sm font-semibold ${hasReacted ? 'text-[#00d4ff]' : 'text-[#a0a0b0]'}`}>
                       {count}
                     </span>
                   </button>
@@ -656,16 +667,16 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
       
       {/* Message Actions */}
       {showActions && (
-        <div className="absolute right-4 -top-3 flex items-center bg-[#36393f] border border-[#202225] rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute right-4 -top-3 flex items-center bg-[#0d0d14] border border-[#08080c] rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onReply(message)}
-            className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-l-lg"
+            className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#4f545c] rounded-l-lg"
             title="Reply"
           >
             <Reply className="w-4 h-4" />
           </button>
           <div className="relative group/emoji">
-            <div className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] cursor-pointer">
+            <div className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#4f545c] cursor-pointer">
               <EmojiPicker onEmojiSelect={handleReaction} />
             </div>
           </div>
@@ -673,7 +684,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             <>
               <button
                 onClick={() => onDelete(message.id)}
-                className="p-2 text-[#b9bbbe] hover:text-[#ed4245] hover:bg-[#4f545c] rounded-r-lg"
+                className="p-2 text-[#a0a0b0] hover:text-[#ed4245] hover:bg-[#4f545c] rounded-r-lg"
                 title="Delete"
               >
                 <Trash2 className="w-4 h-4" />
@@ -695,7 +706,9 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         onCopyLink={() => handleCopy(`http://localhost:3001/message/${message.id}`)}
         onDelete={canDelete ? () => onDelete(message.id) : undefined}
         onEdit={canEdit && onEdit ? () => onEdit(message) : undefined}
-        onPin={canPin && onPin ? () => onPin(message.id) : undefined}
+        onPin={canPin && onPin ? () => onPin(message) : undefined}
+        onUnpin={canPin && onUnpin ? () => onUnpin(message.id) : undefined}
+        isPinned={pinnedMessageIds?.has(message.id) || false}
 
         canDelete={canDelete}
         canPin={canPin}
@@ -708,7 +721,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [], onReaction, onFocusInput }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [], onReaction, onFocusInput, showMemberList = true, onToggleMemberList }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -727,6 +740,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   // Pinned messages state
   const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
   const [showPinnedBanner, setShowPinnedBanner] = useState(false);
+  // Refresh loading state
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Edit message state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -734,6 +749,18 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   // Forward message state
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  // Help modal state
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  // Highlight message state (for jump to message from search)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  // Refs for message elements
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Pin confirmation modal state
+  const [pinMessageConfirm, setPinMessageConfirm] = useState<Message | null>(null);
+  // Pinned messages modal state
+  const [isPinnedMessagesOpen, setIsPinnedMessagesOpen] = useState(false);
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean; message: Message | null }>({ x: 0, y: 0, isOpen: false, message: null });
 
 
   // Update avatar version when currentUser avatar changes
@@ -769,6 +796,31 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       window.removeEventListener('displayname-updated', handleDisplayNameUpdated as EventListener);
     };
   }, []);
+
+  // Listen for jumpToMessage event from search modal
+  useEffect(() => {
+    const handleJumpToMessage = (e: CustomEvent<{ messageId: string; channelId: string }>) => {
+      const { messageId, channelId } = e.detail;
+      
+      // If message is in current channel, scroll to it
+      if (channelId === channel?.id) {
+        const messageElement = messageRefs.current.get(messageId);
+        if (messageElement && scrollContainerRef.current) {
+          // Scroll to message
+          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Highlight the message
+          setHighlightedMessageId(messageId);
+          // Remove highlight after 3 seconds
+          setTimeout(() => setHighlightedMessageId(null), 3000);
+        }
+      }
+    };
+    
+    window.addEventListener('jumpToMessage', handleJumpToMessage as EventListener);
+    return () => {
+      window.removeEventListener('jumpToMessage', handleJumpToMessage as EventListener);
+    };
+  }, [channel?.id]);
 
 
   // Build userMap from messages for reaction usernames
@@ -907,7 +959,10 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     try {
       const token = localStorage.getItem('token');
       console.log('Pinning message:', messageId, 'API_URL:', API_URL);
-      const response = await fetch(`${API_URL}/messages/${messageId}/pin`, {
+      // Force no-cache for API call
+      const pinUrl = `${API_URL}/messages/${messageId}/pin`;
+      console.log('Full pin URL:', pinUrl);
+      const response = await fetch(pinUrl, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -920,6 +975,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         console.log('Pin success:', data);
         // Refresh pinned messages
         fetchPinnedMessages();
+        // Close confirmation modal
+        setPinMessageConfirm(null);
         // Show success notification
         console.log('Message pinned successfully');
       } else {
@@ -1121,13 +1178,13 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
   if (!channel) {
     return (
-      <div className="flex-1 bg-[#36393f] flex items-center justify-center">
+      <div className="flex-1 bg-[#0d0d14] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-24 h-24 bg-[#5865f2]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Hash className="w-12 h-12 text-[#5865f2]" />
+          <div className="w-24 h-24 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Hash className="w-12 h-12 text-[#00d4ff]" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Selamat Datang!</h2>
-          <p className="text-[#b9bbbe]">Pilih channel untuk mulai chatting</p>
+          <p className="text-[#a0a0b0]">Pilih channel untuk mulai chatting</p>
         </div>
       </div>
     );
@@ -1140,7 +1197,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   // Voice channel view
   if (channel.type === 'voice') {
     return (
-      <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
+      <div className="flex-1 bg-[#0d0d14] flex flex-col min-h-0">
         {/* Header */}
         <div className="h-12 px-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-3">
@@ -1150,12 +1207,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           <div className="flex items-center gap-4">
             <button 
               onClick={onOpenSearch}
-              className="relative flex items-center bg-[#202225] hover:bg-[#2f3136] text-[#72767d] hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
+              className="relative flex items-center bg-[#08080c] hover:bg-[#12121a] text-[#6a6a7a] hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
               title="Cari pesan (Ctrl+K)"
             >
               <Search className="w-4 h-4 mr-2" />
               <span>Cari</span>
-              <kbd className="ml-auto text-xs bg-[#36393f] px-1.5 py-0.5 rounded text-[#72767d] group-hover:text-[#b9bbbe]">Ctrl+K</kbd>
+              <kbd className="ml-auto text-xs bg-[#0d0d14] px-1.5 py-0.5 rounded text-[#6a6a7a] group-hover:text-[#a0a0b0]">Ctrl+K</kbd>
             </button>
           </div>
         </div>
@@ -1175,9 +1232,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
   // Text channel view
   return (
-    <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
+    <div className="flex-1 bg-[#0d0d14] flex flex-col min-h-0">
       {/* Header - Simplified for mobile */}
-      <div className={`${isMobile ? 'h-11 px-3' : 'h-12 px-4'} flex items-center justify-between shadow-md bg-[#36393f] border-b border-[#202225] flex-shrink-0`}>
+      <div className={`${isMobile ? 'h-11 px-3' : 'h-12 px-4'} flex items-center justify-between shadow-md bg-[#0d0d14] border-b border-[#08080c] flex-shrink-0`}>
         <div className="flex items-center gap-2 min-w-0">
           <Hash className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-[#8e9297] flex-shrink-0`} />
           <h2 className="text-white font-semibold truncate">{channel.name}</h2>
@@ -1185,46 +1242,70 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         <div className="flex items-center gap-2">
           {!isMobile && (
             <>
-              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
-                <Phone className="w-5 h-5" />
-              </button>
-              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
-                <Video className="w-5 h-5" />
-              </button>
-              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+              {/* 1. Pin - Pinned Messages */}
+              <button 
+                onClick={() => setIsPinnedMessagesOpen(true)}
+                className="relative text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" 
+                title="Pinned Messages"
+              >
                 <Pin className="w-5 h-5" />
+                {pinnedMessages.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ed4245] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {pinnedMessages.length > 9 ? '9+' : pinnedMessages.length}
+                  </span>
+                )}
               </button>
-              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
-                <Users className="w-5 h-5" />
+              {/* 2. File */}
+              <button className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" title="File Attachment">
+                <Inbox className="w-5 h-5" />
               </button>
             </>
           )}
+          {/* 3. Search */}
           <button 
             onClick={onOpenSearch}
-            className={`relative flex items-center bg-[#202225] hover:bg-[#2f3136] text-[#72767d] hover:text-white text-sm rounded-md transition-all group ${isMobile ? 'px-2 py-1.5 w-28' : 'px-3 py-1.5 w-36'}`}
+            className={`relative flex items-center bg-[#08080c] hover:bg-[#12121a] text-[#6a6a7a] hover:text-white text-sm rounded-md transition-all group ${isMobile ? 'px-2 py-1.5 w-28' : 'px-3 py-1.5 w-36'}`}
             title="Cari pesan (Ctrl+K)"
           >
             <Search className="w-4 h-4 mr-2" />
             <span className={isMobile ? 'hidden' : ''}>Cari</span>
-            {!isMobile && <kbd className="ml-auto text-xs bg-[#36393f] px-1.5 py-0.5 rounded text-[#72767d] group-hover:text-[#b9bbbe]">Ctrl+K</kbd>}
+            {!isMobile && <kbd className="ml-auto text-xs bg-[#0d0d14] px-1.5 py-0.5 rounded text-[#6a6a7a] group-hover:text-[#a0a0b0]">Ctrl+K</kbd>}
           </button>
           {!isMobile && (
             <>
-              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
-                <Inbox className="w-5 h-5" />
-              </button>
-              <button className="text-[#b9bbbe] hover:text-white transition-colors p-1">
+              {/* 4. Help */}
+              <button 
+                onClick={() => setIsHelpOpen(true)}
+                className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" 
+                title="Bantuan"
+              >
                 <HelpCircle className="w-5 h-5" />
               </button>
             </>
           )}
+          {/* 5. Refresh */}
           {onRefresh && (
             <button 
-              onClick={onRefresh}
-              className="text-[#b9bbbe] hover:text-white transition-colors p-1"
-              title="Refresh"
+              onClick={async () => {
+                setIsRefreshing(true);
+                await onRefresh();
+                setTimeout(() => setIsRefreshing(false), 500);
+              }}
+              disabled={isRefreshing}
+              className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1 disabled:opacity-50"
+              title="Refresh pesan"
             >
-              <RefreshCw className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+              <RefreshCw className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+          {!isMobile && (
+            /* 6. Users/Anggota - Toggle Member List */
+            <button 
+              onClick={onToggleMemberList}
+              className={`transition-colors p-1 ${showMemberList ? 'text-[#00d4ff]' : 'text-[#a0a0b0] hover:text-[#00d4ff]'}`} 
+              title={showMemberList ? 'Sembunyikan daftar anggota' : 'Tampilkan daftar anggota'}
+            >
+              <Users className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -1232,29 +1313,40 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
       {/* Pinned Messages Banner */}
       {showPinnedBanner && pinnedMessages.length > 0 && (
-        <div className="bg-[#2f3136] border-b border-[#202225] px-4 py-2">
+        <div className="bg-[#12121a] border-b border-[#08080c] px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Pin className="w-4 h-4 text-[#b9bbbe]" />
-              <span className="text-sm text-[#b9bbbe]">
-                {pinnedMessages.length} Pinned Message{pinnedMessages.length > 1 ? 's' : ''}
+              <Pin className="w-4 h-4 text-[#a0a0b0]" />
+              <span className="text-sm text-[#a0a0b0]">
+                {pinnedMessages.length} Pesan Disematkan
               </span>
             </div>
-            <button
-              onClick={() => setShowPinnedBanner(!showPinnedBanner)}
-              className="text-xs text-[#5865f2] hover:underline"
-            >
-              {showPinnedBanner ? 'Hide' : 'Show'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsPinnedMessagesOpen(true)}
+                className="text-xs text-[#00d4ff] hover:underline font-medium"
+              >
+                Lihat Semua
+              </button>
+              <button
+                onClick={() => setShowPinnedBanner(false)}
+                className="text-xs text-[#6a6a7a] hover:text-[#a0a0b0]"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
           {showPinnedBanner && (
             <div className="mt-2 space-y-2 max-h-32 overflow-y-auto">
               {pinnedMessages.map((msg) => (
-                <div key={msg.id} className="flex items-start gap-2 p-2 bg-[#36393f] rounded text-sm">
+                <div key={msg.id} className="flex items-start gap-2 p-2 bg-[#0d0d14] rounded text-sm">
                   <img
-                    src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username || 'user'}`}
+                    src={getAvatarUrl(msg.user?.avatar || null, msg.user?.username || 'user')}
                     alt={msg.user?.username}
-                    className="w-6 h-6 rounded-full"
+                    className="w-6 h-6 rounded-full bg-[#1a1b2e]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username || 'user'}`;
+                    }}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -1265,18 +1357,18 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                         {msg.user?.displayName || msg.user?.username}
                       </span>
                       <span 
-                        className="text-xs text-[#72767d] cursor-default hover:underline"
+                        className="text-xs text-[#6a6a7a] cursor-default hover:underline"
                         title={formatTooltipTimestamp(msg.timestamp || (msg as any).createdAt)}
                       >
                         {formatDiscordTimestamp(msg.timestamp || (msg as any).createdAt)}
                       </span>
                     </div>
-                    <p className="text-[#b9bbbe] truncate">{msg.content}</p>
+                    <p className="text-[#a0a0b0] truncate">{msg.content}</p>
                   </div>
                   {userPermissions?.canManageMessages && (
                     <button
                       onClick={() => handleUnpinMessage(msg.id)}
-                      className="text-[#72767d] hover:text-[#ed4245] p-1"
+                      className="text-[#6a6a7a] hover:text-[#ed4245] p-1"
                       title="Unpin message"
                     >
                       <Pin className="w-4 h-4" />
@@ -1304,13 +1396,13 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         {groupedMessages.length === 0 ? (
 
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-[#5865f2]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Hash className="w-8 h-8 text-[#5865f2]" />
+            <div className="w-16 h-16 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Hash className="w-8 h-8 text-[#00d4ff]" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">
               Selamat datang di #{channel.name}!
             </h3>
-            <p className="text-[#b9bbbe]">Ini adalah awal dari channel #{channel.name}.</p>
+            <p className="text-[#a0a0b0]">Ini adalah awal dari channel #{channel.name}.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -1318,9 +1410,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
               <div key={groupIndex}>
                 {/* Date Divider */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className="h-[1px] bg-[#40444b] flex-1" />
-                  <span className="px-4 text-xs text-[#72767d] font-medium">{group.date}</span>
-                  <div className="h-[1px] bg-[#40444b] flex-1" />
+                  <div className="h-[1px] bg-[#2a2b3d] flex-1" />
+                  <span className="px-4 text-xs text-[#6a6a7a] font-medium">{group.date}</span>
+                  <div className="h-[1px] bg-[#2a2b3d] flex-1" />
                 </div>
 
                 {/* Messages */}
@@ -1348,8 +1440,15 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                       );
                     }
 
+                    const isHighlighted = highlightedMessageId === message.id;
+
                     return (
-                      <div key={message.id} className={`relative ${compactClass}`}>
+                      <div 
+                        key={message.id} 
+                        id={`message-${message.id}`}
+                        ref={el => { if (el) messageRefs.current.set(message.id, el); }}
+                        className={`relative ${compactClass} ${isHighlighted ? 'bg-[#00d4ff]/20 rounded-lg transition-colors duration-500' : ''}`}
+                      >
                         <MessageItem
                           message={message}
                           showHeader={showHeader}
@@ -1361,7 +1460,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           onEdit={handleStartEdit}
                           onUserClick={handleUserClick}
                           onAttachmentClick={handleAttachmentClick}
-                          onPin={handlePinMessage}
+                          onPin={(msg) => setPinMessageConfirm(msg)}
+                          onUnpin={handleUnpinMessage}
+                          pinnedMessageIds={new Set(pinnedMessages.map(m => m.id))}
                           onForward={openForwardModal}
                           onCopy={handleCopy}
                           isMobile={isMobile}
@@ -1387,7 +1488,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
         {/* Typing Indicator */}
         {channelTypingUsers.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 text-[#b9bbbe] text-sm">
+          <div className="flex items-center gap-2 px-4 py-2 text-[#a0a0b0] text-sm">
             <div className="flex gap-1">
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full typing-dot" />
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full typing-dot" />
@@ -1435,6 +1536,318 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         currentServerId={serverId ?? null}
         onForward={handleForwardMessage}
       />
+
+      {/* Pin Confirmation Modal */}
+      <Dialog open={!!pinMessageConfirm} onOpenChange={() => setPinMessageConfirm(null)}>
+        <DialogContent className="bg-[#313338] border-[#232438] text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Pin className="w-6 h-6 text-[#00d4ff]" />
+              Sematkan Pesan Ini?
+            </DialogTitle>
+          </DialogHeader>
+          
+          {pinMessageConfirm && (
+            <div className="py-4">
+              <p className="text-[#a0a0b0] mb-4">
+                Pesan ini akan disematkan ke channel <span className="text-white font-medium">#{channel?.name}</span> agar mudah ditemukan oleh semua anggota.
+              </p>
+              
+              {/* Message Preview */}
+              <div className="bg-[#232438] rounded-lg p-4 max-h-48 overflow-y-auto">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={getAvatarUrl(pinMessageConfirm.user?.avatar || null, pinMessageConfirm.user?.username || 'user')}
+                    alt={pinMessageConfirm.user?.username}
+                    className="w-10 h-10 rounded-full bg-[#1a1b2e]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${pinMessageConfirm.user?.username || 'user'}`;
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white">
+                        {pinMessageConfirm.user?.displayName || pinMessageConfirm.user?.username}
+                      </span>
+                      <span className="text-xs text-[#6a6a7a]">
+                        {new Date(pinMessageConfirm.timestamp || Date.now()).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    <p className="text-[#a0a0b0] mt-1 break-words">
+                      {pinMessageConfirm.content}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setPinMessageConfirm(null)}
+                  className="flex-1 px-4 py-2.5 bg-[#232438] hover:bg-[#2a2b3d] text-white rounded-md transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => pinMessageConfirm && handlePinMessage(pinMessageConfirm.id)}
+                  className="flex-1 px-4 py-2.5 bg-[#00d4ff] hover:bg-[#00b8db] text-black rounded-md transition-colors font-medium"
+                >
+                  Ya, Sematkan
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Pinned Messages Modal */}
+      <Dialog open={isPinnedMessagesOpen} onOpenChange={setIsPinnedMessagesOpen}>
+        <DialogContent className="bg-[#313338] border-[#232438] text-white max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Pin className="w-6 h-6 text-[#00d4ff]" />
+              Pesan yang Disematkan
+              {pinnedMessages.length > 0 && (
+                <span className="text-sm font-normal text-[#6a6a7a]">({pinnedMessages.length})</span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto py-4 space-y-3">
+            {pinnedMessages.length === 0 ? (
+              <div className="text-center py-12 text-[#6a6a7a]">
+                <Pin className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium text-white mb-2">Belum ada pesan yang disematkan</p>
+                <p className="text-sm">Pesan yang disematkan akan muncul di sini</p>
+              </div>
+            ) : (
+              pinnedMessages.map((msg) => (
+                <div 
+                  key={msg.id} 
+                  className="bg-[#232438] rounded-lg p-4 hover:bg-[#2a2b3d] transition-colors group"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={getAvatarUrl(msg.user?.avatar || null, msg.user?.username || 'user')}
+                      alt={msg.user?.username}
+                      className="w-10 h-10 rounded-full bg-[#1a1b2e]"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username || 'user'}`;
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-white">
+                            {msg.user?.displayName || msg.user?.username}
+                          </span>
+                          <span className="text-xs text-[#6a6a7a]">
+                            {new Date(msg.timestamp || Date.now()).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setIsPinnedMessagesOpen(false);
+                              // Jump to message
+                              const element = document.getElementById(`message-${msg.id}`);
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                element.classList.add('highlight-message');
+                                setTimeout(() => element.classList.remove('highlight-message'), 2000);
+                              }
+                            }}
+                            className="p-1.5 text-[#a0a0b0] hover:text-[#00d4ff] hover:bg-[#1a1b2e] rounded transition-colors"
+                            title="Lihat pesan"
+                          >
+                            <Search className="w-4 h-4" />
+                          </button>
+                          {userPermissions?.canManageMessages && (
+                            <button
+                              onClick={() => handleUnpinMessage(msg.id)}
+                              className="p-1.5 text-[#a0a0b0] hover:text-[#ed4245] hover:bg-[#1a1b2e] rounded transition-colors"
+                              title="Hapus sematan"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[#a0a0b0] mt-1 break-words">
+                        {msg.content}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Help Modal */}
+      <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
+        <DialogContent className="bg-[#0d0d14] border-[#1a1a24] text-white max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <HelpCircle className="w-6 h-6 text-[#00d4ff]" />
+              Panduan Penggunaan WorkGrid
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Shortcut Keyboard */}
+            <section>
+              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+                <Keyboard className="w-4 h-4" />
+                Shortcut Keyboard
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex justify-between bg-[#08080c] p-2 rounded">
+                  <span className="text-[#a0a0b0]">Cari pesan</span>
+                  <kbd className="bg-[#1a1a24] px-2 py-0.5 rounded text-xs">Ctrl + K</kbd>
+                </div>
+                <div className="flex justify-between bg-[#08080c] p-2 rounded">
+                  <span className="text-[#a0a0b0]">Kirim pesan</span>
+                  <kbd className="bg-[#1a1a24] px-2 py-0.5 rounded text-xs">Enter</kbd>
+                </div>
+                <div className="flex justify-between bg-[#08080c] p-2 rounded">
+                  <span className="text-[#a0a0b0]">Baris baru</span>
+                  <kbd className="bg-[#1a1a24] px-2 py-0.5 rounded text-xs">Shift + Enter</kbd>
+                </div>
+                <div className="flex justify-between bg-[#08080c] p-2 rounded">
+                  <span className="text-[#a0a0b0]">Refresh</span>
+                  <span className="text-[#6a6a7a] text-xs">Klik icon 🔄</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Fitur Chat */}
+            <section>
+              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+                <MessageCircle className="w-4 h-4" />
+                Fitur Chat
+              </h3>
+              <ul className="space-y-2 text-sm text-[#a0a0b0]">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">Kirim Pesan:</strong> Ketik di kotak input bawah dan tekan Enter</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">Upload File:</strong> Klik icon + di sebelah kiri input</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">Emoji & GIF:</strong> Klik icon 😊 atau GIF di input</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">Reply:</strong> Klik kanan pada pesan → Balas</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">Reaction:</strong> Klik kanan pada pesan → Tambah reaksi</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">Edit/Hapus:</strong> Klik kanan pada pesan Anda</span>
+                </li>
+              </ul>
+            </section>
+
+            {/* Mention */}
+            <section>
+              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+                <AtSign className="w-4 h-4" />
+                Mention/Menyebut
+              </h3>
+              <ul className="space-y-2 text-sm text-[#a0a0b0]">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">@nama</strong> - Sebut user tertentu</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">@everyone</strong> - Sebut semua anggota server</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#00d4ff]">•</span>
+                  <span><strong className="text-white">@here</strong> - Sebut yang online saja</span>
+                </li>
+              </ul>
+            </section>
+
+            {/* Toolbar Icon */}
+            <section>
+              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+                <Pin className="w-4 h-4" />
+                Icon Toolbar
+              </h3>
+              <ul className="space-y-2 text-sm text-[#a0a0b0]">
+                <li className="flex items-center gap-2">
+                  <Pin className="w-4 h-4 text-[#6a6a7a]" />
+                  <span><strong className="text-white">Pin:</strong> Lihat pesan yang di-pin</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Inbox className="w-4 h-4 text-[#6a6a7a]" />
+                  <span><strong className="text-white">File:</strong> Lihat file attachment</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-[#6a6a7a]" />
+                  <span><strong className="text-white">Cari:</strong> Cari pesan (Ctrl+K)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-[#6a6a7a]" />
+                  <span><strong className="text-white">Bantuan:</strong> Panduan ini</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-[#6a6a7a]" />
+                  <span><strong className="text-white">Refresh:</strong> Muat ulang pesan</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#6a6a7a]" />
+                  <span><strong className="text-white">Anggota:</strong> Lihat daftar member</span>
+                </li>
+              </ul>
+            </section>
+
+            {/* Status */}
+            <section>
+              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+                <Bell className="w-4 h-4" />
+                Status Online
+              </h3>
+              <div className="flex gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#00d4ff] rounded-full"></div>
+                  <span className="text-[#a0a0b0]">Online</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#faa81a] rounded-full"></div>
+                  <span className="text-[#a0a0b0]">Idle</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#ed4245] rounded-full"></div>
+                  <span className="text-[#a0a0b0]">DND</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#747f8d] rounded-full"></div>
+                  <span className="text-[#a0a0b0]">Offline</span>
+                </div>
+              </div>
+            </section>
+
+            {/* Tips */}
+            <section className="bg-[#00d4ff]/10 border border-[#00d4ff]/30 rounded-lg p-4">
+              <h3 className="text-[#00d4ff] font-semibold mb-2">💡 Tips</h3>
+              <p className="text-sm text-[#a0a0b0]">
+                Klik kanan pada pesan untuk melihat menu aksi (Reply, Edit, Hapus, Forward, Pin, Reaction)
+              </p>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

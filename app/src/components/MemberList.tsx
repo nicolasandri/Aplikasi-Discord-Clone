@@ -60,7 +60,7 @@ const roleColors: Record<string, string> = {
   owner: 'text-[#ffd700]',
   admin: 'text-[#ed4245]',
   moderator: 'text-[#43b581]',
-  member: 'text-[#b9bbbe]',
+  member: 'text-[#a0a0b0]',
 };
 
 // Role hierarchy for checking who can manage whom (higher = more power)
@@ -393,8 +393,8 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
 
   if (!serverId) {
     return (
-      <div className="w-60 bg-[#2f3136] border-l border-[#202225] hidden lg:block">
-        <div className="p-4 text-[#72767d] text-sm text-center">
+      <div className="w-60 bg-[#232438] border-l border-[#0f0f1a] hidden lg:block">
+        <div className="p-4 text-[#6a6a7a] text-sm text-center">
           Pilih server untuk melihat member
         </div>
       </div>
@@ -502,14 +502,14 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
             }}
           />
           <div
-            className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[member.status || 'offline']} rounded-full border-2 border-[#2f3136]`}
+            className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[member.status || 'offline']} rounded-full border-2 border-[#232438]`}
           />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
             <span 
               className={`text-sm font-bold truncate group-hover:text-white ${
-                member.status === 'offline' ? 'text-[#72767d]' : ''
+                member.status === 'offline' ? 'text-[#6a6a7a]' : ''
               }`}
               style={{ 
                 color: member.status === 'offline' 
@@ -546,24 +546,24 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         <ContextMenuTrigger asChild>
           {memberContent}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-56 bg-[#18191c] border-[#2f3136]">
+        <ContextMenuContent className="w-56 bg-[#18191c] border-[#232438]">
           <div className="px-2 py-1.5 text-sm font-medium text-[#dcddde]">
             {displayName}
           </div>
-          <ContextMenuSeparator className="bg-[#2f3136]" />
+          <ContextMenuSeparator className="bg-[#232438]" />
           
           {/* Standard Roles Submenu - Only for Owner and Admin */}
           {(isOwner || currentUserRole === 'admin') && (
             <ContextMenuSub>
-              <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
+              <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
                 Role Standar
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="bg-[#18191c] border-[#2f3136]">
+              <ContextMenuSubContent className="bg-[#18191c] border-[#232438]">
                 {(['member', 'moderator', 'admin'] as const).map((role) => (
                   <ContextMenuItem
                     key={role}
-                    className={`text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white ${
-                      member.role === role ? 'bg-[#5865f2]/20' : ''
+                    className={`text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white ${
+                      member.role === role ? 'bg-[#00d4ff]/20' : ''
                     } ${!canManageUser(role, member.id) ? 'opacity-50 pointer-events-none' : ''}`}
                     onClick={() => handleChangeRole(member.id, role)}
                     disabled={!canManageUser(role, member.id)}
@@ -580,15 +580,15 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           {/* Custom Roles Submenu - Only for Owner, Admin, and Moderator */}
           {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && customRoles.length > 0 && (
             <ContextMenuSub>
-              <ContextMenuSubTrigger className="text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white">
+              <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
                 Role Custom ({customRoles.length})
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="bg-[#18191c] border-[#2f3136]">
+              <ContextMenuSubContent className="bg-[#18191c] border-[#232438]">
                 {customRoles.map((role) => (
                   <ContextMenuItem
                     key={role.id}
-                    className={`text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] focus:bg-[#5865f2] focus:text-white ${
-                      member.role_id === role.id ? 'bg-[#5865f2]/20' : ''
+                    className={`text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white ${
+                      member.role_id === role.id ? 'bg-[#00d4ff]/20' : ''
                     } ${!canManage ? 'opacity-50 pointer-events-none' : ''}`}
                     onClick={() => handleAssignCustomRole(member.id, role.id, role.name)}
                     disabled={!canManage}
@@ -608,7 +608,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           {/* Kick/Ban - Only for Owner, Admin, and Moderator */}
           {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && (
             <>
-              <ContextMenuSeparator className="bg-[#2f3136]" />
+              <ContextMenuSeparator className="bg-[#232438]" />
               <ContextMenuItem
                 className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
                 onClick={() => handleKickMember(member.id, displayName)}
@@ -633,16 +633,16 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
 
   return (
     <>
-      <div className="w-60 bg-[#2f3136] border-l border-[#202225] hidden lg:flex flex-col">
+      <div className="w-60 bg-[#232438] border-l border-[#0f0f1a] hidden lg:flex flex-col">
         {/* Header with role manager button */}
-        <div className="p-3 border-b border-[#202225] flex items-center justify-between">
+        <div className="p-3 border-b border-[#0f0f1a] flex items-center justify-between">
           <span className="text-[#96989d] text-xs font-semibold uppercase">Member</span>
           {(isOwner || currentUserRole === 'admin') && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowRoleManager(true)}
-              className="h-7 px-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c]"
+              className="h-7 px-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c]"
             >
               <Settings className="w-4 h-4" />
             </Button>
@@ -684,7 +684,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           )}
           
           {onlineMembers.length === 0 && offlineMembers.length === 0 && (
-            <div className="text-center text-[#72767d] text-sm py-4">
+            <div className="text-center text-[#6a6a7a] text-sm py-4">
               Tidak ada member di server ini
             </div>
           )}
@@ -729,3 +729,4 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     </>
   );
 }
+

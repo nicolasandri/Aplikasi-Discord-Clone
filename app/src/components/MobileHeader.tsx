@@ -28,20 +28,20 @@ export function MobileHeader({
   const isGroupDM = dmChannel?.type === 'group';
   
   return (
-    <div className="h-12 px-3 flex items-center justify-between bg-[#36393f] border-b border-[#202225]">
+    <div className="h-12 px-3 flex items-center justify-between bg-[#1a1b2e] border-b border-[#0f0f1a]">
       {/* Left side */}
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {showBack ? (
           <button 
             onClick={onBack}
-            className="p-2 -ml-2 text-[#b9bbbe] hover:text-white"
+            className="p-2 -ml-2 text-[#a0a0b0] hover:text-white"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
         ) : (
           <button 
             onClick={onOpenChannels}
-            className="p-2 -ml-2 text-[#b9bbbe] hover:text-white"
+            className="p-2 -ml-2 text-[#a0a0b0] hover:text-white"
           >
             {isChannelsOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -52,7 +52,7 @@ export function MobileHeader({
             isGroupDM ? (
               // Group DM Header
               <>
-                <div className="w-7 h-7 rounded-full bg-[#5865f2] flex items-center justify-center flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-[#00d4ff] flex items-center justify-center flex-shrink-0">
                   <Users className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-white font-semibold truncate">
@@ -88,7 +88,7 @@ export function MobileHeader({
         {!isDM && (
           <button 
             onClick={onOpenMembers}
-            className="p-2 text-[#b9bbbe] hover:text-white"
+            className="p-2 text-[#a0a0b0] hover:text-white"
           >
             <Users className="w-5 h-5" />
           </button>
@@ -97,3 +97,4 @@ export function MobileHeader({
     </div>
   );
 }
+

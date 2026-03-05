@@ -623,13 +623,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
 
   if (!channel) {
     return (
-      <div className="flex-1 bg-[#36393f] flex items-center justify-center">
+      <div className="flex-1 bg-[#1a1b2e] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-24 h-24 bg-[#5865f2]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-24 h-24 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-4xl">💬</span>
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Pesan Langsung</h2>
-          <p className="text-[#b9bbbe]">Pilih teman untuk mulai mengobrol</p>
+          <p className="text-[#a0a0b0]">Pilih teman untuk mulai mengobrol</p>
         </div>
       </div>
     );
@@ -638,21 +638,21 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   const groupedMessages = groupMessagesByDate(messages);
 
   return (
-    <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
+    <div className="flex-1 bg-[#1a1b2e] flex flex-col min-h-0">
       {/* Header */}
-      <div className="h-12 px-4 flex items-center justify-between shadow-md border-b border-[#202225]">
+      <div className="h-12 px-4 flex items-center justify-between shadow-md border-b border-[#0f0f1a]">
         <div className="flex items-center gap-3">
           {channel.type === 'group' ? (
             // Group DM Header
             <>
-              <div className="w-8 h-8 rounded-full bg-[#5865f2] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-[#00d4ff] flex items-center justify-center">
                 <Users className="w-4 h-4 text-white" />
               </div>
               <div>
                 <h3 className="text-white font-semibold">
                   {channel.name || `Grup (${channel.members?.length || 0})`}
                 </h3>
-                <p className="text-xs text-[#b9bbbe]">
+                <p className="text-xs text-[#a0a0b0]">
                   {channel.members?.map(m => m.username).join(', ') || 'Grup'}
                 </p>
               </div>
@@ -673,13 +673,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                     target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`;
                   }}
                 />
-                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#36393f]`} />
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#0d0d14]`} />
               </div>
               <div>
                 <h3 className="text-white font-semibold">
                   {channel.friend?.displayName || channel.friend?.username || 'Unknown'}
                 </h3>
-                <p className="text-xs text-[#b9bbbe]">{statusLabels[channel.friend?.status || 'offline']}</p>
+                <p className="text-xs text-[#a0a0b0]">{statusLabels[channel.friend?.status || 'offline']}</p>
               </div>
             </>
           )}
@@ -688,7 +688,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           {channel.type === 'group' && onAddMember && (
             <button 
               onClick={() => onAddMember(channel.id)}
-              className="text-[#b9bbbe] hover:text-white transition-colors"
+              className="text-[#a0a0b0] hover:text-white transition-colors"
               title="Tambah Anggota"
             >
               <UserPlus className="w-5 h-5" />
@@ -697,11 +697,11 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           {channel.type === 'group' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="text-[#b9bbbe] hover:text-white transition-colors">
+                <button className="text-[#a0a0b0] hover:text-white transition-colors">
                   <MoreVertical className="w-5 h-5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-[#18191c] border-[#202225]">
+              <DropdownMenuContent align="end" className="bg-[#18191c] border-[#0f0f1a]">
                 {onLeaveGroup && (
                   <DropdownMenuItem 
                     onClick={() => onLeaveGroup(channel.id)}
@@ -732,17 +732,17 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       >
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-[#5865f2]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">👋</span>
             </div>
             <h3 className="text-xl font-bold text-white mb-2">
               Ini adalah awal dari percakapan Anda dengan {channel.friend?.displayName || channel.friend?.username || 'Unknown'}
             </h3>
-            <p className="text-[#b9bbbe]">Kirim pesan untuk memulai!</p>
+            <p className="text-[#a0a0b0]">Kirim pesan untuk memulai!</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -750,11 +750,11 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               <div key={groupIndex}>
                 {/* Date Divider - Discord Style */}
                 <div className="flex items-center justify-center my-4">
-                  <div className="h-[1px] bg-[#40444b] flex-1" />
-                  <div className="mx-4 px-4 py-1 bg-[#2f3136] rounded-full">
-                    <span className="text-xs text-[#b9bbbe] font-medium">{group.date}</span>
+                  <div className="h-[1px] bg-[#2a2b3d] flex-1" />
+                  <div className="mx-4 px-4 py-1 bg-[#232438] rounded-full">
+                    <span className="text-xs text-[#a0a0b0] font-medium">{group.date}</span>
                   </div>
-                  <div className="h-[1px] bg-[#40444b] flex-1" />
+                  <div className="h-[1px] bg-[#2a2b3d] flex-1" />
                 </div>
 
                 {/* Messages */}
@@ -811,7 +811,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                               >
                                 {senderName}
                               </span>
-                              <span className="text-[11px] text-[#72767d]">
+                              <span className="text-[11px] text-[#6a6a7a]">
                                 {formatShortDate(message.createdAt)} {formatTime(message.createdAt)}
                               </span>
                             </div>
@@ -820,8 +820,8 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                           {(message.content || (message.attachments && message.attachments.some(f => !f.mimetype?.startsWith('image/')))) && (
                             <div className={`px-4 py-2 rounded-2xl ${
                               isOwn 
-                                ? 'bg-[#5865f2] text-white rounded-br-md' 
-                                : 'bg-[#40444b] text-[#dcddde] rounded-bl-md'
+                                ? 'bg-[#00d4ff] text-white rounded-br-md' 
+                                : 'bg-[#2a2b3d] text-[#dcddde] rounded-bl-md'
                             }`}>
                               {message.content && (
                                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -835,12 +835,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                                     .map((file, index) => (
                                       <div 
                                         key={index}
-                                        className="flex items-center gap-2 p-2 bg-[#2f3136] rounded-lg"
+                                        className="flex items-center gap-2 p-2 bg-[#232438] rounded-lg"
                                       >
                                         <span className="text-2xl">📎</span>
                                         <div className="flex-1 min-w-0">
                                           <p className="text-sm truncate">{file.originalName || file.filename}</p>
-                                          <p className="text-xs text-[#72767d]">{(file.size / 1024).toFixed(1)} KB</p>
+                                          <p className="text-xs text-[#6a6a7a]">{(file.size / 1024).toFixed(1)} KB</p>
                                         </div>
                                       </div>
                                     ))}
@@ -898,7 +898,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
 
         {/* Typing indicator */}
         {typingUser && (
-          <div className="flex items-center gap-2 px-4 py-2 text-[#b9bbbe] text-sm">
+          <div className="flex items-center gap-2 px-4 py-2 text-[#a0a0b0] text-sm">
             <div className="flex gap-1">
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -912,12 +912,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       </div>
 
       {/* Input Area */}
-      <div className="px-3 pb-3 pt-2 bg-[#36393f]">
+      <div className="px-3 pb-3 pt-2 bg-[#1a1b2e]">
         {/* Attachment Preview */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {attachments.map((file, index) => (
-              <div key={index} className="relative bg-[#2f3136] rounded-lg p-2 flex items-center gap-2 max-w-[200px]">
+              <div key={index} className="relative bg-[#232438] rounded-lg p-2 flex items-center gap-2 max-w-[200px]">
                 {file.mimetype?.startsWith('image/') ? (
                   <img 
                     src={file.url?.startsWith('http') ? file.url : `${BASE_URL}${file.url}`}
@@ -925,15 +925,15 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                     className="w-12 h-12 rounded object-cover"
                   />
                 ) : (
-                  <FileText className="w-8 h-8 text-[#b9bbbe]" />
+                  <FileText className="w-8 h-8 text-[#a0a0b0]" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white truncate">{file.originalName}</p>
-                  <p className="text-[10px] text-[#72767d]">{(file.size ? (file.size / 1024).toFixed(1) : '?')} KB</p>
+                  <p className="text-[10px] text-[#6a6a7a]">{(file.size ? (file.size / 1024).toFixed(1) : '?')} KB</p>
                 </div>
                 <button
                   onClick={() => removeAttachment(index)}
-                  className="p-1 hover:bg-[#ed4245]/20 rounded text-[#72767d] hover:text-[#ed4245]"
+                  className="p-1 hover:bg-[#ed4245]/20 rounded text-[#6a6a7a] hover:text-[#ed4245]"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -943,7 +943,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         )}
         
         <div 
-          className="bg-[#40444b] rounded-lg flex items-end gap-2 p-2 cursor-text"
+          className="bg-[#2a2b3d] rounded-lg flex items-end gap-2 p-2 cursor-text"
           onClick={() => textareaRef.current?.focus()}
         >
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -958,7 +958,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
             <button 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors disabled:opacity-50"
+              className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors disabled:opacity-50"
               title="Tambah attachment"
             >
               {isUploading ? (
@@ -979,7 +979,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               ? `Kirim pesan ke grup`
               : `Kirim pesan ke @${channel.friend?.displayName || channel.friend?.username || 'Unknown'}`
             }
-            className="flex-1 bg-transparent text-white placeholder:text-[#72767d] resize-none outline-none min-h-[40px] max-h-[120px] py-2 disabled:opacity-50"
+            className="flex-1 bg-transparent text-white placeholder:text-[#6a6a7a] resize-none outline-none min-h-[40px] max-h-[120px] py-2 disabled:opacity-50"
             rows={1}
             style={{ height: 'auto' }}
             onInputCapture={(e) => {
@@ -1052,3 +1052,4 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     </div>
   );
 }
+

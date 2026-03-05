@@ -219,12 +219,12 @@ export function DMList({
   };
 
   return (
-    <div className="w-60 bg-[#2f3136] flex flex-col">
+    <div className="w-60 bg-[#232438] flex flex-col">
       {/* Header */}
-      <div className="h-12 px-4 flex items-center shadow-md border-b border-[#202225]">
+      <div className="h-12 px-4 flex items-center shadow-md border-b border-[#0f0f1a]">
         <button 
           onClick={onOpenFriends}
-          className="w-full bg-[#202225] hover:bg-[#36393f] text-[#b9bbbe] text-sm font-medium py-1.5 px-3 rounded transition-colors text-left"
+          className="w-full bg-[#0f0f1a] hover:bg-[#1a1b2e] text-[#a0a0b0] text-sm font-medium py-1.5 px-3 rounded transition-colors text-left"
         >
           Cari atau mulai percakapan
         </button>
@@ -234,9 +234,9 @@ export function DMList({
       <div className="px-2 py-2">
         <button
           onClick={onOpenFriends}
-          className="w-full flex items-center gap-3 px-2 py-2 rounded hover:bg-[#34373c] text-[#b9bbbe] hover:text-white transition-colors"
+          className="w-full flex items-center gap-3 px-2 py-2 rounded hover:bg-[#34373c] text-[#a0a0b0] hover:text-white transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-[#36393f] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-[#1a1b2e] flex items-center justify-center">
             <UserPlus className="w-4 h-4" />
           </div>
           <span className="font-medium">Teman</span>
@@ -274,14 +274,14 @@ export function DMList({
                 onClick={() => onSelectChannel(channel.id)}
                 className={`w-full flex items-center gap-3 px-2 py-2 rounded group relative ${
                   selectedChannelId === channel.id
-                    ? 'bg-[#40444b] text-white'
-                    : 'hover:bg-[#34373c] text-[#b9bbbe] hover:text-white'
+                    ? 'bg-[#2a2b3d] text-white'
+                    : 'hover:bg-[#34373c] text-[#a0a0b0] hover:text-white'
                 }`}
               >
                 {/* Avatar or Group Icon */}
                 <div className="relative flex-shrink-0">
                   {isGroup ? (
-                    <div className="w-8 h-8 rounded-full bg-[#5865f2] flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-[#00d4ff] flex items-center justify-center">
                       <Users className="w-4 h-4 text-white" />
                     </div>
                   ) : (
@@ -295,7 +295,7 @@ export function DMList({
                         />
                         <AvatarFallback>{(channel.friend?.displayName || channel.friend?.username || 'U')[0].toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#2f3136]`} />
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#232438]`} />
                     </>
                   )}
                 </div>
@@ -309,7 +309,7 @@ export function DMList({
                       {displayName}
                     </span>
                     {channel.lastMessageAt && (
-                      <span className="text-[10px] text-[#72767d] flex-shrink-0 ml-1">
+                      <span className="text-[10px] text-[#6a6a7a] flex-shrink-0 ml-1">
                         {formatTime(channel.lastMessageAt)}
                       </span>
                     )}
@@ -318,7 +318,7 @@ export function DMList({
                     <span className={`text-xs truncate ${
                       (unreadCounts[channel.id] || 0) > 0 
                         ? 'text-white font-semibold' 
-                        : 'text-[#72767d]'
+                        : 'text-[#6a6a7a]'
                     }`}>
                       {isGroup && channel.lastMessage && (
                         <span className="mr-1">
@@ -341,7 +341,7 @@ export function DMList({
           })}
 
           {dmChannels.length === 0 && (
-            <div className="text-center py-8 text-[#72767d] text-sm">
+            <div className="text-center py-8 text-[#6a6a7a] text-sm">
               <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p>Belum ada percakapan</p>
               <p className="text-xs mt-1">Mulai chat dari daftar teman</p>
@@ -352,10 +352,11 @@ export function DMList({
 
       {/* User Profile - Fixed at bottom */}
       {onOpenSettings && (
-        <div className="p-2 border-t border-[#202225] bg-[#2f3136]">
+        <div className="p-2 border-t border-[#0f0f1a] bg-[#232438]">
           <UserProfileButton onOpenSettings={onOpenSettings} />
         </div>
       )}
     </div>
   );
 }
+

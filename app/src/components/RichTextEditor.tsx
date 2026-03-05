@@ -132,7 +132,7 @@ export function RichTextEditor({
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'mention bg-[#5865F2]/20 text-[#5865F2] rounded px-1 font-medium cursor-pointer'
+          class: 'mention bg-[#00d4ff]/20 text-[#00d4ff] rounded px-1 font-medium cursor-pointer'
         },
         suggestion: {
           items: async ({ query }) => {
@@ -249,7 +249,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('bold') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Bold (Ctrl+B)"
@@ -262,7 +262,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('italic') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Italic (Ctrl+I)"
@@ -275,7 +275,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('strike') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Strikethrough"
@@ -288,7 +288,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('code') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Inline Code"
@@ -304,7 +304,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('bulletList') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Bullet List"
@@ -317,7 +317,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('orderedList') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Numbered List"
@@ -330,7 +330,7 @@ export function RichTextEditor({
           disabled={disabled}
           className={`p-1.5 rounded transition-colors ${
             editor.isActive('blockquote') 
-              ? 'bg-[#5865F2] text-white' 
+              ? 'bg-[#00d4ff] text-white' 
               : 'text-gray-400 hover:bg-[#404249] hover:text-white'
           } disabled:opacity-50`}
           title="Quote"
@@ -408,3 +408,4 @@ export function RichTextEditor({
     </div>
   );
 }
+

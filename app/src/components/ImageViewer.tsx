@@ -174,3 +174,4 @@ export function ImageViewer({ src, alt = 'Image', isOpen, onClose }: ImageViewer
     </div>
   );
 }
+

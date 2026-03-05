@@ -88,7 +88,7 @@ export function MessageContent({ content, serverId }: MessageContentProps) {
         // Strikethrough
         .replace(/~~(.+?)~~/g, '<s class="text-gray-400">$1</s>')
         // Inline code
-        .replace(/`(.+?)`/g, '<code class="bg-[#2B2D31] px-1.5 py-0.5 rounded text-sm font-mono text-[#b9bbbe]">$1</code>')
+        .replace(/`(.+?)`/g, '<code class="bg-[#2B2D31] px-1.5 py-0.5 rounded text-sm font-mono text-[#a0a0b0]">$1</code>')
         // Links
         .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-[#00AFF4] hover:underline">$1</a>')
         // Newlines
@@ -127,7 +127,7 @@ export function MessageContent({ content, serverId }: MessageContentProps) {
         parts.push(
           <span
             key={key++}
-            className="bg-[#5865F2]/20 text-[#5865F2] rounded px-1 font-medium cursor-pointer hover:bg-[#5865F2]/30 transition-colors hover:underline"
+            className="bg-[#00d4ff]/20 text-[#00d4ff] rounded px-1 font-medium cursor-pointer hover:bg-[#00d4ff]/30 transition-colors hover:underline"
           >
             @{name}
           </span>
@@ -167,3 +167,4 @@ export function MessageContent({ content, serverId }: MessageContentProps) {
     </div>
   );
 }
+

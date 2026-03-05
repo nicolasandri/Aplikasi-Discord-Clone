@@ -87,20 +87,20 @@ export function RenameCategoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#36393f] border-[#202225] text-white sm:max-w-md">
+      <DialogContent className="bg-[#1a1b2e] border-[#0f0f1a] text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Ubah Nama Kategori</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <label className="text-[#b9bbbe] text-sm uppercase font-bold tracking-wide">
+            <label className="text-[#a0a0b0] text-sm uppercase font-bold tracking-wide">
               Nama Kategori
             </label>
             <Input
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
               placeholder="Nama kategori"
-              className="bg-[#202225] border-[#040405] text-white focus:border-[#5865f2]"
+              className="bg-[#0f0f1a] border-[#040405] text-white focus:border-[#00d4ff]"
               autoFocus
             />
           </div>
@@ -109,14 +109,14 @@ export function RenameCategoryModal({
               type="button"
               variant="ghost"
               onClick={onClose}
-              className="text-[#b9bbbe] hover:text-white hover:bg-[#34373c]"
+              className="text-[#a0a0b0] hover:text-white hover:bg-[#34373c]"
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={isLoading || !categoryName.trim()}
-              className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+              className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
             >
               {isLoading ? 'Menyimpan...' : 'Simpan'}
             </Button>
@@ -126,3 +126,4 @@ export function RenameCategoryModal({
     </Dialog>
   );
 }
+

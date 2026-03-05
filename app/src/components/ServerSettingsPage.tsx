@@ -45,7 +45,7 @@ const getFullImageUrl = (url: string | null | undefined): string => {
 };
 
 const BANNER_COLORS = [
-  { bg: 'linear-gradient(135deg, #5865f2 0%, #4752c4 100%)', name: 'Default' },
+  { bg: 'linear-gradient(135deg, #00d4ff 0%, #00b8db 100%)', name: 'Default' },
   { bg: 'linear-gradient(135deg, #eb459e 0%, #9b59b6 100%)', name: 'Pink' },
   { bg: 'linear-gradient(135deg, #ed4245 0%, #c0392b 100%)', name: 'Red' },
   { bg: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)', name: 'Orange' },
@@ -264,7 +264,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
         <div className="p-3 border-t border-[#1f2023]">
           <button
             onClick={onClose}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#5865f2] hover:bg-[#4752c4] text-white rounded transition-colors text-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#00d4ff] hover:bg-[#00b8db] text-white rounded transition-colors text-sm"
           >
             <X className="w-4 h-4" />
             Kembali ke Server
@@ -298,7 +298,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                     type="text"
                     value={serverName}
                     onChange={(e) => setServerName(e.target.value)}
-                    className="w-full bg-[#1e1f22] text-white px-3 py-2.5 rounded border border-[#2f3136] focus:border-[#5865f2] outline-none transition-colors"
+                    className="w-full bg-[#1e1f22] text-white px-3 py-2.5 rounded border border-[#232438] focus:border-[#00d4ff] outline-none transition-colors"
                   />
                 </div>
 
@@ -308,7 +308,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                   <p className="text-[#949ba4] text-sm mb-3">We recommend an image of at least 512x512.</p>
                   <button 
                     onClick={() => document.getElementById('server-icon-upload')?.click()}
-                    className="px-4 py-2 bg-[#5865f2] hover:bg-[#4752c4] text-white rounded text-sm font-medium transition-colors"
+                    className="px-4 py-2 bg-[#00d4ff] hover:bg-[#00b8db] text-white rounded text-sm font-medium transition-colors"
                   >
                     Change Server Icon
                   </button>
@@ -344,7 +344,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
-                    className="w-full bg-[#1e1f22] text-white px-3 py-2.5 rounded border border-[#2f3136] focus:border-[#5865f2] outline-none transition-colors resize-none"
+                    className="w-full bg-[#1e1f22] text-white px-3 py-2.5 rounded border border-[#232438] focus:border-[#00d4ff] outline-none transition-colors resize-none"
                   />
                 </div>
 
@@ -352,7 +352,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                 <button
                   onClick={handleSave}
                   disabled={isLoading}
-                  className="px-6 py-2.5 bg-[#5865f2] hover:bg-[#4752c4] disabled:opacity-50 text-white rounded font-medium transition-colors"
+                  className="px-6 py-2.5 bg-[#00d4ff] hover:bg-[#00b8db] disabled:opacity-50 text-white rounded font-medium transition-colors"
                 >
                   {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
                 </button>
@@ -387,7 +387,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                       </span>
                       <span>{members.length} Members</span>
                     </div>
-                    <p className="text-[#72767d] text-xs mt-2">Est. {new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</p>
+                    <p className="text-[#6a6a7a] text-xs mt-2">Est. {new Date().toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</p>
                   </div>
                 </div>
               </div>
@@ -420,3 +420,4 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     </div>
   );
 }
+

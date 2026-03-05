@@ -74,21 +74,21 @@ export function AddMemberToGroupModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[#36393f] rounded-lg shadow-xl overflow-hidden">
+      <div className="w-full max-w-md bg-[#1a1b2e] rounded-lg shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#202225] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-[#0f0f1a] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#43b581] flex items-center justify-center">
               <UserPlus className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">Tambah Anggota</h2>
-              <p className="text-sm text-[#b9bbbe]">Tambah teman ke grup ini</p>
+              <p className="text-sm text-[#a0a0b0]">Tambah teman ke grup ini</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-[#b9bbbe] hover:text-white transition-colors p-1 hover:bg-[#4f545c] rounded"
+            className="text-[#a0a0b0] hover:text-white transition-colors p-1 hover:bg-[#4f545c] rounded"
           >
             <X className="w-5 h-5" />
           </button>
@@ -99,13 +99,13 @@ export function AddMemberToGroupModal({
           {/* Friends List */}
           <div className="space-y-2">
             {friends.length === 0 ? (
-              <div className="text-center py-8 text-[#72767d]">
+              <div className="text-center py-8 text-[#6a6a7a]">
                 <UserPlus className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">Tidak ada teman yang tersedia</p>
                 <p className="text-xs mt-1">Semua teman sudah menjadi anggota grup</p>
               </div>
             ) : (
-              <ScrollArea className="h-64 border border-[#202225] rounded-lg">
+              <ScrollArea className="h-64 border border-[#0f0f1a] rounded-lg">
                 <div className="p-2 space-y-1">
                   {friends.map(friend => {
                     const isSelected = selectedUserId === friend.id;
@@ -116,7 +116,7 @@ export function AddMemberToGroupModal({
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
                           isSelected 
                             ? 'bg-[#43b581]/20 hover:bg-[#43b581]/30' 
-                            : 'hover:bg-[#40444b]'
+                            : 'hover:bg-[#2a2b3d]'
                         }`}
                       >
                         <Avatar className="w-8 h-8">
@@ -153,11 +153,11 @@ export function AddMemberToGroupModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#202225] flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-[#0f0f1a] flex justify-end gap-3">
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-[#b9bbbe] hover:text-white hover:bg-[#4f545c]"
+            className="text-[#a0a0b0] hover:text-white hover:bg-[#4f545c]"
           >
             Batal
           </Button>
@@ -182,3 +182,4 @@ export function AddMemberToGroupModal({
 }
 
 export default AddMemberToGroupModal;
+

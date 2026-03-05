@@ -504,6 +504,79 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// ==================== AUTO UPDATE ROUTES ====================
+
+// Get current app version (MUST be before /updates/:filename)
+app.get('/updates/version', (req, res) => {
+  try {
+    const pkgPath = path.join(__dirname, '../app/package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    
+    // Get latest release info if available
+    const latestPath = path.join(__dirname, '../app/release/latest.yml');
+    let latestVersion = pkg.version;
+    let downloadUrl = null;
+    
+    if (fs.existsSync(latestPath)) {
+      const yaml = require('js-yaml');
+      const latest = yaml.load(fs.readFileSync(latestPath, 'utf8'));
+      latestVersion = latest.version;
+      downloadUrl = `/updates/${latest.path}`;
+    }
+    
+    res.json({
+      current: pkg.version,
+      latest: latestVersion,
+      updateAvailable: latestVersion !== pkg.version,
+      downloadUrl: downloadUrl,
+      releaseDate: fs.existsSync(latestPath) ? 
+        fs.statSync(latestPath).mtime.toISOString() : 
+        new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get version info' });
+  }
+});
+
+// Serve latest.yml for auto-updater
+app.get('/updates/latest.yml', (req, res) => {
+  const latestPath = path.join(__dirname, '../app/release/latest.yml');
+  
+  if (fs.existsSync(latestPath)) {
+    res.setHeader('Content-Type', 'application/x-yaml');
+    res.sendFile(latestPath);
+  } else {
+    // Return mock data if file doesn't exist (development mode)
+    res.setHeader('Content-Type', 'application/x-yaml');
+    res.send(`version: 1.0.0
+files:
+  - url: WorkGrid Setup 1.0.0.exe
+    sha512: mock-hash-for-development
+    size: 0
+path: WorkGrid Setup 1.0.0.exe
+sha512: mock-hash-for-development
+releaseDate: ${new Date().toISOString()}
+`);
+  }
+});
+
+// Serve update files (setup.exe)
+app.get('/updates/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, '../app/release', filename);
+  
+  // Security: only allow specific file extensions
+  if (!filename.match(/\.(exe|yml|yaml|blockmap|zip|dmg|AppImage|deb|rpm|nupkg|json|sig)$/i)) {
+    return res.status(403).json({ error: 'Forbidden file type' });
+  }
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
 // ==================== AUTH ROUTES ====================
 
 // Register
@@ -1447,6 +1520,98 @@ app.get('/api/messages/:messageId/reactions', authenticateToken, async (req, res
   } catch (error) {
     console.error('Get reactions error:', error);
     res.status(500).json({ error: 'Failed to get reactions' });
+  }
+});
+
+// ==================== MESSAGE PIN ROUTES ====================
+
+// Pin a message
+app.post('/api/messages/:messageId/pin', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+    
+    // Check if message exists
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Check user permissions (must have manage_messages permission)
+    const hasPermission = await checkPermission(userId, message.channel_id, PERMISSIONS.MANAGE_MESSAGES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to pin messages' });
+    }
+    
+    // Pin the message
+    const pinnedMessage = await messageDB.pin(messageId, userId);
+    
+    // Broadcast to channel
+    io.to(message.channel_id).emit('message_pinned', { 
+      messageId, 
+      channelId: message.channel_id,
+      pinnedBy: userId 
+    });
+    
+    res.json({ success: true, message: pinnedMessage });
+  } catch (error) {
+    console.error('Pin message error:', error);
+    res.status(500).json({ error: 'Failed to pin message' });
+  }
+});
+
+// Unpin a message
+app.post('/api/messages/:messageId/unpin', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+    
+    // Check if message exists
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Check user permissions (must have manage_messages permission)
+    const hasPermission = await checkPermission(userId, message.channel_id, PERMISSIONS.MANAGE_MESSAGES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to unpin messages' });
+    }
+    
+    // Unpin the message
+    const unpinnedMessage = await messageDB.unpin(messageId);
+    
+    // Broadcast to channel
+    io.to(message.channel_id).emit('message_unpinned', { 
+      messageId, 
+      channelId: message.channel_id 
+    });
+    
+    res.json({ success: true, message: unpinnedMessage });
+  } catch (error) {
+    console.error('Unpin message error:', error);
+    res.status(500).json({ error: 'Failed to unpin message' });
+  }
+});
+
+// Get pinned messages for a channel
+app.get('/api/channels/:channelId/pins', authenticateToken, async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    
+    // Check if channel exists
+    const channel = await channelDB.getById(channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    // Get pinned messages
+    const pinnedMessages = await messageDB.getPinnedByChannel(channelId);
+    
+    res.json({ messages: pinnedMessages });
+  } catch (error) {
+    console.error('Get pinned messages error:', error);
+    res.status(500).json({ error: 'Failed to get pinned messages' });
   }
 });
 

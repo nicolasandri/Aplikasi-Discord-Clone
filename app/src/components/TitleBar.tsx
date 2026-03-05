@@ -36,7 +36,7 @@ export function TitleBar() {
 
   return (
     <div 
-      className="h-8 bg-[#202225] flex items-center justify-between select-none"
+      className="h-8 bg-[#08080c] flex items-center justify-between select-none"
       style={{ ['WebkitAppRegion' as any]: 'drag' }}
     >
       {/* Left - App Icon and Title */}
@@ -49,10 +49,10 @@ export function TitleBar() {
             // Fallback if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
-            target.parentElement!.innerHTML = '<div class="w-6 h-6 bg-[#5865f2] rounded flex items-center justify-center"><span class="text-white text-[10px] font-bold">W</span></div>';
+            target.parentElement!.innerHTML = '<div class="w-6 h-6 bg-[#00d4ff] rounded flex items-center justify-center"><span class="text-white text-[10px] font-bold">W</span></div>';
           }}
         />
-        <span className="text-[#b9bbbe] text-xs">WorkGrid</span>
+        <span className="text-[#a0a0b0] text-xs">WorkGrid</span>
       </div>
 
       {/* Center - Draggable area */}
@@ -65,19 +65,19 @@ export function TitleBar() {
       >
         <button
           onClick={handleMinimize}
-          className="w-12 h-full flex items-center justify-center text-[#b9bbbe] hover:bg-[#36393f] hover:text-white transition-colors"
+          className="w-12 h-full flex items-center justify-center text-[#a0a0b0] hover:bg-[#0d0d14] hover:text-white transition-colors"
         >
           <Minus className="w-4 h-4" />
         </button>
         <button
           onClick={handleMaximize}
-          className="w-12 h-full flex items-center justify-center text-[#b9bbbe] hover:bg-[#36393f] hover:text-white transition-colors"
+          className="w-12 h-full flex items-center justify-center text-[#a0a0b0] hover:bg-[#0d0d14] hover:text-white transition-colors"
         >
           <Square className="w-3 h-3" />
         </button>
         <button
           onClick={handleClose}
-          className="w-12 h-full flex items-center justify-center text-[#b9bbbe] hover:bg-[#ed4245] hover:text-white transition-colors"
+          className="w-12 h-full flex items-center justify-center text-[#a0a0b0] hover:bg-[#ed4245] hover:text-white transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -85,3 +85,4 @@ export function TitleBar() {
     </div>
   );
 }
+

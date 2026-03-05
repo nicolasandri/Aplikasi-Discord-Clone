@@ -59,9 +59,9 @@ const roleConfig = {
   },
   member: {
     label: 'Member',
-    color: 'text-[#b9bbbe]',
-    bgColor: 'bg-[#5865f2]/10',
-    borderColor: 'border-[#5865f2]/30',
+    color: 'text-[#a0a0b0]',
+    bgColor: 'bg-[#00d4ff]/10',
+    borderColor: 'border-[#00d4ff]/30',
     icon: UserIcon,
   },
 };
@@ -347,7 +347,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-center">
-            <div className="w-10 h-10 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
       </div>
@@ -362,7 +362,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
           className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-center text-[#b9bbbe]">Gagal memuat profil</p>
+          <p className="text-center text-[#a0a0b0]">Gagal memuat profil</p>
         </div>
       </div>
     );
@@ -384,7 +384,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with gradient banner */}
-        <div className="h-28 bg-gradient-to-br from-[#5865f2] via-[#4752c4] to-[#3b45a0] relative">
+        <div className="h-28 bg-gradient-to-br from-[#00d4ff] via-[#00b8db] to-[#3b45a0] relative">
           {/* Close button */}
           <button 
             onClick={onClose}
@@ -426,7 +426,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
               </h2>
               
               {/* Username */}
-              <p className="text-[#b9bbbe] text-sm mt-1">
+              <p className="text-[#a0a0b0] text-sm mt-1">
                 {profile.username}
               </p>
               
@@ -465,8 +465,8 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
             {/* Member Since */}
             <div className="bg-[#111214] rounded-lg p-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 flex items-center justify-center bg-[#5865f2]/20 rounded-lg">
-                  <Star className="w-4 h-4 text-[#5865f2]" />
+                <div className="w-8 h-8 flex items-center justify-center bg-[#00d4ff]/20 rounded-lg">
+                  <Star className="w-4 h-4 text-[#00d4ff]" />
                 </div>
                 <div>
                   <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide">
@@ -495,7 +495,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
                 {(friendshipStatus === 'accepted' || friendshipStatus === 'none') && (
                   <Button
                     onClick={handleStartDM}
-                    className="flex-1 h-10 bg-[#5865f2] hover:bg-[#4752c4] text-white font-medium rounded-md"
+                    className="flex-1 h-10 bg-[#00d4ff] hover:bg-[#00b8db] text-white font-medium rounded-md"
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Message
@@ -543,7 +543,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
                     onClick={handleRemoveFriend}
                     disabled={isProcessing}
                     variant="outline"
-                    className="flex-1 h-10 border-[#72767d] text-[#b9bbbe] hover:bg-[#72767d]/10 font-medium rounded-md"
+                    className="flex-1 h-10 border-[#72767d] text-[#a0a0b0] hover:bg-[#72767d]/10 font-medium rounded-md"
                   >
                     <UserX className="w-4 h-4 mr-2" />
                     Cancel Request
@@ -557,3 +557,4 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     </div>
   );
 }
+

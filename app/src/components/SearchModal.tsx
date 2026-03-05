@@ -5,9 +5,30 @@ import { format } from 'date-fns';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+
+// Use absolute URL for API calls to backend
+const API_URL = 'http://localhost:3001/api';
+
+// Get base URL for backend (without /api)
+const BASE_URL = (() => {
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
+  }
+  return 'http://localhost:3001';
+})();
+
+// Helper to get full avatar URL
+const getAvatarUrl = (avatar: string | null, username: string): string => {
+  if (!avatar) {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+  }
+  if (avatar.startsWith('http')) {
+    return avatar;
+  }
+  // Relative URL - prepend base URL
+  const normalizedUrl = avatar.startsWith('/') ? avatar : `/${avatar}`;
+  return `${BASE_URL}${normalizedUrl}`;
+};
 
 interface SearchResult {
   id: string;
@@ -182,7 +203,7 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
             )}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded transition-colors ${showFilters ? 'bg-[#5865F2] text-white' : 'hover:bg-gray-700 text-gray-400'}`}
+              className={`p-2 rounded transition-colors ${showFilters ? 'bg-[#00d4ff] text-white' : 'hover:bg-gray-700 text-gray-400'}`}
               title="Toggle filters"
             >
               <Filter className="w-4 h-4" />
@@ -206,7 +227,7 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
                   type="date"
                   value={filters.dateFrom}
                   onChange={(e) => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
-                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#5865F2]"
+                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#00d4ff]"
                 />
               </div>
               <div>
@@ -217,7 +238,7 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
                   type="date"
                   value={filters.dateTo}
                   onChange={(e) => setFilters(f => ({ ...f, dateTo: e.target.value }))}
-                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#5865F2]"
+                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#00d4ff]"
                 />
               </div>
               <div>
@@ -229,7 +250,7 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
                   placeholder="User ID"
                   value={filters.userId}
                   onChange={(e) => setFilters(f => ({ ...f, userId: e.target.value }))}
-                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#5865F2]"
+                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#00d4ff]"
                 />
               </div>
               <div>
@@ -240,7 +261,7 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
                     ...f, 
                     hasAttachments: e.target.value === '' ? null : e.target.value === 'true'
                   }))}
-                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#5865F2]"
+                  className="w-full mt-1 bg-[#1E1F22] text-white text-sm rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[#00d4ff]"
                 >
                   <option value="">Any</option>
                   <option value="true">Yes</option>
@@ -276,15 +297,18 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <img
-                        src={msg.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
+                        src={getAvatarUrl(msg.avatar, msg.username)}
                         alt={msg.username}
-                        className="w-8 h-8 rounded-full"
+                        className="w-8 h-8 rounded-full bg-[#1E1F22]"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`;
+                        }}
                       />
                       <span className="font-medium text-white">{msg.username}</span>
                       <span className="text-xs text-gray-400">
                         {format(new Date(msg.created_at), 'MMM d, yyyy HH:mm')}
                       </span>
-                      <span className="text-xs text-[#5865F2] flex items-center gap-1 ml-auto">
+                      <span className="text-xs text-[#00d4ff] flex items-center gap-1 ml-auto">
                         <Hash className="w-3 h-3" /> {msg.channel_name}
                       </span>
                     </div>
@@ -297,7 +321,7 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
                 <button
                   onClick={loadMore}
                   disabled={loading}
-                  className="w-full mt-4 py-2 text-[#5865F2] hover:underline disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full mt-4 py-2 text-[#00d4ff] hover:underline disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
@@ -316,3 +340,4 @@ export function SearchModal({ isOpen, onClose, serverId, channelId }: SearchModa
     </div>
   );
 }
+

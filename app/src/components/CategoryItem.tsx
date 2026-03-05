@@ -49,10 +49,10 @@ function SortableChannelItem({
       style={style}
       className={`group flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer ${
         selectedChannelId === channel.id
-          ? 'bg-[#40444b] text-white'
+          ? 'bg-[#2a2b3d] text-white'
           : hasUnread
-            ? 'bg-[#2f3136] text-white'
-            : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
+            ? 'bg-[#232438] text-white'
+            : 'text-[#a0a0b0] hover:bg-[#34373c] hover:text-[#dcddde]'
       }`}
     >
       {/* Drag Handle */}
@@ -63,7 +63,7 @@ function SortableChannelItem({
           className="p-0.5 hover:bg-[#4f545c] rounded opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing"
           title="Drag to reorder"
         >
-          <GripVertical className="w-3 h-3 text-[#72767d]" />
+          <GripVertical className="w-3 h-3 text-[#6a6a7a]" />
         </button>
       )}
 
@@ -73,9 +73,9 @@ function SortableChannelItem({
         className="flex-1 flex items-center gap-2 min-w-0"
       >
         {channel.type === 'voice' ? (
-          <Volume2 className="w-4 h-4 text-[#72767d]" />
+          <Volume2 className="w-4 h-4 text-[#6a6a7a]" />
         ) : (
-          <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#72767d]'}`} />
+          <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#6a6a7a]'}`} />
         )}
         <span className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : ''}`}>
           {channel.name}
@@ -102,7 +102,7 @@ function SortableChannelItem({
               onDeleteChannel(channel.id);
             }
           }}
-          className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+          className="p-1 hover:bg-[#ed4245]/20 rounded text-[#a0a0b0] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
           title="Hapus Channel"
         >
           <Trash2 className="w-3 h-3" />
@@ -179,7 +179,7 @@ export function CategoryItem({
                 e.stopPropagation();
                 onCreateChannel();
               }}
-              className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white"
+              className="p-1 hover:bg-[#34373c] rounded text-[#a0a0b0] hover:text-white"
               title="Buat Channel"
             >
               <Plus className="w-3 h-3" />
@@ -189,7 +189,7 @@ export function CategoryItem({
                 e.stopPropagation();
                 onRenameCategory();
               }}
-              className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white"
+              className="p-1 hover:bg-[#34373c] rounded text-[#a0a0b0] hover:text-white"
               title="Rename"
             >
               <Edit2 className="w-3 h-3" />
@@ -202,7 +202,7 @@ export function CategoryItem({
                     onDeleteCategory();
                   }
                 }}
-                className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245]"
+                className="p-1 hover:bg-[#ed4245]/20 rounded text-[#a0a0b0] hover:text-[#ed4245]"
                 title="Hapus"
               >
                 <Trash2 className="w-3 h-3" />
@@ -236,3 +236,4 @@ export function CategoryItem({
     </div>
   );
 }
+

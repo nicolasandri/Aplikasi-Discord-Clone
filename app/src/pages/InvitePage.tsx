@@ -93,7 +93,7 @@ export function InvitePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#36393f] flex items-center justify-center">
-        <Loader2 className="h-12 w-12 text-[#5865f2] animate-spin" />
+        <Loader2 className="h-12 w-12 text-[#00d4ff] animate-spin" />
       </div>
     );
   }
@@ -112,7 +112,7 @@ export function InvitePage() {
             </div>
             <Button 
               onClick={() => navigate('/')}
-              className="w-full mt-6 bg-[#5865f2] hover:bg-[#4752c4] text-white"
+              className="w-full mt-6 bg-[#00d4ff] hover:bg-[#00b8db] text-white"
             >
               Kembali
             </Button>
@@ -141,7 +141,7 @@ export function InvitePage() {
     <div className="min-h-screen bg-[#36393f] flex items-center justify-center p-4">
       <Card className="max-w-md w-full bg-[#2f3136] border-[#202225]">
         <CardHeader className="text-center pb-2">
-          <div className="w-20 h-20 bg-[#5865f2] rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-[#00d4ff] rounded-full flex items-center justify-center mx-auto mb-4">
             <Users className="h-10 w-10 text-white" />
           </div>
           <CardTitle className="text-2xl text-white">{inviteInfo.serverName}</CardTitle>
@@ -153,7 +153,7 @@ export function InvitePage() {
           <div className="flex items-center justify-center">
             <Avatar className="h-16 w-16 border-4 border-[#36393f]">
               <AvatarImage src={inviteInfo.serverIcon} />
-              <AvatarFallback className="bg-[#5865f2] text-white text-xl">
+              <AvatarFallback className="bg-[#00d4ff] text-white text-xl">
                 {inviteInfo.serverName[0]}
               </AvatarFallback>
             </Avatar>
@@ -170,7 +170,7 @@ export function InvitePage() {
           
           <Button 
             onClick={handleJoin} 
-            className="w-full bg-[#5865f2] hover:bg-[#4752c4] text-white h-12 text-lg"
+            className="w-full bg-[#00d4ff] hover:bg-[#00b8db] text-white h-12 text-lg"
             disabled={joining}
           >
             {joining ? (

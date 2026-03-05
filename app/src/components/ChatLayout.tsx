@@ -61,6 +61,7 @@ export function ChatLayout() {
   const [pendingChannelId, setPendingChannelId] = useState<string | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [showMemberList, setShowMemberList] = useState(true);
   
   // Mobile drawer states
   const [isServerDrawerOpen, setIsServerDrawerOpen] = useState(false);
@@ -269,15 +270,20 @@ export function ChatLayout() {
   // Handle jumping to message after messages are loaded
   useEffect(() => {
     if (jumpToMessageId && messages.length > 0) {
+      // Give DOM time to render
       setTimeout(() => {
         const element = document.getElementById(`message-${jumpToMessageId}`);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           element.classList.add('highlight-message');
           setTimeout(() => element.classList.remove('highlight-message'), 2000);
+        } else {
+          // Message not found in current loaded messages
+          // Could be older message - show notification
+          console.warn('Message not found:', jumpToMessageId);
         }
         setJumpToMessageId(null);
-      }, 100);
+      }, 300);
     }
   }, [messages, jumpToMessageId]);
 
@@ -1041,10 +1047,10 @@ export function ChatLayout() {
 
   if (loading) {
     return (
-      <div className="h-screen bg-[#36393f] flex items-center justify-center">
+      <div className="h-screen bg-[#0a0a12] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#b9bbbe]">Memuat...</p>
+          <div className="w-12 h-12 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[#a0a0b0]">Memuat...</p>
         </div>
       </div>
     );
@@ -1053,7 +1059,7 @@ export function ChatLayout() {
   // MOBILE LAYOUT
   if (isMobile) {
     return (
-      <div className="h-screen flex flex-col bg-[#36393f] overflow-hidden">
+      <div className="h-screen flex flex-col bg-[#0a0a12] overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {viewMode === 'friends' ? (
@@ -1107,6 +1113,8 @@ export function ChatLayout() {
                   isMobile={true}
                   onStartDM={handleStartDMFromProfile}
                   onOpenSearch={() => setIsSearchOpen(true)}
+                  showMemberList={showMemberList}
+                  onToggleMemberList={() => setShowMemberList(!showMemberList)}
                   servers={servers}
                   dmChannels={dmChannels}
                   onReaction={handleReaction}
@@ -1129,7 +1137,7 @@ export function ChatLayout() {
         </div>
 
         {/* Bottom Navigation - Fixed at bottom */}
-        <div className="h-[60px] bg-[#202225] border-t border-[#1a1a1a] flex-shrink-0 z-50">
+        <div className="h-[60px] bg-[#0f0f1a] border-t border-[#1a1a1a] flex-shrink-0 z-50">
           <MobileBottomNav
             currentView={mobileView}
             onViewChange={handleMobileViewChange}
@@ -1241,7 +1249,7 @@ export function ChatLayout() {
         {/* Connection Status */}
         <div className="fixed top-16 right-2 flex items-center gap-2 px-3 py-1.5 bg-[#18191c] rounded-full z-40">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3ba55d]' : 'bg-[#ed4245]'}`} />
-          <span className="text-xs text-[#b9bbbe]">
+          <span className="text-xs text-[#a0a0b0]">
             {isConnected ? 'Online' : 'Offline'}
           </span>
         </div>
@@ -1251,7 +1259,7 @@ export function ChatLayout() {
 
   // DESKTOP LAYOUT
   return (
-    <div className="h-full flex bg-[#36393f] overflow-hidden">
+    <div className="h-full flex bg-[#0a0a12] overflow-hidden">
       {/* Server List */}
       <ServerList
         servers={servers}
@@ -1312,6 +1320,22 @@ export function ChatLayout() {
           onLeaveGroup={handleLeaveGroup}
           onFocusInput={() => {/* DMChatArea handles its own textarea */}}
         />
+      ) : !selectedChannel ? (
+        // Empty state when no channel is selected
+        <div className="flex-1 flex flex-col items-center justify-center bg-[#1a1b2e]">
+          <div className="text-center p-8">
+            <div className="w-20 h-20 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-[#00d4ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Selamat Datang di WorkGrid!</h2>
+            <p className="text-[#a0a0b0] mb-6">Pilih channel di sidebar untuk mulai chatting</p>
+            {servers.length === 0 && (
+              <p className="text-[#6a6a7a] text-sm">Buat server baru dari tombol + di sidebar kiri</p>
+            )}
+          </div>
+        </div>
       ) : (
         <>
           <div className="flex-1 flex flex-col min-w-0">
@@ -1328,6 +1352,8 @@ export function ChatLayout() {
               servers={servers}
               dmChannels={dmChannels}
               onReaction={handleReaction}
+              showMemberList={showMemberList}
+              onToggleMemberList={() => setShowMemberList(!showMemberList)}
               onFocusInput={() => messageInputRef.current?.focus()}
             />
             <MessageInput
@@ -1342,24 +1368,26 @@ export function ChatLayout() {
             />
           </div>
 
-          <MemberList 
-            serverId={selectedServerId} 
-            userStatuses={userStatuses} 
-            onStartDM={handleStartDM}
-          />
+          {showMemberList && (
+            <MemberList 
+              serverId={selectedServerId} 
+              userStatuses={userStatuses} 
+              onStartDM={handleStartDM}
+            />
+          )}
         </>
       )}
 
       {/* Connection Status - Top Right */}
-      <div className="fixed top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-[#18191c]/90 backdrop-blur-sm rounded-full z-50 border border-[#2f3136]">
+      <div className="fixed top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-[#18191c]/90 backdrop-blur-sm rounded-full z-50 border border-[#232438]">
         <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3ba55d]' : 'bg-[#ed4245]'}`} />
-        <span className="text-xs text-[#b9bbbe] font-medium">
+        <span className="text-xs text-[#a0a0b0] font-medium">
           {isConnected ? 'Online' : 'Connecting...'}
         </span>
         {!hasPermission && 'Notification' in window && Notification.permission !== 'granted' && (
           <button
             onClick={() => Notification.requestPermission()}
-            className="ml-2 text-xs text-[#5865f2] hover:text-[#4752c4]"
+            className="ml-2 text-xs text-[#00d4ff] hover:text-[#00b8db]"
           >
             Enable Notifications
           </button>
@@ -1428,3 +1456,4 @@ export function ChatLayout() {
     </div>
   );
 }
+

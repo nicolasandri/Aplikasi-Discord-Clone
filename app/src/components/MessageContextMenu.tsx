@@ -25,6 +25,8 @@ interface MessageContextMenuProps {
   onDelete?: () => void;
   onEdit?: () => void;
   onPin?: () => void;
+  onUnpin?: () => void;
+  isPinned?: boolean;
   onReaction?: (emoji: string) => void;
   isOwnMessage: boolean;
   canDelete?: boolean;
@@ -44,6 +46,8 @@ export function MessageContextMenu({
   onDelete,
   onEdit,
   onPin,
+  onUnpin,
+  isPinned = false,
   onReaction,
   isOwnMessage,
   canDelete = false,
@@ -90,11 +94,11 @@ export function MessageContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-[#18191c] rounded-lg shadow-2xl py-2 min-w-[200px] border border-[#2f3136]"
+      className="fixed z-50 bg-[#18191c] rounded-lg shadow-2xl py-2 min-w-[200px] border border-[#232438]"
       style={{ left: adjustedX, top: adjustedY }}
     >
       {/* Reactions */}
-      <div className="flex items-center gap-1 px-2 pb-2 mb-2 border-b border-[#2f3136]">
+      <div className="flex items-center gap-1 px-2 pb-2 mb-2 border-b border-[#232438]">
         {['👍', '❤️', '😂', '😮', '🚀'].map((emoji) => (
           <button 
             key={emoji}
@@ -103,7 +107,7 @@ export function MessageContextMenu({
               onReaction?.(emoji); 
               onClose(); 
             }}
-            className="p-1.5 hover:bg-[#40444b] rounded-full text-lg transition-colors cursor-pointer select-none"
+            className="p-1.5 hover:bg-[#2a2b3d] rounded-full text-lg transition-colors cursor-pointer select-none"
             style={{ fontFamily: '"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Apple Color Emoji", sans-serif' }}
             type="button"
           >
@@ -115,7 +119,7 @@ export function MessageContextMenu({
             e.stopPropagation();
             onClose(); 
           }}
-          className="p-1.5 hover:bg-[#40444b] rounded-full text-sm text-[#b9bbbe] transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[#2a2b3d] rounded-full text-sm text-[#a0a0b0] transition-colors cursor-pointer"
           type="button"
         >
           <MoreHorizontal className="w-4 h-4" />
@@ -132,7 +136,7 @@ export function MessageContextMenu({
           Forward
         </MenuItem>
 
-        <div className="h-px bg-[#2f3136] my-1" />
+        <div className="h-px bg-[#232438] my-1" />
 
         {showEdit && (
           <MenuItem icon={Edit3} onClick={() => { onEdit?.(); onClose(); }}>
@@ -155,11 +159,21 @@ export function MessageContextMenu({
           Copy Message ID
         </MenuItem>
 
-        <div className="h-px bg-[#2f3136] my-1" />
+        <div className="h-px bg-[#232438] my-1" />
 
         {canPin && (
-          <MenuItem icon={Pin} onClick={() => { onPin?.(); onClose(); }}>
-            Pin Message
+          <MenuItem 
+            icon={Pin} 
+            onClick={() => { 
+              if (isPinned) {
+                onUnpin?.();
+              } else {
+                onPin?.();
+              }
+              onClose(); 
+            }}
+          >
+            {isPinned ? 'Unpin Message' : 'Pin Message'}
           </MenuItem>
         )}
 
@@ -173,7 +187,7 @@ export function MessageContextMenu({
 
         {showDelete && (
           <>
-            <div className="h-px bg-[#2f3136] my-1" />
+            <div className="h-px bg-[#232438] my-1" />
             <MenuItem 
               icon={Trash2} 
               danger 
@@ -207,7 +221,7 @@ function MenuItem({ icon: Icon, children, onClick, danger }: MenuItemProps) {
       className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded mx-1 transition-colors ${
         danger
           ? 'text-[#ed4245] hover:bg-[#ed4245]/10'
-          : 'text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white'
+          : 'text-[#a0a0b0] hover:bg-[#00d4ff] hover:text-white'
       }`}
     >
       <Icon className="w-4 h-4" />
@@ -215,3 +229,4 @@ function MenuItem({ icon: Icon, children, onClick, danger }: MenuItemProps) {
     </button>
   );
 }
+

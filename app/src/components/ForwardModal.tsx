@@ -165,7 +165,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
           </div>
           <button 
             onClick={onClose}
-            className="text-[#b5bac1] hover:text-white p-1 rounded hover:bg-[#2f3136]"
+            className="text-[#b5bac1] hover:text-white p-1 rounded hover:bg-[#232438]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -177,7 +177,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
             onClick={() => setActiveTab('servers')}
             className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'servers' 
-                ? 'text-white border-b-2 border-[#5865f2]' 
+                ? 'text-white border-b-2 border-[#00d4ff]' 
                 : 'text-[#949ba4] hover:text-white'
             }`}
           >
@@ -188,7 +188,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
             onClick={() => setActiveTab('dms')}
             className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'dms' 
-                ? 'text-white border-b-2 border-[#5865f2]' 
+                ? 'text-white border-b-2 border-[#00d4ff]' 
                 : 'text-[#949ba4] hover:text-white'
             }`}
           >
@@ -206,7 +206,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
               placeholder={activeTab === 'servers' ? "Search channels..." : "Search friends..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#1e1f22] text-white pl-10 pr-4 py-2 rounded border border-[#2f3136] focus:border-[#5865f2] outline-none"
+              className="w-full bg-[#1e1f22] text-white pl-10 pr-4 py-2 rounded border border-[#232438] focus:border-[#00d4ff] outline-none"
               autoFocus
             />
           </div>
@@ -226,7 +226,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                       className="w-5 h-5 rounded-full"
                     />
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-[#5865f2] flex items-center justify-center text-[10px] text-white font-bold">
+                    <div className="w-5 h-5 rounded-full bg-[#00d4ff] flex items-center justify-center text-[10px] text-white font-bold">
                       {group.serverName.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -246,7 +246,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                     className={`w-full flex items-center justify-between px-3 py-2 rounded transition-colors ${
                       selectedChannelId === channel.id
                         ? 'bg-[#404249]'
-                        : 'hover:bg-[#2f3136]'
+                        : 'hover:bg-[#232438]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -262,7 +262,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                       </span>
                     </div>
                     {selectedChannelId === channel.id && (
-                      <Check className="w-4 h-4 text-[#5865f2]" />
+                      <Check className="w-4 h-4 text-[#00d4ff]" />
                     )}
                   </button>
                 ))}
@@ -299,12 +299,12 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                   className={`w-full flex items-center justify-between px-3 py-2 rounded transition-colors ${
                     selectedDMId === dm.id
                       ? 'bg-[#404249]'
-                      : 'hover:bg-[#2f3136]'
+                      : 'hover:bg-[#232438]'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     {isGroup ? (
-                      <div className="w-8 h-8 rounded-full bg-[#5865f2] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-[#00d4ff] flex items-center justify-center">
                         <Users className="w-4 h-4 text-white" />
                       </div>
                     ) : (
@@ -321,12 +321,12 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                         {name}
                       </span>
                       {isGroup && (
-                        <span className="text-[#72767d] text-xs">{dm.members.length} members</span>
+                        <span className="text-[#6a6a7a] text-xs">{dm.members.length} members</span>
                       )}
                     </div>
                   </div>
                   {selectedDMId === dm.id && (
-                    <Check className="w-4 h-4 text-[#5865f2]" />
+                    <Check className="w-4 h-4 text-[#00d4ff]" />
                   )}
                 </button>
               );
@@ -351,11 +351,11 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                 className="w-6 h-6 rounded-full"
               />
               <span className="text-white text-sm font-medium">{message.user?.displayName || message.user?.username}</span>
-              <span className="text-[#72767d] text-xs">Original message</span>
+              <span className="text-[#6a6a7a] text-xs">Original message</span>
             </div>
             <p className="text-[#b5bac1] text-sm line-clamp-2">{getMessagePreview()}</p>
             {message.attachments && message.attachments.length > 0 && (
-              <div className="mt-2 text-[#72767d] text-xs">
+              <div className="mt-2 text-[#6a6a7a] text-xs">
                 {message.attachments.length} attachment{message.attachments.length > 1 ? 's' : ''}
               </div>
             )}
@@ -369,7 +369,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
                 placeholder="Add an optional message..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                className="w-full bg-[#383a40] text-white px-3 py-2 pr-10 rounded border border-transparent focus:border-[#5865f2] outline-none"
+                className="w-full bg-[#383a40] text-white px-3 py-2 pr-10 rounded border border-transparent focus:border-[#00d4ff] outline-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && hasSelection && !isSending) {
                     handleSend();
@@ -383,7 +383,7 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
             <button
               onClick={handleSend}
               disabled={!hasSelection || isSending}
-              className="px-4 py-2 bg-[#5865f2] hover:bg-[#4752c4] disabled:bg-[#4e5058] disabled:cursor-not-allowed text-white rounded font-medium flex items-center gap-2 transition-colors"
+              className="px-4 py-2 bg-[#00d4ff] hover:bg-[#00b8db] disabled:bg-[#4e5058] disabled:cursor-not-allowed text-white rounded font-medium flex items-center gap-2 transition-colors"
             >
               {isSending ? 'Sending...' : (
                 <>
@@ -398,3 +398,4 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
     </div>
   );
 }
+

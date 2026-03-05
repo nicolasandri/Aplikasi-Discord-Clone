@@ -512,13 +512,13 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   };
 
   const FriendItem = ({ friend, showActions = true }: { friend: Friend; showActions?: boolean }) => (
-    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#36393f] transition-colors group">
+    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#0d0d14] transition-colors group">
       <div className="relative">
         <Avatar className="w-10 h-10">
           <AvatarImage src={friend.avatar} alt={friend.username} />
           <AvatarFallback>{friend.username[0].toUpperCase()}</AvatarFallback>
         </Avatar>
-        <div className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[friend.status]} rounded-full border-2 border-[#2f3136]`} />
+        <div className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[friend.status]} rounded-full border-2 border-[#0d0d14]`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-medium text-white truncate">{friend.displayName || friend.username}</div>
@@ -529,7 +529,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2]"
+            className="h-8 w-8 text-[#b9bbbe] hover:text-white hover:bg-[#00d4ff]"
             onClick={() => onStartDM?.(friend)}
             title="Kirim Pesan"
           >
@@ -559,7 +559,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   );
 
   const IncomingRequestItem = ({ request }: { request: FriendRequest }) => (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#36393f]/50">
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0d0d14]/50">
       <Avatar className="w-10 h-10">
         <AvatarImage src={request.requester_avatar} alt={request.requester_display_name || request.requester_username} />
         <AvatarFallback>{(request.requester_display_name || request.requester_username)?.[0].toUpperCase()}</AvatarFallback>
@@ -590,7 +590,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   );
 
   const OutgoingRequestItem = ({ request }: { request: FriendRequest }) => (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#36393f]/50 opacity-70">
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0d0d14]/50 opacity-70">
       <Avatar className="w-10 h-10">
         <AvatarImage src={request.recipient_avatar} alt={request.recipient_display_name || request.recipient_username} />
         <AvatarFallback>{(request.recipient_display_name || request.recipient_username)?.[0].toUpperCase()}</AvatarFallback>
@@ -599,7 +599,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
         <div className="font-medium text-white truncate">{request.recipient_display_name || request.recipient_username}</div>
         <div className="text-xs text-[#b9bbbe]">Permintaan tertunda</div>
       </div>
-      <Badge variant="secondary" className="bg-[#5865f2]/20 text-[#5865f2]">Outgoing</Badge>
+      <Badge variant="secondary" className="bg-[#00d4ff]/20 text-[#00d4ff]">Outgoing</Badge>
       <Button
         variant="ghost"
         size="icon"
@@ -612,7 +612,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   );
 
   const BlockedUserItem = ({ user }: { user: BlockedUser }) => (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#36393f]/50">
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0d0d14]/50">
       <div className="relative">
         <Avatar className="w-10 h-10">
           <AvatarImage src={user.avatar} alt={user.display_name || user.username} />
@@ -637,36 +637,36 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
 
   if (isLoading) {
     return (
-      <div className="flex-1 bg-[#36393f] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#5865f2] animate-spin" />
+      <div className="flex-1 bg-[#0d0d14] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#00d4ff] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-[#36393f] flex flex-col min-h-0">
+    <div className="flex-1 bg-[#0d0d14] flex flex-col min-h-0">
       {/* Header */}
-      <div className="h-12 px-4 flex items-center gap-4 border-b border-[#202225]">
+      <div className="h-12 px-4 flex items-center gap-4 border-b border-[#08080c]">
         <Users className="w-5 h-5 text-[#8e9297]" />
         <h2 className="text-white font-semibold">Teman</h2>
-        <div className="h-6 w-px bg-[#40444b] mx-2" />
+        <div className="h-6 w-px bg-[#1a1a24] mx-2" />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <TabsList className="bg-transparent border-0 p-0 h-auto gap-1">
             <TabsTrigger 
               value="online" 
-              className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
+              className="data-[state=active]:bg-[#1a1a24] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
             >
               Online
             </TabsTrigger>
             <TabsTrigger 
               value="all" 
-              className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
+              className="data-[state=active]:bg-[#1a1a24] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
             >
               Semua
             </TabsTrigger>
             <TabsTrigger 
               value="pending" 
-              className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
+              className="data-[state=active]:bg-[#1a1a24] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
             >
               Pending
               {pendingRequests.incoming.length > 0 && (
@@ -677,7 +677,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
             </TabsTrigger>
             <TabsTrigger 
               value="blocked" 
-              className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
+              className="data-[state=active]:bg-[#1a1a24] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
             >
               Diblokir
             </TabsTrigger>
@@ -703,7 +703,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
                   placeholder="Cari teman"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#202225] border-none text-white placeholder:text-[#72767d]"
+                  className="pl-10 bg-[#08080c] border-none text-white placeholder:text-[#72767d]"
                 />
               </div>
             </div>
@@ -811,12 +811,12 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
                     placeholder="Masukkan username"
                     value={addFriendUsername}
                     onChange={(e) => setAddFriendUsername(e.target.value)}
-                    className="flex-1 bg-[#202225] border-none text-white placeholder:text-[#72767d]"
+                    className="flex-1 bg-[#08080c] border-none text-white placeholder:text-[#72767d]"
                   />
                   <Button
                     type="submit"
                     disabled={isAddingFriend || !addFriendUsername.trim()}
-                    className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                    className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                   >
                     {isAddingFriend ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

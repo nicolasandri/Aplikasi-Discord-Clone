@@ -161,53 +161,53 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button 
-          className="flex items-center justify-center w-8 h-8 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-lg transition-colors"
+          className="w-full h-full flex items-center justify-center text-[#a0a0b0] hover:text-white transition-colors"
           title="Kirim GIF"
         >
-          <span className="text-[10px] font-bold border border-current rounded px-0.5 leading-none py-0.5">
+          <span className="text-[11px] font-bold border border-current rounded px-1 leading-none py-0.5">
             GIF
           </span>
         </button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[400px] p-0 bg-[#2f3136] border-[#202225]" 
+        className="w-[400px] p-0 bg-[#232438] border-[#0f0f1a]" 
         style={{ height: '500px', maxHeight: '500px' }}
         align="end"
         side="top"
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[#202225]">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[#0f0f1a]">
             <span className="text-white font-medium">Pilih GIF</span>
             <button 
               onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-[#ed4245]/20 rounded text-[#72767d] hover:text-[#ed4245]"
+              className="p-1 hover:bg-[#ed4245]/20 rounded text-[#6a6a7a] hover:text-[#ed4245]"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Search Bar */}
-          <div className="px-4 py-2 border-b border-[#202225]">
+          <div className="px-4 py-2 border-b border-[#0f0f1a]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#72767d]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6a6a7a]" />
               <Input
                 placeholder="Cari GIF..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[#202225] border-none text-white placeholder:text-[#72767d]"
+                className="pl-10 bg-[#0f0f1a] border-none text-white placeholder:text-[#6a6a7a]"
               />
             </div>
           </div>
 
           {/* Quick Filters */}
           {!searchQuery && (
-            <div className="px-4 py-2 flex flex-wrap gap-2 border-b border-[#202225]">
+            <div className="px-4 py-2 flex flex-wrap gap-2 border-b border-[#0f0f1a]">
               {TRENDING_TERMS.map((term) => (
                 <button
                   key={term}
                   onClick={() => setSearchQuery(term)}
-                  className="px-3 py-1 text-xs bg-[#40444b] hover:bg-[#5865f2] text-[#b9bbbe] hover:text-white rounded-full transition-colors"
+                  className="px-3 py-1 text-xs bg-[#2a2b3d] hover:bg-[#00d4ff] text-[#a0a0b0] hover:text-white rounded-full transition-colors"
                 >
                   {term}
                 </button>
@@ -225,10 +225,10 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
           >
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="w-8 h-8 text-[#5865f2] animate-spin" />
+                <Loader2 className="w-8 h-8 text-[#00d4ff] animate-spin" />
               </div>
             ) : gifs.length === 0 ? (
-              <div className="text-center py-8 text-[#72767d]">
+              <div className="text-center py-8 text-[#6a6a7a]">
                 <div className="text-4xl mb-2">🎉</div>
                 <p>Tidak ada GIF ditemukan</p>
               </div>
@@ -238,7 +238,7 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
                   <button
                     key={gif.id}
                     onClick={() => handleSelect(gif)}
-                    className="relative aspect-video bg-[#202225] rounded-lg overflow-hidden hover:ring-2 hover:ring-[#5865f2] transition-all group"
+                    className="relative aspect-video bg-[#0f0f1a] rounded-lg overflow-hidden hover:ring-2 hover:ring-[#00d4ff] transition-all group"
                   >
                     <img
                       src={gif.preview}
@@ -258,15 +258,15 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
 
           {/* Footer - API Info */}
           {useMockData && (
-            <div className="px-4 py-2 border-t border-[#202225] bg-[#2f3136]">
+            <div className="px-4 py-2 border-t border-[#0f0f1a] bg-[#232438]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-[#72767d]">Menggunakan GIF demo</p>
-                  <p className="text-[10px] text-[#5865f2]">Untuk lebih banyak GIF, daftar gratis:</p>
+                  <p className="text-xs text-[#6a6a7a]">Menggunakan GIF demo</p>
+                  <p className="text-[10px] text-[#00d4ff]">Untuk lebih banyak GIF, daftar gratis:</p>
                 </div>
                 <button
                   onClick={openGiphyDev}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs rounded-md transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-[#00d4ff] hover:bg-[#00b8db] text-white text-xs rounded-md transition-colors"
                 >
                   <span>GIPHY Dev</span>
                   <ExternalLink className="w-3 h-3" />
@@ -281,3 +281,4 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
 }
 
 export default GIFPicker;
+

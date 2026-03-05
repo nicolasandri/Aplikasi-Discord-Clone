@@ -226,7 +226,7 @@ export function RoleManagerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#36393f] border-[#202225] text-[#dcddde] max-w-lg max-h-[80vh] overflow-y-auto">
+      <DialogContent className="bg-[#1a1b2e] border-[#0f0f1a] text-[#dcddde] max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
             <Shield className="w-5 h-5" />
@@ -237,8 +237,8 @@ export function RoleManagerModal({
         <div className="space-y-6">
           {/* Create new role */}
           {canManageRoles && (
-            <div className="bg-[#2f3136] p-4 rounded-lg space-y-3">
-              <h3 className="text-sm font-semibold text-[#b9bbbe] uppercase">
+            <div className="bg-[#232438] p-4 rounded-lg space-y-3">
+              <h3 className="text-sm font-semibold text-[#a0a0b0] uppercase">
                 Buat Role Baru
               </h3>
               <div className="flex gap-2">
@@ -246,13 +246,13 @@ export function RoleManagerModal({
                   placeholder="Nama role (contoh: CS, SPV, Operator)"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
-                  className="bg-[#40444b] border-[#202225] text-white placeholder-[#72767d]"
+                  className="bg-[#2a2b3d] border-[#0f0f1a] text-white placeholder-[#72767d]"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateRole()}
                 />
                 <Button
                   onClick={handleCreateRole}
                   disabled={!newRoleName.trim() || isLoading}
-                  className="bg-[#5865f2] hover:bg-[#4752c4]"
+                  className="bg-[#00d4ff] hover:bg-[#00b8db]"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -260,7 +260,7 @@ export function RoleManagerModal({
               
               {/* Color picker */}
               <div className="space-y-2">
-                <span className="text-xs text-[#72767d]">Warna Role</span>
+                <span className="text-xs text-[#6a6a7a]">Warna Role</span>
                 <div className="flex flex-wrap gap-2">
                   {ROLE_COLORS.map((color) => (
                     <button
@@ -281,12 +281,12 @@ export function RoleManagerModal({
 
           {/* Role list */}
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-[#b9bbbe] uppercase">
+            <h3 className="text-sm font-semibold text-[#a0a0b0] uppercase">
               Daftar Role ({roles.length})
             </h3>
             
             {roles.length === 0 ? (
-              <div className="text-center py-8 text-[#72767d]">
+              <div className="text-center py-8 text-[#6a6a7a]">
                 Belum ada role custom
               </div>
             ) : (
@@ -294,7 +294,7 @@ export function RoleManagerModal({
                 {roles.map((role, index) => (
                   <div
                     key={role.id}
-                    className="bg-[#2f3136] p-3 rounded-lg flex items-center gap-3 group"
+                    className="bg-[#232438] p-3 rounded-lg flex items-center gap-3 group"
                   >
                     {/* Role color indicator */}
                     <div
@@ -309,7 +309,7 @@ export function RoleManagerModal({
                           <Input
                             value={editingRole.name}
                             onChange={(e) => setEditingRole({ ...editingRole, name: e.target.value })}
-                            className="bg-[#40444b] border-[#202225] text-white h-8"
+                            className="bg-[#2a2b3d] border-[#0f0f1a] text-white h-8"
                             autoFocus
                           />
                           <Button
@@ -334,7 +334,7 @@ export function RoleManagerModal({
                             {role.name}
                           </span>
                           {role.is_default && (
-                            <span className="text-[10px] bg-[#5865f2]/20 text-[#5865f2] px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] bg-[#00d4ff]/20 text-[#00d4ff] px-1.5 py-0.5 rounded">
                               Default
                             </span>
                           )}
@@ -354,7 +354,7 @@ export function RoleManagerModal({
                           variant="ghost"
                           onClick={() => moveRole(role.id, 'up')}
                           disabled={index === 0}
-                          className="h-7 w-7 p-0 text-[#b9bbbe] hover:text-white"
+                          className="h-7 w-7 p-0 text-[#a0a0b0] hover:text-white"
                         >
                           ↑
                         </Button>
@@ -363,7 +363,7 @@ export function RoleManagerModal({
                           variant="ghost"
                           onClick={() => moveRole(role.id, 'down')}
                           disabled={index === roles.length - 1}
-                          className="h-7 w-7 p-0 text-[#b9bbbe] hover:text-white"
+                          className="h-7 w-7 p-0 text-[#a0a0b0] hover:text-white"
                         >
                           ↓
                         </Button>
@@ -374,7 +374,7 @@ export function RoleManagerModal({
                             size="sm"
                             variant="ghost"
                             onClick={() => setEditingRole(role)}
-                            className="h-7 w-7 p-0 text-[#b9bbbe] hover:text-white"
+                            className="h-7 w-7 p-0 text-[#a0a0b0] hover:text-white"
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -400,7 +400,7 @@ export function RoleManagerModal({
           </div>
 
           {/* Info */}
-          <div className="text-xs text-[#72767d] bg-[#2f3136] p-3 rounded">
+          <div className="text-xs text-[#6a6a7a] bg-[#232438] p-3 rounded">
             <p className="mb-1">💡 <strong>Tips:</strong></p>
             <ul className="list-disc list-inside space-y-1">
               <li>Role dengan posisi lebih tinggi dapat mengelola role di bawahnya</li>
@@ -413,3 +413,4 @@ export function RoleManagerModal({
     </Dialog>
   );
 }
+

@@ -181,13 +181,13 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
     if (actionType.includes('create') || actionType.includes('add')) return 'text-[#3ba55d]';
     if (actionType.includes('delete') || actionType.includes('remove') || actionType.includes('kick') || actionType.includes('ban')) return 'text-[#ed4245]';
     if (actionType.includes('update')) return 'text-[#faa81a]';
-    return 'text-[#5865f2]';
+    return 'text-[#00d4ff]';
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -197,7 +197,7 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
       {/* Header */}
       <div>
         <h2 className="text-white text-xl font-bold mb-1">Audit Log</h2>
-        <p className="text-[#b9bbbe] text-sm">
+        <p className="text-[#a0a0b0] text-sm">
           Track changes made to your server.
         </p>
       </div>
@@ -206,15 +206,15 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
       <div className="flex gap-4">
         {/* Filter by User */}
         <div className="relative" ref={userDropdownRef}>
-          <label className="text-[#72767d] text-xs font-bold uppercase mb-1.5 block">Filter by User</label>
+          <label className="text-[#6a6a7a] text-xs font-bold uppercase mb-1.5 block">Filter by User</label>
           <button
             onClick={() => setShowUserDropdown(!showUserDropdown)}
-            className="flex items-center justify-between w-64 px-3 py-2 bg-[#1e1f22] text-white rounded text-sm hover:bg-[#2f3136] transition-colors"
+            className="flex items-center justify-between w-64 px-3 py-2 bg-[#1e1f22] text-white rounded text-sm hover:bg-[#232438] transition-colors"
           >
             <span className="flex items-center gap-2">
               {selectedUser === 'all' ? (
                 <>
-                  <Users className="w-4 h-4 text-[#72767d]" />
+                  <Users className="w-4 h-4 text-[#6a6a7a]" />
                   All Users
                 </>
               ) : (
@@ -235,14 +235,14 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
                 </>
               )}
             </span>
-            <ChevronRight className={`w-4 h-4 text-[#72767d] transition-transform ${showUserDropdown ? 'rotate-90' : ''}`} />
+            <ChevronRight className={`w-4 h-4 text-[#6a6a7a] transition-transform ${showUserDropdown ? 'rotate-90' : ''}`} />
           </button>
           
           {showUserDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136] max-h-60 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#232438] max-h-60 overflow-y-auto">
               <button
                 onClick={() => { setSelectedUser('all'); setShowUserDropdown(false); }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#5865f2] hover:text-white ${selectedUser === 'all' ? 'bg-[#5865f2] text-white' : 'text-[#b9bbbe]'}`}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#00d4ff] hover:text-white ${selectedUser === 'all' ? 'bg-[#00d4ff] text-white' : 'text-[#a0a0b0]'}`}
               >
                 <Users className="w-4 h-4" />
                 All Users
@@ -251,7 +251,7 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
                 <button
                   key={user.id}
                   onClick={() => { setSelectedUser(user.id); setShowUserDropdown(false); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#5865f2] hover:text-white ${selectedUser === user.id ? 'bg-[#5865f2] text-white' : 'text-[#b9bbbe]'}`}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#00d4ff] hover:text-white ${selectedUser === user.id ? 'bg-[#00d4ff] text-white' : 'text-[#a0a0b0]'}`}
                 >
                   <img 
                     src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
@@ -267,27 +267,27 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
 
         {/* Filter by Action */}
         <div className="relative" ref={actionDropdownRef}>
-          <label className="text-[#72767d] text-xs font-bold uppercase mb-1.5 block">Filter by Action</label>
+          <label className="text-[#6a6a7a] text-xs font-bold uppercase mb-1.5 block">Filter by Action</label>
           <button
             onClick={() => setShowActionDropdown(!showActionDropdown)}
-            className="flex items-center justify-between w-56 px-3 py-2 bg-[#1e1f22] text-white rounded text-sm hover:bg-[#2f3136] transition-colors"
+            className="flex items-center justify-between w-56 px-3 py-2 bg-[#1e1f22] text-white rounded text-sm hover:bg-[#232438] transition-colors"
           >
             <span className="flex items-center gap-2">
-              <Settings className="w-4 h-4 text-[#72767d]" />
+              <Settings className="w-4 h-4 text-[#6a6a7a]" />
               {actionTypes.find(a => a.id === selectedAction)?.label || 'All Actions'}
             </span>
-            <ChevronRight className={`w-4 h-4 text-[#72767d] transition-transform ${showActionDropdown ? 'rotate-90' : ''}`} />
+            <ChevronRight className={`w-4 h-4 text-[#6a6a7a] transition-transform ${showActionDropdown ? 'rotate-90' : ''}`} />
           </button>
           
           {showActionDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136] max-h-80 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#232438] max-h-80 overflow-y-auto">
               {actionTypes.map(action => {
                 const Icon = action.icon;
                 return (
                   <button
                     key={action.id}
                     onClick={() => { setSelectedAction(action.id); setShowActionDropdown(false); }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#5865f2] hover:text-white ${selectedAction === action.id ? 'bg-[#5865f2] text-white' : 'text-[#b9bbbe]'}`}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#00d4ff] hover:text-white ${selectedAction === action.id ? 'bg-[#00d4ff] text-white' : 'text-[#a0a0b0]'}`}
                   >
                     <Icon className="w-4 h-4" />
                     {action.label}
@@ -302,7 +302,7 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
       {/* Log Entries */}
       <div className="space-y-2">
         {filteredLogs.length === 0 ? (
-          <div className="text-center py-12 text-[#72767d]">
+          <div className="text-center py-12 text-[#6a6a7a]">
             <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No audit log entries found</p>
             <p className="text-sm mt-1">Actions taken in this server will appear here</p>
@@ -325,7 +325,7 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
                   <img
                     src={getAvatarUrl(log)}
                     alt={log.userName}
-                    className="w-10 h-10 rounded-full bg-[#36393f] flex-shrink-0"
+                    className="w-10 h-10 rounded-full bg-[#1a1b2e] flex-shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${log.userName}`;
                     }}
@@ -335,14 +335,14 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-white font-medium">{log.userName}</span>
-                      <span className="text-[#b9bbbe]">{log.action}</span>
+                      <span className="text-[#a0a0b0]">{log.action}</span>
                       {log.targetName && (
                         <span className={`font-medium ${getActionColor(log.actionType)}`}>
                           {log.targetName}
                         </span>
                       )}
                     </div>
-                    <p className="text-[#72767d] text-sm mt-0.5">{formatTime(log.createdAt)}</p>
+                    <p className="text-[#6a6a7a] text-sm mt-0.5">{formatTime(log.createdAt)}</p>
                   </div>
                   
                   {/* Action Icon */}
@@ -351,7 +351,7 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
                   </div>
                   
                   {/* Expand Arrow */}
-                  <ChevronRight className={`w-5 h-5 text-[#72767d] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                  <ChevronRight className={`w-5 h-5 text-[#6a6a7a] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                 </button>
                 
                 {/* Expanded Details */}
@@ -360,13 +360,13 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
                     <div className="ml-14 pl-4 border-l-2 border-[#40444b] space-y-2">
                       {log.oldValue && (
                         <div className="flex items-center gap-2">
-                          <span className="text-[#72767d] text-sm">Before:</span>
+                          <span className="text-[#6a6a7a] text-sm">Before:</span>
                           <span className="text-[#ed4245] text-sm line-through">{log.oldValue}</span>
                         </div>
                       )}
                       {log.newValue && (
                         <div className="flex items-center gap-2">
-                          <span className="text-[#72767d] text-sm">After:</span>
+                          <span className="text-[#6a6a7a] text-sm">After:</span>
                           <span className="text-[#3ba55d] text-sm">{log.newValue}</span>
                         </div>
                       )}
@@ -381,3 +381,4 @@ export function ServerAuditLog({ serverId }: ServerAuditLogProps) {
     </div>
   );
 }
+

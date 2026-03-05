@@ -108,7 +108,7 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -120,13 +120,13 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
         <h3 className="text-white font-semibold text-base">DAFTAR NAMA STAFF</h3>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#72767d]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6a6a7a]" />
             <input
               type="text"
               placeholder="Search by username or id"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#1e1f22] text-white pl-9 pr-4 py-2 rounded text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#5865f2] placeholder:text-[#72767d]"
+              className="bg-[#1e1f22] text-white pl-9 pr-4 py-2 rounded text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#00d4ff] placeholder:text-[#6a6a7a]"
             />
           </div>
           <div className="relative" ref={sortRef}>
@@ -148,7 +148,7 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                     name="sort"
                     checked={sortOption === 'memberSinceDesc'}
                     onChange={() => { setSortOption('memberSinceDesc'); setSortDropdownOpen(false); }}
-                    className="w-4 h-4 accent-[#5865f2]"
+                    className="w-4 h-4 accent-[#00d4ff]"
                   />
                   <span className="text-[#dbdee1] text-sm">Member Since (Newest first)</span>
                 </label>
@@ -159,7 +159,7 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                     name="sort"
                     checked={sortOption === 'memberSinceAsc'}
                     onChange={() => { setSortOption('memberSinceAsc'); setSortDropdownOpen(false); }}
-                    className="w-4 h-4 accent-[#5865f2]"
+                    className="w-4 h-4 accent-[#00d4ff]"
                   />
                   <span className="text-[#dbdee1] text-sm">Member Since (Oldest first)</span>
                 </label>
@@ -170,7 +170,7 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                     name="sort"
                     checked={sortOption === 'joinedDiscordDesc'}
                     onChange={() => { setSortOption('joinedDiscordDesc'); setSortDropdownOpen(false); }}
-                    className="w-4 h-4 accent-[#5865f2]"
+                    className="w-4 h-4 accent-[#00d4ff]"
                   />
                   <span className="text-[#dbdee1] text-sm">Joined Discord (Newest first)</span>
                 </label>
@@ -181,7 +181,7 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                     name="sort"
                     checked={sortOption === 'joinedDiscordAsc'}
                     onChange={() => { setSortOption('joinedDiscordAsc'); setSortDropdownOpen(false); }}
-                    className="w-4 h-4 accent-[#5865f2]"
+                    className="w-4 h-4 accent-[#00d4ff]"
                   />
                   <span className="text-[#dbdee1] text-sm">Joined Discord (Oldest first)</span>
                 </label>
@@ -256,14 +256,14 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                     <img
                       src={getAvatarUrl(member)}
                       alt={member.username}
-                      className="w-8 h-8 rounded-full bg-[#36393f] object-cover"
+                      className="w-8 h-8 rounded-full bg-[#1a1b2e] object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`;
                       }}
                     />
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[#00a8fc] font-medium hover:underline cursor-pointer">
+                        <span className="text-[#00d4ff] font-medium hover:underline cursor-pointer">
                           {member.displayName || member.username}
                         </span>
                         {member.role === 'owner' && <Crown className="w-4 h-4 text-[#f0b232]" />}
@@ -286,13 +286,13 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                     <span 
                       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium"
                       style={{ 
-                        backgroundColor: member.role_color ? `${member.role_color}20` : '#5865f220',
-                        color: member.role_color || '#5865f2'
+                        backgroundColor: member.role_color ? `${member.role_color}20` : '#00d4ff20',
+                        color: member.role_color || '#00d4ff'
                       }}
                     >
                       <span 
                         className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: member.role_color || '#5865f2' }}
+                        style={{ backgroundColor: member.role_color || '#00d4ff' }}
                       />
                       {member.role_name}
                     </span>
@@ -328,3 +328,4 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
     </div>
   );
 }
+

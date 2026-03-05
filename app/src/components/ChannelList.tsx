@@ -350,12 +350,12 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
 
   if (!server) {
     return (
-      <div className="w-60 bg-[#2f3136] flex flex-col">
+      <div className="w-60 bg-[#232438] flex flex-col">
         <div className="h-12 px-4 flex items-center shadow-md">
           <h2 className="text-white font-semibold">Direct Messages</h2>
         </div>
         <div className="flex-1 p-2">
-          <div className="text-[#72767d] text-sm p-4 text-center">
+          <div className="text-[#6a6a7a] text-sm p-4 text-center">
             Pilih server untuk melihat channel
           </div>
         </div>
@@ -374,19 +374,19 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             />
             <div className="flex flex-col">
               <span className="text-white text-sm font-medium truncate max-w-[100px]">{user?.displayName || user?.username}</span>
-              <span className="text-[#b9bbbe] text-xs">Online</span>
+              <span className="text-[#a0a0b0] text-xs">Online</span>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded">
+            <button className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded">
               <Mic className="w-5 h-5" />
             </button>
-            <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded">
+            <button className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded">
               <Headphones className="w-5 h-5" />
             </button>
             <button 
               onClick={onOpenSettings}
-              className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded"
+              className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded"
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -397,7 +397,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   }
 
   return (
-    <div className="w-60 bg-[#2f3136] flex flex-col">
+    <div className="w-60 bg-[#232438] flex flex-col">
       {/* Server Header */}
       <div 
         className="h-12 px-4 flex items-center justify-between shadow-md cursor-pointer hover:bg-[#34373c] transition-colors group relative"
@@ -412,7 +412,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
               e.stopPropagation();
               onOpenInvite?.();
             }}
-            className="p-1.5 rounded hover:bg-[#5865f2] text-[#b9bbbe] hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1.5 rounded hover:bg-[#00d4ff] text-[#a0a0b0] hover:text-white transition-colors opacity-0 group-hover:opacity-100"
             title="Invite People"
           >
             <UserPlus className="w-4 h-4" />
@@ -422,7 +422,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
 
         {/* Server Dropdown Menu */}
         {showServerMenu && (
-          <div className="absolute top-full left-0 right-0 mt-1 mx-2 bg-[#18191c] rounded-lg shadow-lg border border-[#2f3136] z-50 overflow-hidden py-1">
+          <div className="absolute top-full left-0 right-0 mt-1 mx-2 bg-[#18191c] rounded-lg shadow-lg border border-[#232438] z-50 overflow-hidden py-1">
             
             {/* Server Boost */}
             <button
@@ -437,7 +437,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             </button>
 
             {/* Divider */}
-            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+            <div className="h-px bg-[#232438] mx-2 my-1" />
 
             {/* Invite People */}
             <button
@@ -445,7 +445,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 onOpenInvite?.();
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>Invite People</span>
               <UserPlus className="w-4 h-4" />
@@ -458,7 +458,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                   onOpenServerSettings?.();
                   setShowServerMenu(false);
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+                className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
               >
                 <span>Server Settings</span>
                 <Settings className="w-4 h-4" />
@@ -466,7 +466,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             )}
 
             {/* Divider */}
-            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+            <div className="h-px bg-[#232438] mx-2 my-1" />
 
             {/* Create Channel */}
             {canManage && (
@@ -476,7 +476,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                   setIsCreateChannelModalOpen(true);
                   setShowServerMenu(false);
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+                className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
               >
                 <span>Create Channel</span>
                 <Plus className="w-4 h-4" />
@@ -490,7 +490,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                   setIsCreateModalOpen(true);
                   setShowServerMenu(false);
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+                className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
               >
                 <span>Create Category</span>
                 <Plus className="w-4 h-4" />
@@ -503,7 +503,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 alert('Create Event - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>Create Event</span>
               <Calendar className="w-4 h-4" />
@@ -515,14 +515,14 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 alert('App Directory - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>App Directory</span>
               <LayoutGrid className="w-4 h-4" />
             </button>
 
             {/* Divider */}
-            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+            <div className="h-px bg-[#232438] mx-2 my-1" />
 
             {/* Notification Settings */}
             <button
@@ -530,7 +530,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 alert('Notification Settings - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>Notification Settings</span>
               <Bell className="w-4 h-4" />
@@ -542,7 +542,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 alert('Privacy Settings - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>Privacy Settings</span>
               <Shield className="w-4 h-4" />
@@ -554,7 +554,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 alert('Edit Per-server Profile - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>Edit Per-server Profile</span>
               <UserCog className="w-4 h-4" />
@@ -566,14 +566,14 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                 alert('Hide Muted Channels - Fitur akan segera hadir!');
                 setShowServerMenu(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 text-[#b9bbbe] hover:text-white hover:bg-[#5865f2] transition-colors text-sm"
+              className="w-full flex items-center justify-between px-3 py-2 text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] transition-colors text-sm"
             >
               <span>Hide Muted Channels</span>
               <EyeOff className="w-4 h-4" />
             </button>
 
             {/* Divider */}
-            <div className="h-px bg-[#2f3136] mx-2 my-1" />
+            <div className="h-px bg-[#232438] mx-2 my-1" />
 
             {/* Leave Server */}
             <button
@@ -660,7 +660,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                       setSelectedCategoryId(null);
                       setIsCreateChannelModalOpen(true);
                     }}
-                    className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white transition-opacity"
+                    className="p-1 hover:bg-[#34373c] rounded text-[#a0a0b0] hover:text-white transition-opacity"
                     title="Buat Channel"
                   >
                     <Plus className="w-3 h-3" />
@@ -672,7 +672,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                         handleConvertToCategory(newName.trim());
                       }
                     }}
-                    className="p-1 hover:bg-[#34373c] rounded text-[#b9bbbe] hover:text-white transition-opacity"
+                    className="p-1 hover:bg-[#34373c] rounded text-[#a0a0b0] hover:text-white transition-opacity"
                     title="Ubah Nama Kategori"
                   >
                     <Edit2 className="w-3 h-3" />
@@ -691,10 +691,10 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                     key={channel.id}
                     className={`group flex items-center gap-2 px-2 py-1.5 rounded ${
                       selectedChannelId === channel.id
-                        ? 'bg-[#40444b] text-white'
+                        ? 'bg-[#2a2b3d] text-white'
                         : hasUnread 
-                          ? 'bg-[#2f3136] text-white'
-                          : 'text-[#b9bbbe] hover:bg-[#34373c] hover:text-[#dcddde]'
+                          ? 'bg-[#232438] text-white'
+                          : 'text-[#a0a0b0] hover:bg-[#34373c] hover:text-[#dcddde]'
                     }`}
                   >
                     <button
@@ -705,9 +705,9 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                       className="flex-1 flex items-center gap-2 min-w-0"
                     >
                       {channel.type === 'voice' ? (
-                        <Volume2 className="w-4 h-4 text-[#72767d]" />
+                        <Volume2 className="w-4 h-4 text-[#6a6a7a]" />
                       ) : (
-                        <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#72767d]'}`} />
+                        <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#6a6a7a]'}`} />
                       )}
                       <span className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : ''}`}>
                         {channel.name}
@@ -718,7 +718,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                         <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
                           hasMention 
                             ? 'bg-[#ed4245] text-white' 
-                            : 'bg-[#b9bbbe] text-[#2f3136]'
+                            : 'bg-[#b9bbbe] text-[#0d0d14]'
                         }`}>
                           {unread.count > 99 ? '99+' : unread.count}
                         </span>
@@ -734,7 +734,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
                             handleDeleteChannel(channel.id);
                           }
                         }}
-                        className="p-1 hover:bg-[#ed4245]/20 rounded text-[#b9bbbe] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 hover:bg-[#ed4245]/20 rounded text-[#a0a0b0] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Hapus Channel"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -751,7 +751,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
         {canManage && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="w-full flex items-center gap-2 px-2 py-2 mt-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded transition-colors"
+            className="w-full flex items-center gap-2 px-2 py-2 mt-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm">Buat Kategori</span>
@@ -776,19 +776,19 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
           />
           <div className="flex flex-col min-w-0">
             <span className="text-white text-sm font-medium truncate">{user?.displayName || user?.username}</span>
-            <span className="text-[#b9bbbe] text-xs">Online</span>
+            <span className="text-[#a0a0b0] text-xs">Online</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded">
+          <button className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded">
             <Mic className="w-5 h-5" />
           </button>
-          <button className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded">
+          <button className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded">
             <Headphones className="w-5 h-5" />
           </button>
           <button 
             onClick={onOpenUserSettings}
-            className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#34373c] rounded"
+            className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c] rounded"
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -801,13 +801,13 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             className="absolute bottom-full left-2 mb-2 w-[280px] bg-[#18191c] rounded-lg shadow-2xl overflow-hidden z-[100]"
           >
             {/* Banner */}
-            <div className="h-16 bg-[#5865f2] relative">
+            <div className="h-16 bg-[#00d4ff] relative">
               <div className="absolute -bottom-6 left-4">
                 <div className="relative">
                   <img
                     src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
                     alt={user?.displayName || user?.username}
-                    className="w-16 h-16 rounded-full object-cover border-4 border-[#18191c] bg-[#36393f]"
+                    className="w-16 h-16 rounded-full object-cover border-4 border-[#18191c] bg-[#1a1b2e]"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`;
                     }}
@@ -820,31 +820,31 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             {/* User Info */}
             <div className="pt-8 px-4 pb-3">
               <h3 className="text-white font-bold text-lg">{user?.displayName || user?.username}</h3>
-              <p className="text-[#b9bbbe] text-sm">{user?.email}</p>
+              <p className="text-[#a0a0b0] text-sm">{user?.email}</p>
               
               {/* Badges */}
               <div className="flex items-center gap-2 mt-2">
-                <span className="px-2 py-0.5 bg-[#5865f2] text-white text-xs rounded font-medium">VIP</span>
+                <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-medium">VIP</span>
                 <span className="text-[#faa61a]">👑</span>
                 <span className="text-[#43b581]">✓</span>
               </div>
             </div>
 
             {/* Divider */}
-            <div className="mx-4 h-px bg-[#36393f]" />
+            <div className="mx-4 h-px bg-[#1a1b2e]" />
 
             {/* Menu Items */}
             <div className="py-2">
               <button
                 onClick={handleEditProfile}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#a0a0b0] hover:bg-[#00d4ff] hover:text-white transition-colors text-left"
               >
                 <Edit3 className="w-4 h-4" />
                 <span className="text-sm">Edit Profile</span>
               </button>
 
               <button
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#a0a0b0] hover:bg-[#00d4ff] hover:text-white transition-colors text-left"
               >
                 <div className="w-4 h-4 rounded-full bg-[#3ba55d]" />
                 <span className="text-sm">Online</span>
@@ -852,7 +852,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
 
               <button
                 onClick={handleCopyUsername}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#a0a0b0] hover:bg-[#00d4ff] hover:text-white transition-colors text-left"
               >
                 {copied ? <Check className="w-4 h-4 text-[#43b581]" /> : <Copy className="w-4 h-4" />}
                 <span className="text-sm">{copied ? 'Copied!' : 'Copy Username'}</span>
@@ -893,3 +893,4 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
     </div>
   );
 }
+

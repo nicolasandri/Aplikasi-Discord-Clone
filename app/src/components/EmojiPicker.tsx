@@ -316,7 +316,7 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
         ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
+        className="p-2 text-[#a0a0b0] hover:text-[#dcddde] transition-colors"
       >
         <Smile className="w-5 h-5" />
       </button>
@@ -324,14 +324,14 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
       {isOpen && (
         <div 
           ref={pickerRef}
-          className="fixed bottom-20 right-4 bg-[#2f3136] border border-[#202225] rounded-lg shadow-2xl w-[340px] h-[400px] flex flex-col z-[99999]"
+          className="fixed bottom-20 right-4 bg-[#232438] border border-[#0f0f1a] rounded-lg shadow-2xl w-[340px] h-[400px] flex flex-col z-[99999]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-[#202225]">
+          <div className="flex items-center justify-between p-3 border-b border-[#0f0f1a]">
             <span className="text-white font-semibold">Emoji</span>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-[#b9bbbe] hover:text-white"
+              className="text-[#a0a0b0] hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -344,7 +344,7 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
                 <button
                   key={item.name}
                   onClick={() => handleEmojiClick(item.emoji)}
-                  className="w-10 h-10 flex items-center justify-center text-2xl hover:bg-[#40444b] rounded transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-2xl hover:bg-[#2a2b3d] rounded transition-colors"
                   title={item.name}
                 >
                   {item.emoji}
@@ -357,3 +357,4 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
     </div>
   );
 }
+

@@ -36,7 +36,7 @@ interface ServerSettings {
 }
 
 const bannerColors = [
-  { id: 'default', color: '#18191c', gradient: 'linear-gradient(135deg, #18191c 0%, #2f3136 100%)' },
+  { id: 'default', color: '#18191c', gradient: 'linear-gradient(135deg, #18191c 0%, #0d0d14 100%)' },
   { id: 'pink', color: '#ff006e', gradient: 'linear-gradient(135deg, #ff006e 0%, #fb5607 100%)' },
   { id: 'red', color: '#e63946', gradient: 'linear-gradient(135deg, #e63946 0%, #f1faee 100%)' },
   { id: 'orange', color: '#fb5607', gradient: 'linear-gradient(135deg, #fb5607 0%, #ffbe0b 100%)' },
@@ -231,28 +231,28 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
           <div className="space-y-8">
             {/* Server Name */}
             <div>
-              <label className="block text-xs font-bold text-[#b9bbbe] uppercase tracking-wide mb-2">
+              <label className="block text-xs font-bold text-[#a0a0b0] uppercase tracking-wide mb-2">
                 Name
               </label>
               <input
                 type="text"
                 value={settings.name}
                 onChange={(e) => setSettings(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full bg-[#1e1f22] text-white px-3 py-2 rounded border border-[#2f3136] focus:border-[#5865f2] focus:outline-none"
+                className="w-full bg-[#1e1f22] text-white px-3 py-2 rounded border border-[#232438] focus:border-[#00d4ff] focus:outline-none"
               />
             </div>
 
             {/* Server Icon */}
             <div>
-              <label className="block text-xs font-bold text-[#b9bbbe] uppercase tracking-wide mb-2">
+              <label className="block text-xs font-bold text-[#a0a0b0] uppercase tracking-wide mb-2">
                 Icon
               </label>
-              <p className="text-[#b9bbbe] text-sm mb-3">
+              <p className="text-[#a0a0b0] text-sm mb-3">
                 We recommend an image of at least 512x512.
               </p>
               <button
                 onClick={handleIconUpload}
-                className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                className="bg-[#00d4ff] hover:bg-[#00b8db] text-white px-4 py-2 rounded text-sm font-medium transition-colors"
               >
                 Change Server Icon
               </button>
@@ -267,7 +267,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
 
             {/* Banner */}
             <div>
-              <label className="block text-xs font-bold text-[#b9bbbe] uppercase tracking-wide mb-2">
+              <label className="block text-xs font-bold text-[#a0a0b0] uppercase tracking-wide mb-2">
                 Banner
               </label>
               <div className="grid grid-cols-5 gap-2">
@@ -288,7 +288,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
 
             {/* Description */}
             <div>
-              <label className="block text-xs font-bold text-[#b9bbbe] uppercase tracking-wide mb-2">
+              <label className="block text-xs font-bold text-[#a0a0b0] uppercase tracking-wide mb-2">
                 Description
               </label>
               <textarea
@@ -296,7 +296,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
                 onChange={(e) => setSettings(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="How did your server get started? Why should people join?"
                 rows={4}
-                className="w-full bg-[#1e1f22] text-white px-3 py-2 rounded border border-[#2f3136] focus:border-[#5865f2] focus:outline-none resize-none"
+                className="w-full bg-[#1e1f22] text-white px-3 py-2 rounded border border-[#232438] focus:border-[#00d4ff] focus:outline-none resize-none"
               />
             </div>
           </div>
@@ -306,8 +306,8 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
       case 'roles':
         return (
           <div className="flex items-center justify-center h-64">
-            <div className="text-[#b9bbbe] text-center">
-              <Shield className="w-12 h-12 mx-auto mb-4 text-[#72767d]" />
+            <div className="text-[#a0a0b0] text-center">
+              <Shield className="w-12 h-12 mx-auto mb-4 text-[#6a6a7a]" />
               <p>Fitur Roles sedang dalam pengembangan.</p>
             </div>
           </div>
@@ -318,7 +318,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
         return server ? <ServerAuditLog serverId={server.id} /> : null;
       default:
         return (
-          <div className="flex items-center justify-center h-full text-[#b9bbbe]">
+          <div className="flex items-center justify-center h-full text-[#a0a0b0]">
             <p>Feature coming soon...</p>
           </div>
         );
@@ -386,14 +386,14 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
                 {activeMenuItem?.label || 'Settings'}
               </h1>
               {activeTab === 'overview' && (
-                <p className="text-[#b9bbbe] text-sm mt-1">
+                <p className="text-[#a0a0b0] text-sm mt-1">
                   Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages
                 </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-[#b9bbbe] hover:text-white p-2 hover:bg-[#35373c] rounded transition-colors"
+              className="text-[#a0a0b0] hover:text-white p-2 hover:bg-[#35373c] rounded transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -416,7 +416,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
                   </button>
                   <button
                     onClick={handleSave}
-                    className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-6 py-2 rounded text-sm font-medium transition-colors"
+                    className="bg-[#00d4ff] hover:bg-[#00b8db] text-white px-6 py-2 rounded text-sm font-medium transition-colors"
                   >
                     Save Changes
                   </button>
@@ -461,7 +461,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
                       <h3 className="text-white font-bold text-lg">
                         {settings.name}
                       </h3>
-                      <div className="flex items-center gap-2 text-[#b9bbbe] text-sm mt-1">
+                      <div className="flex items-center gap-2 text-[#a0a0b0] text-sm mt-1">
                         <span className="flex items-center gap-1">
                           <span className="w-2 h-2 rounded-full bg-[#3ba55d]" />
                           1 Online
@@ -483,5 +483,6 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
     </div>
   );
 }
+
 
 

@@ -68,11 +68,11 @@ export function NotificationSettings() {
   return (
     <div className={`space-y-4 ${isMobile ? 'pb-4' : ''}`}>
       {/* Main Card */}
-      <div className={`bg-[#2f3136] rounded-lg border border-[#202225] ${isMobile ? 'p-3' : 'p-4'}`}>
+      <div className={`bg-[#232438] rounded-lg border border-[#0f0f1a] ${isMobile ? 'p-3' : 'p-4'}`}>
         <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <Bell className={`text-[#5865F2] ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+              <Bell className={`text-[#00d4ff] ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               <h3 className={`font-medium text-white ${isMobile ? 'text-sm' : 'text-base'}`}>Notifikasi Push</h3>
             </div>
             <p className={`text-gray-400 mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
@@ -97,7 +97,7 @@ export function NotificationSettings() {
             <button
               onClick={handleSubscribe}
               disabled={loading || permission === 'denied'}
-              className={`flex items-center justify-center gap-2 bg-[#5865F2] text-white rounded hover:bg-[#4752C4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${isMobile ? 'w-full px-3 py-2 text-sm' : 'px-4 py-2'}`}
+              className={`flex items-center justify-center gap-2 bg-[#00d4ff] text-white rounded hover:bg-[#00b8db] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${isMobile ? 'w-full px-3 py-2 text-sm' : 'px-4 py-2'}`}
             >
               {loading ? (
                 <span className={`border-2 border-white border-t-transparent rounded-full animate-spin ${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
@@ -132,7 +132,7 @@ export function NotificationSettings() {
 
       {/* Subscribed Status */}
       {isSubscribed && (
-        <div className={`bg-[#2f3136] rounded-lg border border-[#202225] ${isMobile ? 'p-3' : 'p-4'}`}>
+        <div className={`bg-[#232438] rounded-lg border border-[#0f0f1a] ${isMobile ? 'p-3' : 'p-4'}`}>
           <div className={`flex items-center ${isMobile ? 'flex-col gap-3' : 'justify-between'}`}>
             <div className="flex items-center gap-2 text-green-400">
               <Check className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
@@ -142,10 +142,10 @@ export function NotificationSettings() {
             <button
               onClick={handleTest}
               disabled={testLoading}
-              className={`flex items-center gap-2 text-[#5865F2] hover:text-[#4752C4] disabled:opacity-50 transition-colors ${isMobile ? 'w-full justify-center px-3 py-2 bg-[#5865F2]/10 rounded text-sm' : ''}`}
+              className={`flex items-center gap-2 text-[#00d4ff] hover:text-[#00b8db] disabled:opacity-50 transition-colors ${isMobile ? 'w-full justify-center px-3 py-2 bg-[#00d4ff]/10 rounded text-sm' : ''}`}
             >
               {testLoading ? (
-                <span className={`border-2 border-[#5865F2] border-t-transparent rounded-full animate-spin ${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
+                <span className={`border-2 border-[#00d4ff] border-t-transparent rounded-full animate-spin ${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
               ) : (
                 <Send className={`${isMobile ? 'w-4 h-4' : 'w-4 h-4'}`} />
               )}
@@ -168,3 +168,4 @@ export function NotificationSettings() {
     </div>
   );
 }
+

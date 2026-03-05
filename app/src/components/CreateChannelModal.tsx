@@ -94,14 +94,14 @@ export function CreateChannelModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="bg-[#36393f] border-[#202225] text-white sm:max-w-md">
+      <DialogContent className="bg-[#1a1b2e] border-[#0f0f1a] text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Buat Channel</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           {/* Channel Type Selection */}
           <div className="space-y-2">
-            <label className="text-[#b9bbbe] text-sm uppercase font-bold tracking-wide">
+            <label className="text-[#a0a0b0] text-sm uppercase font-bold tracking-wide">
               Tipe Channel
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -110,14 +110,14 @@ export function CreateChannelModal({
                 onClick={() => setChannelType('text')}
                 className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
                   channelType === 'text'
-                    ? 'border-[#5865f2] bg-[#5865f2]/10'
-                    : 'border-[#202225] bg-[#202225] hover:bg-[#2f3136]'
+                    ? 'border-[#00d4ff] bg-[#00d4ff]/10'
+                    : 'border-[#0f0f1a] bg-[#0f0f1a] hover:bg-[#232438]'
                 }`}
               >
-                <Hash className="w-5 h-5 text-[#72767d]" />
+                <Hash className="w-5 h-5 text-[#6a6a7a]" />
                 <div className="text-left">
                   <p className="text-white font-medium text-sm">Teks</p>
-                  <p className="text-[#72767d] text-xs">Kirim pesan, gambar, dan diskusi</p>
+                  <p className="text-[#6a6a7a] text-xs">Kirim pesan, gambar, dan diskusi</p>
                 </div>
               </button>
               <button
@@ -125,14 +125,14 @@ export function CreateChannelModal({
                 onClick={() => setChannelType('voice')}
                 className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
                   channelType === 'voice'
-                    ? 'border-[#5865f2] bg-[#5865f2]/10'
-                    : 'border-[#202225] bg-[#202225] hover:bg-[#2f3136]'
+                    ? 'border-[#00d4ff] bg-[#00d4ff]/10'
+                    : 'border-[#0f0f1a] bg-[#0f0f1a] hover:bg-[#232438]'
                 }`}
               >
-                <Volume2 className="w-5 h-5 text-[#72767d]" />
+                <Volume2 className="w-5 h-5 text-[#6a6a7a]" />
                 <div className="text-left">
                   <p className="text-white font-medium text-sm">Suara</p>
-                  <p className="text-[#72767d] text-xs">Chat suara dan video call</p>
+                  <p className="text-[#6a6a7a] text-xs">Chat suara dan video call</p>
                 </div>
               </button>
             </div>
@@ -140,18 +140,18 @@ export function CreateChannelModal({
 
           {/* Channel Name */}
           <div className="space-y-2">
-            <label className="text-[#b9bbbe] text-sm uppercase font-bold tracking-wide">
+            <label className="text-[#a0a0b0] text-sm uppercase font-bold tracking-wide">
               Nama Channel
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#72767d]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6a6a7a]">
                 {channelType === 'text' ? '#' : '🔊'}
               </span>
               <Input
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
                 placeholder={channelType === 'text' ? 'channel-baru' : 'Channel Suara'}
-                className="bg-[#202225] border-[#040405] text-white focus:border-[#5865f2] pl-8"
+                className="bg-[#0f0f1a] border-[#040405] text-white focus:border-[#00d4ff] pl-8"
                 autoFocus
               />
             </div>
@@ -162,14 +162,14 @@ export function CreateChannelModal({
               type="button"
               variant="ghost"
               onClick={handleClose}
-              className="text-[#b9bbbe] hover:text-white hover:bg-[#34373c]"
+              className="text-[#a0a0b0] hover:text-white hover:bg-[#34373c]"
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={isLoading || !channelName.trim()}
-              className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+              className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
             >
               {isLoading ? 'Membuat...' : 'Buat Channel'}
             </Button>
@@ -179,3 +179,4 @@ export function CreateChannelModal({
     </Dialog>
   );
 }
+

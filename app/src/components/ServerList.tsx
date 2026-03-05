@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Compass, Download, MessageCircle } from 'lucide-react';
+import { Plus, Compass, MessageCircle } from 'lucide-react';
+import { UpdateButton } from './UpdateButton';
 import {
   Dialog,
   DialogContent,
@@ -70,8 +71,8 @@ function ServerIconButton({
       onClick={onClick}
       className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group ${
         isSelected
-          ? 'bg-[#5865f2]'
-          : 'bg-[#36393f] hover:bg-[#5865f2]'
+          ? 'bg-[#00d4ff]'
+          : 'bg-[#0d0d14] hover:bg-[#00d4ff]'
       }`}
       style={{ 
         overflow: 'hidden',
@@ -121,7 +122,7 @@ function ServerIconButton({
 
       {/* Unread badge */}
       {hasUnread && (
-        <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#202225] z-20 ${
+        <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#08080c] z-20 ${
           hasMention ? 'bg-[#ed4245] text-white' : 'bg-[#b9bbbe] text-[#2f3136]'
         }`}>
           {unreadCount > 99 ? '99+' : unreadCount}
@@ -129,7 +130,7 @@ function ServerIconButton({
       )}
 
       {/* Tooltip */}
-      <div className="absolute left-16 bg-[#18191c] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+      <div className="absolute left-16 bg-[#0d0d14] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
         {server.name}
       </div>
     </button>
@@ -277,11 +278,11 @@ export function ServerList({
           onClick={handleDMClick}
           className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
             isFriendsOpen || selectedServerId === 'home'
-              ? 'bg-[#5865f2] text-white'
-              : 'bg-[#36393f] text-white hover:bg-[#5865f2]'
+              ? 'bg-[#00d4ff] text-white'
+              : 'bg-[#0d0d14] text-white hover:bg-[#00d4ff]'
           }`}
         >
-          <div className="w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-[#0d0d14] flex items-center justify-center">
             <MessageCircle className="w-6 h-6" />
           </div>
           <div className="flex-1 text-left">
@@ -304,11 +305,11 @@ export function ServerList({
                 onClick={() => onSelectServer(server.id)}
                 className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
                   selectedServerId === server.id && !isFriendsOpen
-                    ? 'bg-[#5865f2] text-white'
-                    : 'bg-[#36393f] text-white hover:bg-[#5865f2]'
+                    ? 'bg-[#00d4ff] text-white'
+                    : 'bg-[#0d0d14] text-white hover:bg-[#00d4ff]'
                 }`}
               >
-                <div className="w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center overflow-hidden">
+                <div className="w-12 h-12 rounded-full bg-[#0d0d14] flex items-center justify-center overflow-hidden">
                   {(() => {
                     const iconUrl = getServerIconUrl(server.icon);
                     return iconUrl ? (
@@ -334,7 +335,7 @@ export function ServerList({
         {/* Add Server Button */}
         <button
           onClick={() => setIsCreateOpen(true)}
-          className="w-full flex items-center gap-4 p-3 rounded-xl bg-[#36393f] hover:bg-[#3ba55d] text-[#3ba55d] hover:text-white transition-all"
+          className="w-full flex items-center gap-4 p-3 rounded-xl bg-[#0d0d14] hover:bg-[#00d4ff] text-[#00d4ff] hover:text-white transition-all"
         >
           <div className="w-12 h-12 rounded-full flex items-center justify-center">
             <Plus className="w-6 h-6" />
@@ -344,33 +345,33 @@ export function ServerList({
 
         {/* Create Server Dialog */}
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent className="bg-[#36393f] border-[#202225] text-white">
+          <DialogContent className="bg-[#0d0d14] border-[#08080c] text-white">
             <DialogHeader>
               <DialogTitle className="text-xl">Buat Server Baru</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <label className="text-[#b9bbbe] text-sm">Nama Server</label>
+                <label className="text-[#a0a0b0] text-sm">Nama Server</label>
                 <Input
                   value={newServerName}
                   onChange={(e) => setNewServerName(e.target.value)}
                   placeholder="Server saya"
-                  className="bg-[#202225] border-[#040405] text-white"
+                  className="bg-[#08080c] border-[#040405] text-white"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[#b9bbbe] text-sm">Icon (emoji)</label>
+                <label className="text-[#a0a0b0] text-sm">Icon (emoji)</label>
                 <Input
                   value={newServerIcon}
                   onChange={(e) => setNewServerIcon(e.target.value)}
                   placeholder="🌐"
                   maxLength={2}
-                  className="bg-[#202225] border-[#040405] text-white"
+                  className="bg-[#08080c] border-[#040405] text-white"
                 />
               </div>
               <Button
                 onClick={handleCreateServer}
-                className="w-full bg-[#5865f2] hover:bg-[#4752c4]"
+                className="w-full bg-[#00d4ff] hover:bg-[#00b8db]"
               >
                 Buat Server
               </Button>
@@ -382,7 +383,7 @@ export function ServerList({
   }
 
   return (
-    <div className="w-[72px] bg-[#202225] flex flex-col h-full">
+    <div className="w-[72px] bg-[#08080c] flex flex-col h-full">
       {/* Scrollable Server Area */}
       <div className="flex-1 flex flex-col items-center py-3 gap-2 overflow-y-auto min-h-0">
         {/* Direct Messages / Friends Button */}
@@ -391,8 +392,8 @@ export function ServerList({
           onClick={handleDMClick}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
             isFriendsOpen || selectedServerId === 'home'
-              ? 'bg-[#5865f2] rounded-2xl'
-              : 'bg-[#36393f] hover:bg-[#5865f2] hover:rounded-2xl'
+              ? 'bg-[#00d4ff] rounded-2xl'
+              : 'bg-[#0d0d14] hover:bg-[#00d4ff] hover:rounded-2xl'
           }`}
         >
           <MessageCircle className="w-6 h-6 text-white" />
@@ -405,25 +406,25 @@ export function ServerList({
         
         {/* Unread badge */}
         {pendingCount > 0 && (
-          <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#202225]">
+          <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
             {pendingCount > 9 ? '9+' : pendingCount}
           </Badge>
         )}
 
         {/* Online friend count badge */}
         {onlineFriendCount > 0 && pendingCount === 0 && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3ba55d] rounded-full border-2 border-[#202225] flex items-center justify-center">
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00d4ff] rounded-full border-2 border-[#08080c] flex items-center justify-center">
             <span className="text-[8px] text-white font-bold">{onlineFriendCount > 9 ? '9+' : onlineFriendCount}</span>
           </div>
         )}
         
         {/* Tooltip */}
-        <div className="absolute left-16 bg-[#18191c] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+        <div className="absolute left-16 bg-[#0d0d14] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
           Direct Messages {pendingCount > 0 && `(${pendingCount} pending)`}
         </div>
       </div>
 
-      <div className="w-8 h-[2px] bg-[#36393f] rounded-full my-1" />
+      <div className="w-8 h-[2px] bg-[#0d0d14] rounded-full my-1" />
 
       {/* Server List */}
       {servers.map((server) => {
@@ -447,37 +448,37 @@ export function ServerList({
       {/* Add Server Button -->
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogTrigger asChild>
-          <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#3ba55d] flex items-center justify-center transition-all duration-200 group mt-2">
-            <Plus className="w-6 h-6 text-[#3ba55d] group-hover:text-white transition-colors" />
+          <button className="w-12 h-12 rounded-full bg-[#0d0d14] hover:bg-[#00d4ff] flex items-center justify-center transition-all duration-200 group mt-2">
+            <Plus className="w-6 h-6 text-[#00d4ff] group-hover:text-white transition-colors" />
           </button>
         </DialogTrigger>
-        <DialogContent className="bg-[#36393f] border-[#202225] text-white">
+        <DialogContent className="bg-[#0d0d14] border-[#08080c] text-white">
           <DialogHeader>
             <DialogTitle className="text-xl">Buat Server Baru</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <label className="text-[#b9bbbe] text-sm">Nama Server</label>
+              <label className="text-[#a0a0b0] text-sm">Nama Server</label>
               <Input
                 value={newServerName}
                 onChange={(e) => setNewServerName(e.target.value)}
                 placeholder="Server saya"
-                className="bg-[#202225] border-[#040405] text-white"
+                className="bg-[#08080c] border-[#040405] text-white"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[#b9bbbe] text-sm">Icon (emoji)</label>
+              <label className="text-[#a0a0b0] text-sm">Icon (emoji)</label>
               <Input
                 value={newServerIcon}
                 onChange={(e) => setNewServerIcon(e.target.value)}
                 placeholder="🌐"
                 maxLength={2}
-                className="bg-[#202225] border-[#040405] text-white"
+                className="bg-[#08080c] border-[#040405] text-white"
               />
             </div>
             <Button
               onClick={handleCreateServer}
-              className="w-full bg-[#5865f2] hover:bg-[#4752c4]"
+              className="w-full bg-[#00d4ff] hover:bg-[#00b8db]"
             >
               Buat Server
             </Button>
@@ -487,17 +488,16 @@ export function ServerList({
 
       {/* Explore Button - Hidden */}
       {/*
-      <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#5865f2] flex items-center justify-center transition-all duration-200 group">
-        <Compass className="w-6 h-6 text-[#5865f2] group-hover:text-white transition-colors" />
+      <button className="w-12 h-12 rounded-full bg-[#0d0d14] hover:bg-[#00d4ff] flex items-center justify-center transition-all duration-200 group">
+        <Compass className="w-6 h-6 text-[#00d4ff] group-hover:text-white transition-colors" />
       </button>
-      <div className="w-8 h-[2px] bg-[#36393f] rounded-full my-1" />
+      <div className="w-8 h-[2px] bg-[#0d0d14] rounded-full my-1" />
       */}
 
-      {/* Download App Button */}
-      <button className="w-12 h-12 rounded-full bg-[#36393f] hover:bg-[#3ba55d] flex items-center justify-center transition-all duration-200 group">
-        <Download className="w-6 h-6 text-[#3ba55d] group-hover:text-white transition-colors" />
-      </button>
+      {/* Update/Download Button */}
+      <UpdateButton />
       </div>
     </div>
   );
 }
+

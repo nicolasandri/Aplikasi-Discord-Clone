@@ -42,7 +42,7 @@ const BASE_URL = isElectron
   : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001');
 
 const DEFAULT_COLORS = [
-  '#5865f2', '#eb459e', '#ed4245', '#f39c12', '#f1c40f', 
+  '#00d4ff', '#eb459e', '#ed4245', '#f39c12', '#f1c40f', 
   '#9b59b6', '#3498db', '#1abc9c', '#2ecc71', '#34495e',
   '#95a5a6', '#e74c3c', '#e67e22', '#f39c12', '#27ae60',
   '#2980b9', '#8e44ad', '#c0392b', '#7f8c8d', '#2c3e50'
@@ -261,7 +261,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -347,7 +347,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               <Button
                 size="sm"
                 onClick={handleUpdateRole}
-                className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
               >
                 Save Changes
               </Button>
@@ -366,7 +366,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               >
                 {tab}
                 {activeTab === tab && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5865f2]" />
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00d4ff]" />
                 )}
               </button>
             ))}
@@ -383,7 +383,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   <Input
                     value={editingRole.name}
                     onChange={(e) => setEditingRole({ ...editingRole, name: e.target.value })}
-                    className="bg-[#1e1f22] border-[#1e1f22] text-white focus:border-[#5865f2]"
+                    className="bg-[#1e1f22] border-[#1e1f22] text-white focus:border-[#00d4ff]"
                   />
                 </div>
 
@@ -432,7 +432,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   >
                     <div className={`w-5 h-5 rounded border flex items-center justify-center mt-0.5 ${
                       hasPermission(editingRole.permissions, perm.bit)
-                        ? 'bg-[#5865f2] border-[#5865f2]'
+                        ? 'bg-[#00d4ff] border-[#00d4ff]'
                         : 'border-[#4f545c]'
                     }`}>
                       {hasPermission(editingRole.permissions, perm.bit) && (
@@ -468,7 +468,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                       setSelectedMembers([]);
                       setMemberSearchQuery('');
                     }}
-                    className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                    className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add Members
@@ -519,7 +519,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                           setMemberSearchQuery('');
                         }}
                         variant="ghost"
-                        className="mt-2 text-[#5865f2] hover:text-[#4752c4]"
+                        className="mt-2 text-[#00d4ff] hover:text-[#00b8db]"
                       >
                         Add members
                       </Button>
@@ -570,7 +570,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                         setSelectedMembers(selectedMembers.filter(id => id !== member.id));
                       }
                     }}
-                    className="rounded border-[#4f545c] bg-[#1e1f22] text-[#5865f2]"
+                    className="rounded border-[#4f545c] bg-[#1e1f22] text-[#00d4ff]"
                   />
                   <img
                     src={member.avatar 
@@ -615,7 +615,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   setSelectedMembers([]);
                 }}
                 disabled={selectedMembers.length === 0}
-                className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
               >
                 Add {selectedMembers.length > 0 && `(${selectedMembers.length})`}
               </Button>
@@ -628,14 +628,14 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
           <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-white">Delete Role</AlertDialogTitle>
-              <AlertDialogDescription className="text-[#b9bbbe]">
+              <AlertDialogDescription className="text-[#a0a0b0]">
                 Are you sure you want to delete <span style={{ color: roleToDelete?.color }}>{roleToDelete?.name}</span>? 
                 This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel 
-                className="bg-[#40444b] text-white border-[#40444b] hover:bg-[#35373c]"
+                className="bg-[#2a2b3d] text-white border-[#40444b] hover:bg-[#35373c]"
                 onClick={() => setRoleToDelete(null)}
               >
                 Cancel
@@ -704,7 +704,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         {isOwner && (
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+            className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Role
@@ -715,7 +715,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       {/* Info Text */}
       <p className="text-[#949ba4] text-sm mb-4">
         Members use the color of the highest role they have on this list. Drag roles to reorder them.{` `}
-        <a href="#" className="text-[#00a8fc] hover:underline">Need help with permissions?</a>
+        <a href="#" className="text-[#00d4ff] hover:underline">Need help with permissions?</a>
       </p>
 
       {/* Roles Table Header */}
@@ -843,7 +843,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
             <Button
               onClick={handleCreateRole}
               disabled={!newRoleName.trim()}
-              className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+              className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
             >
               Create Role
             </Button>
@@ -856,14 +856,14 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Role</AlertDialogTitle>
-            <AlertDialogDescription className="text-[#b9bbbe]">
+            <AlertDialogDescription className="text-[#a0a0b0]">
               Are you sure you want to delete <span style={{ color: roleToDelete?.color }}>{roleToDelete?.name}</span>? 
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel 
-              className="bg-[#40444b] text-white border-[#40444b] hover:bg-[#35373c]"
+              className="bg-[#2a2b3d] text-white border-[#40444b] hover:bg-[#35373c]"
               onClick={() => setRoleToDelete(null)}
             >
               Cancel
@@ -880,3 +880,4 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
     </div>
   );
 }
+

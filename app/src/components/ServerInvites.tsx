@@ -148,7 +148,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -159,7 +159,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-white text-xl font-bold mb-1">Invites</h2>
-          <p className="text-[#b9bbbe] text-sm">
+          <p className="text-[#a0a0b0] text-sm">
             Manage your server's invite links and see who has joined.
           </p>
         </div>
@@ -172,7 +172,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
         </button>
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#5865f2] hover:bg-[#4752c4] text-white rounded text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-[#00d4ff] hover:bg-[#00b8db] text-white rounded text-sm font-medium transition-colors"
         >
           <UserPlus className="w-4 h-4" />
           Create Invite Link
@@ -182,7 +182,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
       {/* Invites Table */}
       <div className="bg-[#2b2d31] rounded-lg overflow-hidden">
         {/* Table Header */}
-        <div className="grid grid-cols-[1fr_120px_80px_140px_80px_50px] gap-4 px-4 py-3 border-b border-[#1e1f22] text-[#72767d] text-xs font-semibold uppercase">
+        <div className="grid grid-cols-[1fr_120px_80px_140px_80px_50px] gap-4 px-4 py-3 border-b border-[#1e1f22] text-[#6a6a7a] text-xs font-semibold uppercase">
           <span>Inviter</span>
           <span>Invite Code</span>
           <span className="text-center">Uses</span>
@@ -194,7 +194,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
         {/* Invite Items */}
         <div className="divide-y divide-[#1e1f22]">
           {invites.length === 0 ? (
-            <div className="px-4 py-8 text-center text-[#72767d]">
+            <div className="px-4 py-8 text-center text-[#6a6a7a]">
               <Link2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>No active invite links</p>
               <p className="text-sm mt-1">Create one to invite people to your server</p>
@@ -210,7 +210,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
                   <img
                     src={getAvatarUrl(invite)}
                     alt={invite.createdByUsername}
-                    className="w-8 h-8 rounded-full bg-[#36393f]"
+                    className="w-8 h-8 rounded-full bg-[#1a1b2e]"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${invite.createdByUsername}`;
                     }}
@@ -222,10 +222,10 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
 
                 {/* Invite Code */}
                 <div className="flex items-center gap-2">
-                  <code className="text-[#b9bbbe] text-sm">{invite.code}</code>
+                  <code className="text-[#a0a0b0] text-sm">{invite.code}</code>
                   <button
                     onClick={() => handleCopyInvite(invite.code)}
-                    className="p-1 hover:bg-[#40444b] rounded text-[#72767d] hover:text-white"
+                    className="p-1 hover:bg-[#2a2b3d] rounded text-[#6a6a7a] hover:text-white"
                     title="Copy invite link"
                   >
                     {copiedCode === invite.code ? (
@@ -237,12 +237,12 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
                 </div>
 
                 {/* Uses */}
-                <div className="text-center text-[#b9bbbe]">
+                <div className="text-center text-[#a0a0b0]">
                   {invite.uses}{invite.maxUses ? `/${invite.maxUses}` : ''}
                 </div>
 
                 {/* Expires */}
-                <div className="flex items-center justify-center gap-1.5 text-[#b9bbbe]">
+                <div className="flex items-center justify-center gap-1.5 text-[#a0a0b0]">
                   <Clock className="w-3.5 h-3.5" />
                   <span className="text-sm">{formatExpires(invite.expiresAt)}</span>
                 </div>
@@ -250,9 +250,9 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
                 {/* Roles */}
                 <div className="text-center">
                   {invite.roleName ? (
-                    <span className="text-xs text-[#b9bbbe]">{invite.roleName}</span>
+                    <span className="text-xs text-[#a0a0b0]">{invite.roleName}</span>
                   ) : (
-                    <span className="text-xs text-[#72767d]">-</span>
+                    <span className="text-xs text-[#6a6a7a]">-</span>
                   )}
                 </div>
 
@@ -261,16 +261,16 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
                   <div className="relative" ref={menuOpen === invite.code ? menuRef : null}>
                     <button 
                       onClick={() => setMenuOpen(menuOpen === invite.code ? null : invite.code)}
-                      className="p-1.5 hover:bg-[#40444b] rounded text-[#b9bbbe] hover:text-white"
+                      className="p-1.5 hover:bg-[#2a2b3d] rounded text-[#a0a0b0] hover:text-white"
                     >
                       <MoreVertical className="w-4 h-4" />
                     </button>
                     
                     {menuOpen === invite.code && (
-                      <div className="absolute right-0 top-full mt-1 w-40 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#2f3136]">
+                      <div className="absolute right-0 top-full mt-1 w-40 bg-[#18191c] rounded-lg shadow-xl z-50 py-1 border border-[#232438]">
                         <button
                           onClick={() => { handleCopyInvite(invite.code); setMenuOpen(null); }}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-[#b9bbbe] hover:bg-[#5865f2] hover:text-white text-sm"
+                          className="w-full flex items-center gap-2 px-4 py-2 text-[#a0a0b0] hover:bg-[#00d4ff] hover:text-white text-sm"
                         >
                           <Copy className="w-4 h-4" />
                           Copy Link
@@ -326,17 +326,17 @@ function CreateInviteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[#36393f] rounded-lg shadow-xl w-96 p-6">
+      <div className="bg-[#1a1b2e] rounded-lg shadow-xl w-96 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white text-xl font-bold">Create Invite</h3>
-          <button onClick={onClose} className="text-[#b9bbbe] hover:text-white">
+          <button onClick={onClose} className="text-[#a0a0b0] hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
         
         <div className="space-y-4">
           <div>
-            <label className="text-[#b9bbbe] text-xs font-bold uppercase mb-2 block">
+            <label className="text-[#a0a0b0] text-xs font-bold uppercase mb-2 block">
               Max Uses
             </label>
             <input
@@ -345,19 +345,19 @@ function CreateInviteModal({
               onChange={(e) => setMaxUses(e.target.value)}
               placeholder="Unlimited"
               min="1"
-              className="w-full bg-[#202225] text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#5865f2]"
+              className="w-full bg-[#0f0f1a] text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
             />
-            <p className="text-[#72767d] text-xs mt-1">Leave empty for unlimited uses</p>
+            <p className="text-[#6a6a7a] text-xs mt-1">Leave empty for unlimited uses</p>
           </div>
           
           <div>
-            <label className="text-[#b9bbbe] text-xs font-bold uppercase mb-2 block">
+            <label className="text-[#a0a0b0] text-xs font-bold uppercase mb-2 block">
               Expires After
             </label>
             <select
               value={expiresIn}
               onChange={(e) => setExpiresIn(e.target.value)}
-              className="w-full bg-[#202225] text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#5865f2]"
+              className="w-full bg-[#0f0f1a] text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
             >
               {expiresOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -369,7 +369,7 @@ function CreateInviteModal({
         <div className="flex justify-end gap-2 mt-6">
           <button 
             onClick={onClose}
-            className="px-4 py-2 text-[#b9bbbe] hover:text-white text-sm"
+            className="px-4 py-2 text-[#a0a0b0] hover:text-white text-sm"
           >
             Cancel
           </button>
@@ -378,7 +378,7 @@ function CreateInviteModal({
               maxUses ? parseInt(maxUses) : null,
               expiresIn ? parseInt(expiresIn) : null
             )}
-            className="px-4 py-2 bg-[#5865f2] hover:bg-[#4752c4] text-white rounded text-sm font-medium"
+            className="px-4 py-2 bg-[#00d4ff] hover:bg-[#00b8db] text-white rounded text-sm font-medium"
           >
             Create Invite
           </button>
@@ -387,3 +387,4 @@ function CreateInviteModal({
     </div>
   );
 }
+

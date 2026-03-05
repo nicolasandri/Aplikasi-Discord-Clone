@@ -244,7 +244,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
             <p className="text-red-400 mb-4">{error}</p>
             <button
               onClick={handleDownload}
-              className="px-4 py-2 bg-[#5865F2] rounded hover:bg-[#4752C4] transition-colors"
+              className="px-4 py-2 bg-[#00d4ff] rounded hover:bg-[#00b8db] transition-colors"
             >
               Download File
             </button>
@@ -302,7 +302,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
         {/* Other files - show icon + download button */}
         {!isImage && !isVideo && !isPDF && !error && (
           <div className="text-center text-white z-10">
-            <div className="w-24 h-24 mx-auto mb-4 bg-[#5865F2]/20 rounded-2xl flex items-center justify-center text-5xl">
+            <div className="w-24 h-24 mx-auto mb-4 bg-[#00d4ff]/20 rounded-2xl flex items-center justify-center text-5xl">
               {getFileIcon(currentAttachment.mimetype)}
             </div>
             <p className="text-lg mb-2">{currentAttachment.filename}</p>
@@ -311,7 +311,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
             </p>
             <button
               onClick={handleDownload}
-              className="px-6 py-3 bg-[#5865F2] rounded-lg hover:bg-[#4752C4] transition-colors flex items-center gap-2 mx-auto"
+              className="px-6 py-3 bg-[#00d4ff] rounded-lg hover:bg-[#00b8db] transition-colors flex items-center gap-2 mx-auto"
             >
               <Download className="w-5 h-5" />
               Download File
@@ -328,7 +328,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
               key={att.id}
               onClick={() => setIndex(i)}
               className={`flex-shrink-0 w-14 h-14 rounded overflow-hidden border-2 transition-colors ${
-                i === index ? 'border-[#5865F2]' : 'border-transparent hover:border-white/30'
+                i === index ? 'border-[#00d4ff]' : 'border-transparent hover:border-white/30'
               }`}
               title={att.filename}
             >
@@ -350,3 +350,4 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
     </div>
   );
 }
+

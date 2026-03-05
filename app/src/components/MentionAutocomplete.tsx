@@ -156,9 +156,9 @@ export function MentionAutocomplete({ query, serverId, onSelect, onClose }: Ment
     return (
       <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#2B2D31] rounded-lg shadow-xl border border-[#1E1F22] z-50">
         <div className="p-4 text-center text-[#949ba4]">
-          <div className="w-6 h-6 border-2 border-[#5865f2] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-6 h-6 border-2 border-[#00d4ff] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-2 text-sm">Loading...</p>
-          <p className="text-xs text-[#72767d]">Loading members and roles...</p>
+          <p className="text-xs text-[#6a6a7a]">Loading members and roles...</p>
         </div>
       </div>
     );
@@ -188,7 +188,7 @@ export function MentionAutocomplete({ query, serverId, onSelect, onClose }: Ment
               selectedIndex === 0 ? 'bg-[#404249]' : ''
             }`}
           >
-            <div className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#00d4ff] flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xs font-bold">@</span>
             </div>
             <div className="text-left">
@@ -246,7 +246,7 @@ export function MentionAutocomplete({ query, serverId, onSelect, onClose }: Ment
                 <img
                   src={getAvatarUrl(member)}
                   alt={member.username}
-                  className="w-8 h-8 rounded-full bg-[#36393f] object-cover"
+                  className="w-8 h-8 rounded-full bg-[#1a1b2e] object-cover"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`;
                   }}
@@ -302,3 +302,4 @@ export function MentionAutocomplete({ query, serverId, onSelect, onClose }: Ment
     </div>
   );
 }
+

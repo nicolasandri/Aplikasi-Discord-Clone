@@ -62,7 +62,7 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
     if (member.role === 'owner') return '#ffd700';
     if (member.role === 'admin') return '#ed4245';
     if (member.role === 'moderator') return '#43b581';
-    return '#5865f2';
+    return '#00d4ff';
   };
 
   return (
@@ -192,7 +192,7 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
           <div className="mt-4">
             <button
               onClick={onSendMessage}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5865f2] hover:bg-[#4752c4] text-white text-sm font-medium rounded-md transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#00d4ff] hover:bg-[#00b8db] text-white text-sm font-medium rounded-md transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
               Message
@@ -205,3 +205,4 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
 }
 
 export default MemberProfilePopup;
+

@@ -165,7 +165,7 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button 
-          className="p-2 text-[#b9bbbe] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#4f545c] rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Emoji, Sticker & GIF"
           disabled={disabled}
         >
@@ -173,31 +173,31 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
         </button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[420px] h-[500px] p-0 bg-[#2f3136] border-[#202225] overflow-hidden" 
+        className="w-[420px] h-[500px] p-0 bg-[#232438] border-[#0f0f1a] overflow-hidden" 
         align="end"
         side="top"
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
           {/* Header with Tabs */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[#202225]">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[#0f0f1a]">
             <TabsList className="bg-transparent p-0 gap-1">
               <TabsTrigger 
                 value="emoji" 
-                className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1"
+                className="data-[state=active]:bg-[#2a2b3d] text-[#a0a0b0] data-[state=active]:text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1"
               >
                 <Smile className="w-4 h-4" />
                 Emoji
               </TabsTrigger>
               <TabsTrigger 
                 value="stickers"
-                className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1"
+                className="data-[state=active]:bg-[#2a2b3d] text-[#a0a0b0] data-[state=active]:text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1"
               >
                 <Sticker className="w-4 h-4" />
                 Stickers
               </TabsTrigger>
               <TabsTrigger 
                 value="gif"
-                className="data-[state=active]:bg-[#40444b] text-[#b9bbbe] data-[state=active]:text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1"
+                className="data-[state=active]:bg-[#2a2b3d] text-[#a0a0b0] data-[state=active]:text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1"
               >
                 <Gift className="w-4 h-4" />
                 GIFs
@@ -205,7 +205,7 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
             </TabsList>
             <button 
               onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-[#ed4245]/20 rounded text-[#72767d] hover:text-[#ed4245]"
+              className="p-1 hover:bg-[#ed4245]/20 rounded text-[#6a6a7a] hover:text-[#ed4245]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -216,14 +216,14 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
             <div className="h-full flex flex-col">
               {/* Custom Emojis Section */}
               {customEmojis.length > 0 && (
-                <div className="px-4 py-2 border-b border-[#202225]">
-                  <p className="text-xs text-[#72767d] mb-2">Server Emojis</p>
+                <div className="px-4 py-2 border-b border-[#0f0f1a]">
+                  <p className="text-xs text-[#6a6a7a] mb-2">Server Emojis</p>
                   <div className="flex flex-wrap gap-1">
                     {customEmojis.map((emoji) => (
                       <button
                         key={emoji.id}
                         onClick={() => handleCustomEmojiSelect(emoji)}
-                        className="w-8 h-8 hover:bg-[#40444b] rounded flex items-center justify-center"
+                        className="w-8 h-8 hover:bg-[#2a2b3d] rounded flex items-center justify-center"
                         title={emoji.name}
                       >
                         <img 
@@ -256,7 +256,7 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
             <div className="h-full flex flex-col">
               <ScrollArea className="flex-1 p-4">
                 {stickers.length === 0 ? (
-                  <div className="text-center py-8 text-[#72767d]">
+                  <div className="text-center py-8 text-[#6a6a7a]">
                     <Sticker className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>No stickers yet</p>
                     <p className="text-xs mt-1">Upload stickers in server settings</p>
@@ -267,7 +267,7 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
                       <button
                         key={sticker.id}
                         onClick={() => handleStickerSelect(sticker)}
-                        className="relative aspect-square bg-[#202225] rounded-lg overflow-hidden hover:ring-2 hover:ring-[#5865f2] transition-all group p-2"
+                        className="relative aspect-square bg-[#0f0f1a] rounded-lg overflow-hidden hover:ring-2 hover:ring-[#00d4ff] transition-all group p-2"
                         title={sticker.name}
                       >
                         <img
@@ -289,14 +289,14 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
           <TabsContent value="gif" className="flex-1 m-0">
             <div className="h-full flex flex-col">
               {/* Search Bar */}
-              <div className="px-4 py-2 border-b border-[#202225]">
+              <div className="px-4 py-2 border-b border-[#0f0f1a]">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#72767d]" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6a6a7a]" />
                   <Input
                     placeholder="Search GIFs..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-[#202225] border-none text-white placeholder:text-[#72767d]"
+                    className="pl-10 bg-[#0f0f1a] border-none text-white placeholder:text-[#6a6a7a]"
                   />
                 </div>
               </div>
@@ -305,10 +305,10 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
               <ScrollArea className="flex-1 p-4">
                 {isLoading ? (
                   <div className="flex justify-center py-8">
-                    <Loader2 className="w-8 h-8 text-[#5865f2] animate-spin" />
+                    <Loader2 className="w-8 h-8 text-[#00d4ff] animate-spin" />
                   </div>
                 ) : gifs.length === 0 ? (
-                  <div className="text-center py-8 text-[#72767d]">
+                  <div className="text-center py-8 text-[#6a6a7a]">
                     <Gift className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>No GIFs found</p>
                   </div>
@@ -318,7 +318,7 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
                       <button
                         key={gif.id}
                         onClick={() => handleGIFSelect(gif)}
-                        className="relative aspect-video bg-[#202225] rounded-lg overflow-hidden hover:ring-2 hover:ring-[#5865f2] transition-all group"
+                        className="relative aspect-video bg-[#0f0f1a] rounded-lg overflow-hidden hover:ring-2 hover:ring-[#00d4ff] transition-all group"
                       >
                         <img
                           src={gif.preview}
@@ -344,3 +344,4 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
 }
 
 export default EmojiStickerGIFPicker;
+

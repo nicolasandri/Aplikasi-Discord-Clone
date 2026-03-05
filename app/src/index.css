@@ -6,26 +6,27 @@
 
 @layer base {
   :root {
-    --background: 220 13% 13%;
+    /* Cyberpunk Dark Theme */
+    --background: 233 30% 10%;
     --foreground: 0 0% 98%;
-    --card: 220 13% 18%;
+    --card: 233 25% 14%;
     --card-foreground: 0 0% 98%;
-    --popover: 220 13% 15%;
+    --popover: 233 25% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 235 86% 65%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 13% 23%;
+    --primary: 188 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 233 20% 20%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 220 13% 23%;
-    --muted-foreground: 220 9% 60%;
-    --accent: 235 86% 65%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 233 20% 20%;
+    --muted-foreground: 233 10% 60%;
+    --accent: 188 100% 50%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 25%;
-    --input: 220 13% 25%;
-    --ring: 235 86% 65%;
-    --radius: 0.5rem;
+    --border: 233 20% 18%;
+    --input: 233 20% 18%;
+    --ring: 188 100% 50%;
+    --radius: 0.75rem;
   }
 }
 
@@ -46,23 +47,24 @@
   }
 }
 
-/* Discord-like scrollbar */
+/* Cyberpunk scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #08080c;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #202225;
+  background: #1a1a24;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1a1b1e;
+  background: #00d4ff;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
 /* Custom animations */
@@ -89,25 +91,25 @@
   animation: slideIn 0.3s ease-out;
 }
 
-/* Discord colors */
+/* Cyberpunk Dark Theme Colors */
 .discord-dark {
-  background-color: #36393f;
+  background-color: #1a1b2e;
 }
 
 .discord-darker {
-  background-color: #2f3136;
+  background-color: #232438;
 }
 
 .discord-darkest {
-  background-color: #202225;
+  background-color: #0f0f1a;
 }
 
 .discord-blurple {
-  background-color: #5865f2;
+  background-color: #00d4ff;
 }
 
 .discord-green {
-  background-color: #3ba55d;
+  background-color: #00d4ff;
 }
 
 .discord-red {
@@ -115,35 +117,63 @@
 }
 
 .discord-gray {
-  background-color: #4f545c;
+  background-color: #2a2b3d;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(26, 27, 46, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(15, 15, 26, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Cyan glow effects */
+.cyan-glow {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.cyan-glow-strong {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+}
+
+.cyan-text-glow {
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
 /* Message hover effect */
 .message-hover:hover {
-  background-color: rgba(79, 84, 92, 0.16);
+  background-color: rgba(0, 212, 255, 0.08);
 }
 
 /* Server icon hover */
 .server-icon {
-  transition: border-radius 0.2s, background-color 0.2s;
+  transition: border-radius 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
 
 .server-icon:hover {
   border-radius: 12px;
-  background-color: #5865f2;
+  background-color: #00d4ff;
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
 }
 
 /* Channel hover */
 .channel-item {
-  transition: background-color 0.1s, color 0.1s;
+  transition: background-color 0.1s, color 0.1s, border-left 0.2s;
 }
 
 .channel-item:hover {
-  background-color: rgba(79, 84, 92, 0.4);
+  background-color: rgba(0, 212, 255, 0.1);
 }
 
 .channel-item.active {
-  background-color: rgba(79, 84, 92, 0.6);
+  background-color: rgba(0, 212, 255, 0.15);
+  border-left: 3px solid #00d4ff;
 }
 
 /* Typing indicator */
@@ -161,7 +191,7 @@
 
 /* Background gradient for login */
 .login-bg {
-  background: linear-gradient(135deg, #5865f2 0%, #7289da 50%, #99aab5 100%);
+  background: linear-gradient(135deg, #00d4ff 0%, #7289da 50%, #99aab5 100%);
   position: relative;
   overflow: hidden;
 }
@@ -183,9 +213,10 @@
   100% { transform: translate(50px, 50px); }
 }
 
-/* Status indicators */
+/* Status indicators - Cyan theme */
 .status-online {
-  background-color: #3ba55d;
+  background-color: #00d4ff;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
 }
 
 .status-idle {
@@ -197,13 +228,13 @@
 }
 
 .status-offline {
-  background-color: #747f8d;
+  background-color: #4a4a5a;
 }
 
 /* Message highlight animation for search jump-to */
 @keyframes highlightPulse {
-  0% { background-color: rgba(88, 101, 242, 0.3); }
-  50% { background-color: rgba(88, 101, 242, 0.5); }
+  0% { background-color: rgba(0, 212, 255, 0.3); }
+  50% { background-color: rgba(0, 212, 255, 0.5); }
   100% { background-color: transparent; }
 }
 
@@ -259,7 +290,7 @@
 }
 
 .lightbox-thumbnails::-webkit-scrollbar-thumb {
-  background: #5865f2;
+  background: #00d4ff;
   border-radius: 2px;
 }
 
@@ -318,7 +349,7 @@
 }
 
 .ProseMirror blockquote {
-  border-left: 4px solid #5865F2;
+  border-left: 4px solid #00d4ff;
   padding-left: 1em;
   margin: 0.5em 0;
   color: #b9bbbe;
@@ -347,16 +378,17 @@
 
 /* Mention styles */
 .ProseMirror .mention {
-  background: rgba(88, 101, 242, 0.2);
-  color: #5865F2;
+  background: rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
   border-radius: 4px;
   padding: 0 4px;
   font-weight: 500;
   cursor: pointer;
+  text-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
 }
 
 .ProseMirror .mention:hover {
-  background: rgba(88, 101, 242, 0.3);
+  background: rgba(0, 212, 255, 0.3);
 }
 
 /* Editor focus styles */
@@ -400,7 +432,7 @@
 
 /* Selection styles */
 .ProseMirror ::selection {
-  background: rgba(88, 101, 242, 0.3);
+  background: rgba(0, 212, 255, 0.3);
   color: #ffffff;
 }
 

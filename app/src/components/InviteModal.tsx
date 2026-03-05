@@ -74,7 +74,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-[#36393f] border-[#202225] text-white">
+      <DialogContent className="sm:max-w-md bg-[#1a1b2e] border-[#0f0f1a] text-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Undang teman ke {serverName}</DialogTitle>
         </DialogHeader>
@@ -82,16 +82,16 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
         <div className="space-y-4 pt-4">
           {!inviteUrl ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-[#5865f2] rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-[#00d4ff] rounded-full flex items-center justify-center mx-auto mb-4">
                 <Link className="h-8 w-8 text-white" />
               </div>
-              <p className="text-[#b9bbbe] mb-4">
+              <p className="text-[#a0a0b0] mb-4">
                 Bagikan server ini dengan teman-teman Anda!
               </p>
               <Button 
                 onClick={generateInvite} 
                 disabled={loading}
-                className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
               >
                 {loading ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -104,7 +104,7 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
           ) : (
             <>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#b9bbbe] uppercase">
+                <label className="text-xs font-bold text-[#a0a0b0] uppercase">
                   Link Undangan
                 </label>
                 <div className="flex items-center space-x-2">
@@ -112,12 +112,12 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
                     <Input
                       value={inviteUrl}
                       readOnly
-                      className="bg-[#2f3136] border-[#202225] text-white pr-20"
+                      className="bg-[#232438] border-[#0f0f1a] text-white pr-20"
                     />
                   </div>
                   <Button 
                     onClick={copyToClipboard}
-                    className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                    className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                     size="icon"
                   >
                     <Copy className="h-4 w-4" />
@@ -126,19 +126,19 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-[#b9bbbe] uppercase">
+                <label className="text-xs font-bold text-[#a0a0b0] uppercase">
                   Kode Undangan
                 </label>
                 <div className="flex items-center space-x-2">
                   <Input
                     value={inviteCode}
                     readOnly
-                    className="bg-[#2f3136] border-[#202225] text-white font-mono"
+                    className="bg-[#232438] border-[#0f0f1a] text-white font-mono"
                   />
                   <Button 
                     onClick={copyCode}
                     variant="outline"
-                    className="border-[#202225] text-white hover:bg-[#2f3136]"
+                    className="border-[#0f0f1a] text-white hover:bg-[#232438]"
                     size="icon"
                   >
                     <Copy className="h-4 w-4" />
@@ -146,28 +146,28 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
                 </div>
               </div>
 
-              <div className="bg-[#2f3136] rounded-lg p-4">
-                <p className="text-sm text-[#b9bbbe]">
+              <div className="bg-[#232438] rounded-lg p-4">
+                <p className="text-sm text-[#a0a0b0]">
                   <span className="font-semibold text-white">Pro tip:</span> This link never expires and has unlimited uses. 
                   Share it with anyone you want to invite to this server!
                 </p>
               </div>
 
-              <div className="flex justify-between pt-4 border-t border-[#202225]">
+              <div className="flex justify-between pt-4 border-t border-[#0f0f1a]">
                 <Button 
                   variant="ghost" 
                   onClick={() => {
                     setInviteUrl('');
                     setInviteCode('');
                   }}
-                  className="text-[#b9bbbe] hover:text-white hover:bg-[#2f3136]"
+                  className="text-[#a0a0b0] hover:text-white hover:bg-[#232438]"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Generate New
                 </Button>
                 <Button 
                   onClick={onClose}
-                  className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+                  className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                 >
                   Done
                 </Button>
@@ -179,3 +179,4 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
     </Dialog>
   );
 }
+

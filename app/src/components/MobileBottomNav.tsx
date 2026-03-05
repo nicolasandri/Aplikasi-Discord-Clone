@@ -21,7 +21,7 @@ export function MobileBottomNav({
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-14 bg-[#202225] border-t border-[#36393f] flex items-center justify-around px-2 z-50 safe-area-bottom">
+    <div className="fixed bottom-0 left-0 right-0 h-14 bg-[#0f0f1a] border-t border-[#0d0d14] flex items-center justify-around px-2 z-50 safe-area-bottom">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = currentView === item.id;
@@ -31,7 +31,7 @@ export function MobileBottomNav({
             key={item.id}
             onClick={() => onViewChange(item.id)}
             className={`flex flex-col items-center justify-center flex-1 h-full relative ${
-              isActive ? 'text-[#5865f2]' : 'text-[#b9bbbe]'
+              isActive ? 'text-[#00d4ff]' : 'text-[#a0a0b0]'
             }`}
           >
             <div className="relative">
@@ -44,7 +44,7 @@ export function MobileBottomNav({
             </div>
             <span className="text-[10px] mt-0.5">{item.label}</span>
             {isActive && (
-              <div className="absolute top-0 w-8 h-0.5 bg-[#5865f2] rounded-full" />
+              <div className="absolute top-0 w-8 h-0.5 bg-[#00d4ff] rounded-full" />
             )}
           </button>
         );
@@ -52,3 +52,4 @@ export function MobileBottomNav({
     </div>
   );
 }
+

@@ -249,19 +249,19 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   };
 
   return (
-    <form onSubmit={handleSubmit} onClick={handleInputAreaClick} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#36393f] border-t border-[#202225] z-40 cursor-text' : 'px-4 pb-4 cursor-text'}`}>
+    <form onSubmit={handleSubmit} onClick={handleInputAreaClick} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#1a1b2e] border-t border-[#0f0f1a] z-40 cursor-text' : 'px-4 pb-4 cursor-text'}`}>
       {/* Reply Indicator */}
       {replyTo && (
-        <div className={`bg-[#40444b] px-3 py-1.5 flex items-center justify-between ${isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
-          <div className={`flex items-center gap-2 text-[#b9bbbe] ${isMobile ? 'text-xs' : 'text-sm'}`}>
+        <div className={`bg-[#2a2b3d] px-3 py-1.5 flex items-center justify-between ${isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
+          <div className={`flex items-center gap-2 text-[#a0a0b0] ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <span>Membalas</span>
-            <span className="text-[#5865f2] font-medium truncate max-w-[120px]">{replyTo.user?.displayName || replyTo.user?.username}</span>
+            <span className="text-[#00d4ff] font-medium truncate max-w-[120px]">{replyTo.user?.displayName || replyTo.user?.username}</span>
             <span className="truncate max-w-[150px]">: {replyTo.content}</span>
           </div>
           <button
             type="button"
             onClick={onCancelReply}
-            className="text-[#b9bbbe] hover:text-white"
+            className="text-[#a0a0b0] hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
@@ -270,15 +270,15 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
 
       {/* Attachments Preview */}
       {attachments.length > 0 && (
-        <div className={`bg-[#40444b] px-3 py-1.5 flex flex-wrap gap-2 ${replyTo ? '' : isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
+        <div className={`bg-[#2a2b3d] px-3 py-1.5 flex flex-wrap gap-2 ${replyTo ? '' : isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
           {attachments.map((file, index) => (
-            <div key={index} className={`flex items-center gap-2 bg-[#2f3136] rounded text-sm ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
-              <span className="text-[#b9bbbe]">{getFileIcon(file.mimetype)}</span>
+            <div key={index} className={`flex items-center gap-2 bg-[#232438] rounded text-sm ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
+              <span className="text-[#a0a0b0]">{getFileIcon(file.mimetype)}</span>
               <span className="text-white truncate max-w-[100px]">{file.originalName}</span>
               <button
                 type="button"
                 onClick={() => removeAttachment(index)}
-                className="text-[#b9bbbe] hover:text-[#ed4245]"
+                className="text-[#a0a0b0] hover:text-[#ed4245]"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -287,7 +287,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
         </div>
       )}
       
-      <div className={`bg-[#40444b] flex items-end ${attachments.length > 0 || replyTo ? isMobile ? 'rounded-b-md' : 'rounded-b-lg' : isMobile ? 'rounded-md' : 'rounded-lg'}`}>
+      <div className={`bg-[#2a2b3d] flex items-center min-h-[44px] ${attachments.length > 0 || replyTo ? isMobile ? 'rounded-b-md' : 'rounded-b-lg' : isMobile ? 'rounded-md' : 'rounded-lg'}`}>
         {/* Hidden File Input */}
         <input
           ref={fileInputRef}
@@ -306,18 +306,18 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             e.stopPropagation();
             fileInputRef.current?.click();
           }}
-          className={`text-[#b9bbbe] hover:text-[#dcddde] transition-colors disabled:opacity-50 flex-shrink-0 ${isMobile ? 'p-2' : 'p-3'}`}
+          className={`flex-shrink-0 text-[#a0a0b0] hover:text-[#dcddde] transition-colors disabled:opacity-50 flex items-center justify-center ${isMobile ? 'w-10 h-10' : 'w-11 h-11'}`}
           disabled={disabled || uploading}
         >
           {uploading ? (
-            <div className={`border-2 border-[#b9bbbe] border-t-transparent rounded-full animate-spin ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
+            <div className="border-2 border-[#b9bbbe] border-t-transparent rounded-full animate-spin w-6 h-6" />
           ) : (
-            <PlusCircle className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
+            <PlusCircle className="w-6 h-6" />
           )}
         </button>
 
         {/* Textarea Input with Mention Autocomplete */}
-        <div className={`flex-1 min-w-0 relative ${isMobile ? 'py-2' : 'py-3'}`}>
+        <div className="flex-1 min-w-0 relative flex items-center">
           <textarea
             ref={textareaRef}
             value={message}
@@ -326,7 +326,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             disabled={disabled}
             placeholder={getPlaceholder()}
             rows={1}
-            className="w-full bg-transparent text-[#dcddde] placeholder-[#72767d] resize-none outline-none min-h-[24px] max-h-[120px] overflow-y-auto disabled:opacity-50"
+            className="w-full bg-transparent text-[#dcddde] placeholder-[#72767d] resize-none outline-none min-h-[24px] max-h-[120px] overflow-y-auto disabled:opacity-50 py-3"
             style={{ 
               fontFamily: 'inherit',
               fontSize: isMobile ? '14px' : '15px',
@@ -346,19 +346,20 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
         </div>
 
         {/* Action Buttons */}
-        <div className={`flex items-center gap-1 flex-shrink-0 ${isMobile ? 'pr-1' : 'pr-2'}`}>
+        <div className={`grid grid-cols-5 place-items-center flex-shrink-0 ${isMobile ? 'pr-1 gap-0' : 'pr-2'}`} style={{ width: isMobile ? '160px' : '168px' }}>
           {!isMobile && (
             <>
+              {/* Gift */}
               <button
                 type="button"
                 onClick={(e) => e.stopPropagation()}
-                className="p-2 text-[#b9bbbe] hover:text-[#dcddde] transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-[#a0a0b0] hover:text-[#dcddde] transition-colors"
                 disabled={disabled}
               >
                 <Gift className="w-5 h-5" />
               </button>
               {/* GIF Picker */}
-              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+              <div className="w-8 h-8 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                 <GIFPicker onSelect={handleGIFSelect} />
               </div>
             </>
@@ -366,18 +367,20 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           
           {/* Emoji Picker -- Mobile only */}
           {isMobile && (
-            <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-8 h-8 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
               <GIFPicker onSelect={handleGIFSelect} />
             </div>
           )}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          
+          {/* Emoji */}
+          <div className="relative w-8 h-8 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               disabled={disabled}
-              className={`text-[#b9bbbe] hover:text-yellow-400 transition-colors ${isMobile ? 'p-1.5' : 'p-2'}`}
+              className="w-full h-full flex items-center justify-center text-[#a0a0b0] hover:text-yellow-400 transition-colors"
             >
-              <Smile className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'}`} />
+              <Smile className="w-5 h-5" />
             </button>
             
             {showEmojiPicker && (
@@ -419,9 +422,9 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
               setTimeout(() => textareaRef.current?.focus(), 0);
             }}
             disabled={disabled}
-            className={`text-[#b9bbbe] hover:text-[#dcddde] transition-colors disabled:opacity-50 ${isMobile ? 'p-1.5' : 'p-2'}`}
+            className="w-8 h-8 flex items-center justify-center text-[#a0a0b0] hover:text-[#dcddde] transition-colors disabled:opacity-50"
           >
-            <AtSign className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'}`} />
+            <AtSign className="w-5 h-5" />
           </button>
 
           {/* Send Button */}
@@ -429,9 +432,9 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             type="submit"
             onClick={(e) => e.stopPropagation()}
             disabled={disabled || (!message.trim() && attachments.length === 0)}
-            className={`text-[#5865f2] hover:text-[#4752c4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-1 ${isMobile ? 'p-1.5' : 'p-2'}`}
+            className="w-8 h-8 flex items-center justify-center text-[#00d4ff] hover:text-[#00b8db] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Send className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5'}`} />
+            <Send className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -440,3 +443,4 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
 });
 
 MessageInput.displayName = 'MessageInput';
+
