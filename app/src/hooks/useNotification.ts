@@ -71,10 +71,12 @@ export function useNotification(options: UseNotificationOptions = {}) {
     title,
     body,
     icon,
+    tag,
   }: {
     title: string;
     body: string;
     icon?: string;
+    tag?: string;
   }) => {
     if (!enabled) return;
 
@@ -93,12 +95,23 @@ export function useNotification(options: UseNotificationOptions = {}) {
     });
 
     // 3. Show desktop notification if permission granted
-    if (desktopEnabled && 'Notification' in window && Notification.permission === 'granted') {
+    // In Electron, use native notification API
+    if (isElectron && window.electronAPI?.showNotification) {
+      try {
+        await window.electronAPI.showNotification({
+          title,
+          body,
+          icon: icon || '/workgrid_app_icon.png',
+        });
+      } catch (e) {
+        console.error('Electron notification error:', e);
+      }
+    } else if (desktopEnabled && 'Notification' in window && Notification.permission === 'granted') {
       try {
         new Notification(title, {
           body,
           icon: icon || '/workgrid_app_icon.png',
-          tag: `notif-${Date.now()}-${Math.random()}`,
+          tag: tag || `notif-${Date.now()}-${Math.random()}`,
         });
       } catch (e) {
         console.error('Desktop notification error:', e);

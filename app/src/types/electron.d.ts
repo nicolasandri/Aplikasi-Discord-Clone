@@ -34,6 +34,10 @@ export interface ElectronAPI {
   
   // Window state
   isFocused: () => Promise<boolean>;
+  
+  // Notifications
+  showNotification: (options: { title: string; body: string; icon?: string }) => Promise<boolean>;
+  focusWindow: () => Promise<void>;
 }
 
 declare global {

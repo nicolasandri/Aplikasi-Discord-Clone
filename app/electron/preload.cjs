@@ -26,4 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Window state
   isFocused: () => ipcRenderer.invoke('is-focused'),
+  
+  // Notifications
+  showNotification: (options) => ipcRenderer.invoke('show-notification', options),
+  focusWindow: () => ipcRenderer.invoke('focus-window'),
 });

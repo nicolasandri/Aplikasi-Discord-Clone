@@ -4,10 +4,9 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Message } from '@/types';
 
-// BUG-021: Conditional logging
-const DEBUG = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
+// Always enable logging for debugging notifications
 function log(...args: any[]) {
-  if (DEBUG) console.log(...args);
+  console.log(...args);
 }
 
 // Detect if running in Electron

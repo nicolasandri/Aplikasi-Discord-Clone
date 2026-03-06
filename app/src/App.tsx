@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
@@ -20,13 +20,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+// Detect if running in Electron
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+
+// Use HashRouter for Electron, BrowserRouter for web
+const Router = isElectron ? HashRouter : BrowserRouter;
+
 function App() {
   return (
     <div className="flex flex-col h-screen">
       <TitleBar />
       <div className="flex-1 overflow-hidden">
         <AuthProvider>
-          <BrowserRouter>
+          <Router>
             <Routes>
               <Route 
                 path="/login" 
@@ -61,7 +67,7 @@ function App() {
                 element={<Navigate to="/" replace />} 
               />
             </Routes>
-          </BrowserRouter>
+          </Router>
         </AuthProvider>
       </div>
       <Toaster position="bottom-right" />

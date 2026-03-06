@@ -500,7 +500,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
   // Convert map to array and sort by position 
   // Following server settings order: highest position (top of list) first
   const sortedCombinations = Array.from(roleCombinationMap.entries())
-    .map(([key, value]) => value)
+    .map(([, value]) => value)
     .sort((a, b) => {
       // Primary sort: by maxPosition descending (highest position first)
       const diff = b.maxPosition - a.maxPosition;

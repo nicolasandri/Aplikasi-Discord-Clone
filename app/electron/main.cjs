@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
@@ -44,6 +44,8 @@ const createWindow = () => {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // Open DevTools in production for debugging (remove this in final build)
+    mainWindow.webContents.openDevTools();
   }
 
   // Disable default context menu
@@ -207,4 +209,36 @@ ipcMain.handle('close-window', () => {
 
 ipcMain.handle('is-focused', () => {
   return mainWindow ? mainWindow.isFocused() : false;
+});
+
+// Show native notification from main process
+ipcMain.handle('show-notification', (event, { title, body, icon }) => {
+  if (!mainWindow || !mainWindow.isFocused()) {
+    const notification = new Notification({
+      title: title || 'WorkGrid',
+      body: body || '',
+      icon: icon || path.join(__dirname, '../public/workgrid_app_icon.png'),
+      silent: false,
+    });
+    
+    notification.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+    
+    notification.show();
+    return true;
+  }
+  return false;
+});
+
+// Focus the main window
+ipcMain.handle('focus-window', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+    mainWindow.show();
+  }
 });
