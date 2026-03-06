@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,18 +8,35 @@ import { Loader2, Mail, Lock, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface LoginProps {
-  onToggleForm: () => void;
+  onToggleForm?: () => void;
 }
 
 export function Login({ onToggleForm }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loading, error } = useAuth();
+  const { login, loading, error, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
+  // Redirect to home when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleToggleForm = () => {
+    if (onToggleForm) {
+      onToggleForm();
+    } else {
+      navigate('/register');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(email, password);
+      // Navigation handled by useEffect above
     } catch {
       // Error handled in context
     }
@@ -143,7 +161,7 @@ export function Login({ onToggleForm }: LoginProps) {
                   Perlu akun baru?{' '}
                   <button
                     type="button"
-                    onClick={onToggleForm}
+                    onClick={handleToggleForm}
                     className="text-[#00d4ff] hover:text-[#00b8db] transition-colors font-medium"
                   >
                     Daftar
@@ -173,4 +191,3 @@ export function Login({ onToggleForm }: LoginProps) {
     </div>
   );
 }
-

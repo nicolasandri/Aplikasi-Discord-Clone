@@ -1,9 +1,11 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import { LinkEmbed, extractUrls } from './LinkEmbed';
 
 interface MessageContentProps {
   content: string;
   serverId?: string;
+  showLinkEmbeds?: boolean;
 }
 
 interface MentionData {
@@ -16,8 +18,11 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export function MessageContent({ content, serverId }: MessageContentProps) {
+export function MessageContent({ content, serverId, showLinkEmbeds = true }: MessageContentProps) {
   const [mentionData, setMentionData] = useState<MentionData>({ users: {}, roles: {} });
+  
+  // Extract URLs untuk link embeds
+  const urls = useMemo(() => showLinkEmbeds ? extractUrls(content) : [], [content, showLinkEmbeds]);
 
   // Fetch mention data (members and roles) when serverId changes
   useEffect(() => {
@@ -162,8 +167,17 @@ export function MessageContent({ content, serverId }: MessageContentProps) {
   const contentParts = useMemo(() => parseContent(content), [content, parseContent]);
 
   return (
-    <div className="message-content text-[#dcddde] leading-relaxed whitespace-pre-wrap">
-      {contentParts}
+    <div className="message-content text-[#dcddde] leading-relaxed">
+      <div className="whitespace-pre-wrap">{contentParts}</div>
+      
+      {/* Link Embeds */}
+      {urls.length > 0 && (
+        <div className="space-y-2">
+          {urls.map((url, index) => (
+            <LinkEmbed key={`${url}-${index}`} url={url} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

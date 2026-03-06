@@ -6,7 +6,8 @@ import {
   Edit3, 
   Users, 
   Copy,
-  Check
+  Check,
+  GripVertical
 } from 'lucide-react';
 
 // Detect if running in Electron
@@ -30,6 +31,9 @@ interface UserProfileButtonProps {
   onOpenSettings: () => void;
 }
 
+// Default position (bottom-left corner)
+const DEFAULT_POSITION = { x: 16, y: window.innerHeight - 80 };
+
 export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
   const { user, logout, updateUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -40,6 +44,23 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
   const [copied, setCopied] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // Draggable state
+  const [position, setPosition] = useState(() => {
+    // Load saved position from localStorage
+    const saved = localStorage.getItem('userProfileButtonPosition');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return DEFAULT_POSITION;
+      }
+    }
+    return DEFAULT_POSITION;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Update avatar version when user avatar changes
   useEffect(() => {
@@ -124,40 +145,156 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
     onOpenSettings();
   };
 
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only allow dragging from the drag handle (grip icon area)
+    if ((e.target as HTMLElement).closest('.drag-handle')) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseMove = useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (isDragging) {
+        const newX = e.clientX - dragOffset.x;
+        const newY = e.clientY - dragOffset.y;
+        
+        // Constrain to window bounds
+        const maxX = window.innerWidth - 240;
+        const maxY = window.innerHeight - 60;
+        
+        const constrainedX = Math.max(0, Math.min(newX, maxX));
+        const constrainedY = Math.max(0, Math.min(newY, maxY));
+        
+        setPosition({ x: constrainedX, y: constrainedY });
+      }
+    };
+
+    const handleUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        // Save position to localStorage
+        localStorage.setItem('userProfileButtonPosition', JSON.stringify(position));
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
+      document.body.style.cursor = 'grabbing';
+    } else {
+      document.body.style.cursor = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+      document.body.style.cursor = '';
+    };
+  }, [isDragging, dragOffset, position]);
+
+  // Touch handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('.drag-handle')) {
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragOffset({
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging) {
+        const touch = e.touches[0];
+        const newX = touch.clientX - dragOffset.x;
+        const newY = touch.clientY - dragOffset.y;
+        
+        const maxX = window.innerWidth - 240;
+        const maxY = window.innerHeight - 60;
+        
+        const constrainedX = Math.max(0, Math.min(newX, maxX));
+        const constrainedY = Math.max(0, Math.min(newY, maxY));
+        
+        setPosition({ x: constrainedX, y: constrainedY });
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        localStorage.setItem('userProfileButtonPosition', JSON.stringify(position));
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, dragOffset, position]);
+
   if (!user) return null;
 
   return (
-    <div className="relative w-full" style={{ position: 'relative' }}>
-      {/* Main Button */}
-      <button
-        ref={buttonRef}
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-3 px-2 py-2 hover:bg-[#1a1b2e] rounded-md transition-colors group"
-      >
-        {/* Avatar */}
-        <div className="relative flex-shrink-0">
-          <img
-            src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
-            alt={user.displayName || user.username}
-            className="w-10 h-10 rounded-full object-cover bg-[#1a1b2e]"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
-            }}
-          />
-          {/* Status Indicator */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#3ba55d] rounded-full border-[3px] border-[#0f0f1a]" />
+    <div
+      ref={containerRef}
+      className="fixed z-50"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+    >
+      <div className="relative">
+        {/* Drag Handle */}
+        <div className="drag-handle absolute -top-6 left-1/2 -translate-x-1/2 flex items-center justify-center w-12 h-6 bg-[#18191c] rounded-t-lg cursor-grab hover:bg-[#2b2d31] transition-colors group/handle opacity-0 hover:opacity-100 transition-opacity">
+          <GripVertical className="w-4 h-4 text-[#72767d] rotate-90 group-hover/handle:text-[#a0a0b0]" />
         </div>
+        
+        {/* Main Button */}
+        <button
+          ref={buttonRef}
+          onClick={() => !isDragging && setIsOpen(!isOpen)}
+          className="flex items-center gap-3 px-3 py-2.5 bg-[#18191c] hover:bg-[#232428] rounded-lg shadow-lg border border-[#2b2d31] transition-all group"
+        >
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            <img
+              src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+              alt={user.displayName || user.username}
+              className="w-10 h-10 rounded-full object-cover bg-[#1a1b2e]"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+              }}
+            />
+            {/* Status Indicator */}
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#3ba55d] rounded-full border-[3px] border-[#18191c]" />
+          </div>
 
-        {/* User Info */}
-        <div className="flex-1 text-left min-w-0">
-          <p className="text-white font-bold text-sm truncate">{user.displayName || user.username}</p>
-          <p className="text-[#a0a0b0] text-xs truncate">Online</p>
-        </div>
+          {/* User Info */}
+          <div className="flex-1 text-left min-w-0">
+            <p className="text-white font-bold text-sm truncate">{user.displayName || user.username}</p>
+            <p className="text-[#3ba55d] text-xs font-medium">Online</p>
+          </div>
 
-        {/* Settings Icon */}
-        <Settings className="w-4 h-4 text-[#a0a0b0] group-hover:text-white transition-colors flex-shrink-0" />
-      </button>
+          {/* Settings Icon */}
+          <Settings className="w-4 h-4 text-[#a0a0b0] group-hover:text-white transition-colors flex-shrink-0" />
+        </button>
 
       {/* Popup Menu */}
       {isOpen && (
@@ -256,6 +393,7 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

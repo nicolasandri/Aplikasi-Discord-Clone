@@ -4,6 +4,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { UserProfilePopup } from './UserProfilePopup';
 import { Lightbox } from './Lightbox';
 import { MessageContent } from './MessageContent';
+import { ForwardedMessageDisplay } from './ForwardedMessageDisplay';
 import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
 import { ReactionTooltip } from './ReactionTooltip';
@@ -55,6 +56,7 @@ interface ChatAreaProps {
   onStartDM?: (user: { id: string; username: string; avatar?: string; status?: string; email?: string }) => void;
   onOpenSearch?: () => void;
   servers?: Server[];
+  channels?: Channel[];
   dmChannels?: import('@/types').DMChannel[];
   onReaction?: (messageId: string, emoji: string, hasReacted: boolean) => void;
   onFocusInput?: () => void;
@@ -543,6 +545,11 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         ) : (
           <MessageContent content={message.content} serverId={serverId || undefined} />
         )}
+
+        {/* Forwarded Message Display */}
+        {message.forwardedFrom && (
+          <ForwardedMessageDisplay forwardedFrom={message.forwardedFrom} />
+        )}
         
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
@@ -721,7 +728,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   );
 }
 
-export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], dmChannels = [], onReaction, onFocusInput, showMemberList = true, onToggleMemberList }: ChatAreaProps) {
+export function ChatArea({ channel, messages, typingUsers, currentUser, onReply, serverId, onRefresh, isMobile = false, onStartDM, onOpenSearch, servers = [], channels = [], dmChannels = [], onReaction, onFocusInput, showMemberList = true, onToggleMemberList }: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -761,6 +768,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const [isPinnedMessagesOpen, setIsPinnedMessagesOpen] = useState(false);
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; isOpen: boolean; message: Message | null }>({ x: 0, y: 0, isOpen: false, message: null });
+  // Read status state
+  const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
+  const hasScrolledToUnreadRef = useRef(false);
 
 
   // Update avatar version when currentUser avatar changes
@@ -877,9 +887,58 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     const container = scrollContainerRef.current;
     if (!container) return;
     
-    // Always scroll to bottom on initial load/refresh (use 'auto' for instant scroll)
-    if (isInitialLoad && messages.length > 0) {
+    // On initial load, scroll to first unread message or bottom
+    if (isInitialLoad && messages.length > 0 && !hasScrolledToUnreadRef.current) {
+      const lastMessageId = messages[messages.length - 1]?.id;
+      
+      // Check if lastReadMessageId exists in current messages
+      const lastReadIndex = lastReadMessageId ? messages.findIndex(m => m.id === lastReadMessageId) : -1;
+      const lastReadExists = lastReadIndex >= 0;
+      
+      console.log('[Scroll Debug]', {
+        lastReadMessageId,
+        lastReadExists,
+        lastReadIndex,
+        totalMessages: messages.length,
+        lastMessageId
+      });
+      
+      // If lastReadMessageId is not in current messages (too old), scroll to bottom
+      if (lastReadMessageId && !lastReadExists) {
+        console.log('[Scroll] Last read not in messages, scrolling to bottom');
+        scrollToBottom('auto');
+        hasScrolledToUnreadRef.current = true;
+        setIsInitialLoad(false);
+        return;
+      }
+      
+      // If lastReadMessageId is the last message, all messages are read
+      if (lastReadMessageId && lastReadIndex === messages.length - 1) {
+        console.log('[Scroll] All messages read, scrolling to bottom');
+        scrollToBottom('auto');
+        hasScrolledToUnreadRef.current = true;
+        setIsInitialLoad(false);
+        return;
+      }
+      
+      // If there are unread messages, scroll to first unread
+      if (lastReadMessageId && lastReadIndex < messages.length - 1) {
+        const firstUnreadIndex = lastReadIndex + 1;
+        const firstUnreadMessage = messages[firstUnreadIndex];
+        console.log('[Scroll] Scrolling to first unread:', firstUnreadMessage.id);
+        const element = document.getElementById(`message-${firstUnreadMessage.id}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'auto', block: 'center' });
+          hasScrolledToUnreadRef.current = true;
+          setIsInitialLoad(false);
+          return;
+        }
+      }
+      
+      // Default: scroll to bottom
+      console.log('[Scroll] Default scroll to bottom');
       scrollToBottom('auto');
+      hasScrolledToUnreadRef.current = true;
       setIsInitialLoad(false);
       return;
     }
@@ -890,7 +949,29 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     if (!isUserScrolling || isNearBottom) {
       scrollToBottom();
     }
-  }, [messages, isUserScrolling, isInitialLoad]);
+  }, [messages, isUserScrolling, isInitialLoad, lastReadMessageId]);
+
+  // Mark last visible message as read when user scrolls near bottom
+  useEffect(() => {
+    if (!channel?.id || messages.length === 0 || isInitialLoad) return;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+      if (isNearBottom) {
+        // Mark last message as read when user scrolls to bottom
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.id !== lastReadMessageId) {
+          markAsRead(lastMessage.id);
+        }
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [channel?.id, messages, lastReadMessageId, isInitialLoad]);
 
   // BUG-018: Event listener untuk detect user scroll
   const handleScroll = () => {
@@ -908,10 +989,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     }
   }, [serverId]);
 
-  // Fetch pinned messages when channel changes
+  // Fetch pinned messages and read status when channel changes
   useEffect(() => {
     if (channel?.id) {
       fetchPinnedMessages();
+      fetchReadStatus();
+      hasScrolledToUnreadRef.current = false;
     }
   }, [channel?.id]);
 
@@ -952,6 +1035,40 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       }
     } catch (error) {
       console.error('Failed to fetch pinned messages:', error);
+    }
+  };
+
+  const fetchReadStatus = async () => {
+    if (!channel?.id) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/channels/${channel.id}/read`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLastReadMessageId(data.lastReadMessageId);
+      }
+    } catch (error) {
+      console.error('Failed to fetch read status:', error);
+    }
+  };
+
+  const markAsRead = async (messageId: string) => {
+    if (!channel?.id || messageId === lastReadMessageId) return;
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/channels/${channel.id}/read`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ messageId }),
+      });
+      setLastReadMessageId(messageId);
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
     }
   };
 
@@ -1029,13 +1146,24 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const handleForwardMessage = async (message: Message, targetChannelId: string, comment?: string) => {
     const token = localStorage.getItem('token');
     
-    // Build forward content
-    let content = message.content || '';
-    if (comment) {
-      content = `${comment}\n\n> Forwarded from ${message.user?.username}:\n> ${content}`;
-    } else {
-      content = `> Forwarded from ${message.user?.username}:\n> ${content}`;
-    }
+    // Get channel info for the source message
+    const sourceChannel = channels.find(c => c.id === message.channelId);
+    const sourceServer = servers?.find(s => s.id === sourceChannel?.serverId);
+    
+    // Build forward metadata
+    const forwardedFrom = {
+      messageId: message.id,
+      userId: message.user.id,
+      username: message.user.username,
+      displayName: message.user.displayName,
+      avatar: message.user.avatar,
+      channelId: message.channelId,
+      channelName: sourceChannel?.name || 'Unknown Channel',
+      serverId: sourceServer?.id,
+      serverName: sourceServer?.name,
+      timestamp: message.timestamp,
+      content: message.content || undefined,
+    };
     
     // Check if target is a DM channel
     const isDM = dmChannels.some(dm => dm.id === targetChannelId);
@@ -1051,8 +1179,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          content,
+          content: comment || '',
           attachments: message.attachments,
+          forwardedFrom,
         }),
       });
       
@@ -1191,7 +1320,6 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   }
 
   const groupedMessages = groupMessagesByDate(messages);
-  console.log('Messages count:', messages.length, 'Grouped:', groupedMessages.length);
   const channelTypingUsers = typingUsers.filter(u => u.channelId === channel.id);
 
   // Voice channel view
@@ -1311,76 +1439,6 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         </div>
       </div>
 
-      {/* Pinned Messages Banner */}
-      {showPinnedBanner && pinnedMessages.length > 0 && (
-        <div className="bg-[#12121a] border-b border-[#08080c] px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Pin className="w-4 h-4 text-[#a0a0b0]" />
-              <span className="text-sm text-[#a0a0b0]">
-                {pinnedMessages.length} Pesan Disematkan
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsPinnedMessagesOpen(true)}
-                className="text-xs text-[#00d4ff] hover:underline font-medium"
-              >
-                Lihat Semua
-              </button>
-              <button
-                onClick={() => setShowPinnedBanner(false)}
-                className="text-xs text-[#6a6a7a] hover:text-[#a0a0b0]"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-          {showPinnedBanner && (
-            <div className="mt-2 space-y-2 max-h-32 overflow-y-auto">
-              {pinnedMessages.map((msg) => (
-                <div key={msg.id} className="flex items-start gap-2 p-2 bg-[#0d0d14] rounded text-sm">
-                  <img
-                    src={getAvatarUrl(msg.user?.avatar || null, msg.user?.username || 'user')}
-                    alt={msg.user?.username}
-                    className="w-6 h-6 rounded-full bg-[#1a1b2e]"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username || 'user'}`;
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="font-medium"
-                        style={{ color: msg.user?.role_color || '#dcddde' }}
-                      >
-                        {msg.user?.displayName || msg.user?.username}
-                      </span>
-                      <span 
-                        className="text-xs text-[#6a6a7a] cursor-default hover:underline"
-                        title={formatTooltipTimestamp(msg.timestamp || (msg as any).createdAt)}
-                      >
-                        {formatDiscordTimestamp(msg.timestamp || (msg as any).createdAt)}
-                      </span>
-                    </div>
-                    <p className="text-[#a0a0b0] truncate">{msg.content}</p>
-                  </div>
-                  {userPermissions?.canManageMessages && (
-                    <button
-                      onClick={() => handleUnpinMessage(msg.id)}
-                      className="text-[#6a6a7a] hover:text-[#ed4245] p-1"
-                      title="Unpin message"
-                    >
-                      <Pin className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Messages */}
       <div 
         ref={scrollContainerRef}
@@ -1429,6 +1487,13 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                     // Compact mode: reduce spacing for same user messages
                     const compactClass = isSameUser ? 'mt-0.5' : 'mt-4';
 
+                    // Check if this is the first unread message
+                    const msgIndex = messages.findIndex(m => m.id === message.id);
+                    const lastReadIndex = lastReadMessageId ? messages.findIndex(m => m.id === lastReadMessageId) : -1;
+                    const isFirstUnread = lastReadMessageId && 
+                      msgIndex === lastReadIndex + 1 &&
+                      msgIndex < messages.length;
+
                     // Render welcome message for system messages
                     if (message.isSystem || message.type === 'system') {
                       return (
@@ -1443,14 +1508,24 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                     const isHighlighted = highlightedMessageId === message.id;
 
                     return (
-                      <div 
-                        key={message.id} 
-                        id={`message-${message.id}`}
-                        ref={el => { if (el) messageRefs.current.set(message.id, el); }}
-                        className={`relative ${compactClass} ${isHighlighted ? 'bg-[#00d4ff]/20 rounded-lg transition-colors duration-500' : ''}`}
-                      >
-                        <MessageItem
-                          message={message}
+                      <div key={message.id}>
+                        {/* Unread Messages Divider */}
+                        {isFirstUnread && (
+                          <div className="flex items-center gap-2 my-4 py-1">
+                            <div className="h-[1px] bg-[#ed4245] flex-1" />
+                            <span className="px-3 py-1 bg-[#ed4245] text-white text-xs font-semibold rounded">
+                              Pesan Belum Dibaca
+                            </span>
+                            <div className="h-[1px] bg-[#ed4245] flex-1" />
+                          </div>
+                        )}
+                        <div 
+                          id={`message-${message.id}`}
+                          ref={el => { if (el) messageRefs.current.set(message.id, el); }}
+                          className={`relative ${compactClass} ${isHighlighted ? 'bg-[#00d4ff]/20 rounded-lg transition-colors duration-500' : ''}`}
+                        >
+                          <MessageItem
+                            message={message}
                           showHeader={showHeader}
                           currentUser={currentUser}
                           userPermissions={userPermissions}
@@ -1477,6 +1552,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           editInputRef={editInputRef}
                         />
 
+                        </div>
                       </div>
                     );
                   })}

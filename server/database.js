@@ -84,7 +84,7 @@ const RoleHierarchy = {
 
 // Permission helper functions
 const permissionDB = {
-  // Check if user has a specific permission
+  // Check if user has a specific permission (combines all roles)
   async hasPermission(userId, serverId, permission) {
     // First check if user is owner
     const isOwner = await this.isServerOwner(userId, serverId);
@@ -93,8 +93,44 @@ const permissionDB = {
     const role = await this.getUserRole(userId, serverId);
     if (!role) return false;
     
+    // Get combined permissions from all custom roles
+    const combinedPerms = await this.getCombinedPermissions(userId, serverId);
+    if (combinedPerms > 0) {
+      return (combinedPerms & permission) === permission;
+    }
+    
+    // Fallback to legacy role permissions
     const rolePerms = RolePermissions[role];
     return (rolePerms & permission) === permission;
+  },
+  
+  // Get combined permissions from all user's roles
+  async getCombinedPermissions(userId, serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COALESCE(GROUP_CONCAT(sr.permissions), 0) as all_perms
+         FROM member_roles mr
+         JOIN server_roles sr ON mr.role_id = sr.id
+         WHERE mr.server_id = ? AND mr.user_id = ?`,
+        [serverId, userId],
+        (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          if (!row || !row.all_perms) {
+            resolve(0);
+            return;
+          }
+          
+          // Combine all permissions with bitwise OR
+          const perms = row.all_perms.toString().split(',').map(Number);
+          const combined = perms.reduce((a, b) => a | b, 0);
+          resolve(combined);
+        }
+      );
+    });
   },
 
   // Get user's role in a server
@@ -125,7 +161,7 @@ const permissionDB = {
     });
   },
 
-  // Get all permissions for a user in a server
+  // Get all permissions for a user in a server (combines all roles)
   async getUserPermissions(userId, serverId) {
     // Owner has all permissions
     const isOwner = await this.isServerOwner(userId, serverId);
@@ -133,6 +169,14 @@ const permissionDB = {
     
     const role = await this.getUserRole(userId, serverId);
     if (!role) return 0;
+    
+    // Get combined permissions from all custom roles
+    const combinedPerms = await this.getCombinedPermissions(userId, serverId);
+    if (combinedPerms > 0) {
+      return combinedPerms;
+    }
+    
+    // Fallback to legacy role permissions
     return RolePermissions[role] || 0;
   },
 
@@ -361,6 +405,19 @@ function initDatabase() {
       UNIQUE(server_id, name)
     )`);
 
+    // Member roles table (many-to-many relationship)
+    db.run(`CREATE TABLE IF NOT EXISTS member_roles (
+      id TEXT PRIMARY KEY,
+      server_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role_id TEXT NOT NULL,
+      assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (server_id) REFERENCES servers(id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (role_id) REFERENCES server_roles(id),
+      UNIQUE(server_id, user_id, role_id)
+    )`);
+
     // Categories table for channel grouping
     db.run(`CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
@@ -395,6 +452,7 @@ function initDatabase() {
       is_pinned BOOLEAN DEFAULT 0,
       pinned_at DATETIME,
       pinned_by TEXT,
+      forwarded_from TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       edited_at DATETIME,
       FOREIGN KEY (channel_id) REFERENCES channels(id),
@@ -569,6 +627,77 @@ function initDatabase() {
 
 // Database migrations
 function runMigrations() {
+  // Migration: Add is_pinned, pinned_at, pinned_by columns to messages if not exists
+  db.all("PRAGMA table_info(messages)", (err, rows) => {
+    if (err) {
+      console.error('Migration error (messages):', err);
+      return;
+    }
+    
+    const hasIsPinned = rows.some(row => row.name === 'is_pinned');
+    if (!hasIsPinned) {
+      db.run('ALTER TABLE messages ADD COLUMN is_pinned BOOLEAN DEFAULT 0', (err) => {
+        if (err) {
+          console.error('Failed to add is_pinned column:', err);
+        } else {
+          console.log('✅ Migration: Added is_pinned column to messages');
+        }
+      });
+    }
+    
+    const hasPinnedAt = rows.some(row => row.name === 'pinned_at');
+    if (!hasPinnedAt) {
+      db.run('ALTER TABLE messages ADD COLUMN pinned_at DATETIME', (err) => {
+        if (err) {
+          console.error('Failed to add pinned_at column:', err);
+        } else {
+          console.log('✅ Migration: Added pinned_at column to messages');
+        }
+      });
+    }
+    
+    const hasPinnedBy = rows.some(row => row.name === 'pinned_by');
+    if (!hasPinnedBy) {
+      db.run('ALTER TABLE messages ADD COLUMN pinned_by TEXT', (err) => {
+        if (err) {
+          console.error('Failed to add pinned_by column:', err);
+        } else {
+          console.log('✅ Migration: Added pinned_by column to messages');
+        }
+      });
+    }
+    
+    const hasForwardedFrom = rows.some(row => row.name === 'forwarded_from');
+    if (!hasForwardedFrom) {
+      db.run('ALTER TABLE messages ADD COLUMN forwarded_from TEXT', (err) => {
+        if (err) {
+          console.error('Failed to add forwarded_from column:', err);
+        } else {
+          console.log('✅ Migration: Added forwarded_from column to messages');
+        }
+      });
+    }
+  });
+
+  // Migration: Add banner column to servers if not exists
+  db.all("PRAGMA table_info(servers)", (err, rows) => {
+    if (err) {
+      console.error('Migration error (servers):', err);
+      return;
+    }
+    
+    const hasBanner = rows.some(row => row.name === 'banner');
+    if (!hasBanner) {
+      db.run('ALTER TABLE servers ADD COLUMN banner TEXT', (err) => {
+        if (err) {
+          console.error('Failed to add banner column:', err);
+        } else {
+          console.log('✅ Migration: Added banner column to servers');
+        }
+      });
+    }
+  });
+
   // Migration: Add role_id column to server_members if not exists
   db.all("PRAGMA table_info(server_members)", (err, rows) => {
     if (err) {
@@ -890,7 +1019,12 @@ const serverDB = {
                   WHEN sm.role = 'moderator' THEN '#43b581'
                   ELSE '#99aab5'
                 END) as role_color,
-                sm.joined_at, u.created_at, sm.join_method
+                sm.joined_at, u.created_at, sm.join_method,
+                (SELECT GROUP_CONCAT(sr2.id || ':' || sr2.name || ':' || sr2.color, '|')
+                 FROM member_roles mr
+                 JOIN server_roles sr2 ON mr.role_id = sr2.id
+                 WHERE mr.server_id = sm.server_id AND mr.user_id = sm.user_id
+                ) as all_roles
          FROM users u
          JOIN server_members sm ON u.id = sm.user_id
          LEFT JOIN server_roles sr ON sm.role_id = sr.id
@@ -899,14 +1033,26 @@ const serverDB = {
         (err, rows) => {
           if (err) reject(err);
           else {
-            // Map display_name to displayName for frontend
+            // Map display_name to displayName for frontend and parse roles
             rows.forEach(row => {
               row.displayName = row.display_name;
               row.joinedAt = row.joined_at;
               row.createdAt = row.created_at;
+              
+              // Parse all_roles into array
+              if (row.all_roles) {
+                row.roles = row.all_roles.split('|').map(r => {
+                  const parts = r.split(':');
+                  return { id: parts[0], name: parts[1], color: parts[2] };
+                });
+              } else {
+                row.roles = [];
+              }
+              
               delete row.display_name;
               delete row.joined_at;
               delete row.created_at;
+              delete row.all_roles;
             });
             resolve(rows);
           }
@@ -1000,6 +1146,10 @@ const serverDB = {
     if (updates.icon !== undefined) {
       fields.push('icon = ?');
       values.push(updates.icon);
+    }
+    if (updates.banner !== undefined) {
+      fields.push('banner = ?');
+      values.push(updates.banner);
     }
     
     if (fields.length === 0) {
@@ -1267,12 +1417,52 @@ const roleDB = {
     });
   },
 
+  // Normalize role positions to ensure they're sequential
+  async normalizeRolePositions(serverId) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Get all custom roles sorted by position
+        const roles = await new Promise((res, rej) => {
+          db.all(
+            `SELECT id, position FROM server_roles 
+             WHERE server_id = ? AND is_default = 0
+             ORDER BY position DESC, created_at ASC`,
+            [serverId],
+            (err, rows) => {
+              if (err) rej(err);
+              else res(rows);
+            }
+          );
+        });
+        
+        // Update positions to be sequential starting from highest
+        for (let i = 0; i < roles.length; i++) {
+          const newPosition = roles.length - i;
+          await new Promise((res, rej) => {
+            db.run(
+              'UPDATE server_roles SET position = ? WHERE id = ?',
+              [newPosition, roles[i].id],
+              (err) => {
+                if (err) rej(err);
+                else res();
+              }
+            );
+          });
+        }
+        
+        resolve(true);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  },
+
   // Get member count for a role
   async getMemberCount(roleId, serverId) {
     return new Promise((resolve, reject) => {
       db.get(
         `SELECT COUNT(*) as count 
-         FROM server_members 
+         FROM member_roles 
          WHERE server_id = ? AND role_id = ?`,
         [serverId, roleId],
         (err, row) => {
@@ -1283,16 +1473,32 @@ const roleDB = {
     });
   },
 
-  // Assign role to member
+  // Assign role to member (adds to member_roles table - supports multiple roles)
   async assignRole(serverId, userId, roleId) {
     return new Promise((resolve, reject) => {
+      const id = uuidv4();
       db.run(
-        `UPDATE server_members 
-         SET role_id = ?, role = 'custom'
-         WHERE server_id = ? AND user_id = ?`,
-        [roleId, serverId, userId],
+        `INSERT INTO member_roles (id, server_id, user_id, role_id)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT DO NOTHING`,
+        [id, serverId, userId, roleId],
         function(err) {
-          if (err) reject(err);
+          if (err) {
+            // If table doesn't have UNIQUE constraint yet, try without ON CONFLICT
+            if (err.message.includes('no such column') || err.message.includes('UNIQUE')) {
+              db.run(
+                `INSERT OR IGNORE INTO member_roles (id, server_id, user_id, role_id)
+                 VALUES (?, ?, ?, ?)`,
+                [id, serverId, userId, roleId],
+                function(err2) {
+                  if (err2) reject(err2);
+                  else resolve({ success: this.changes > 0 });
+                }
+              );
+            } else {
+              reject(err);
+            }
+          }
           else resolve({ success: this.changes > 0 });
         }
       );
@@ -1310,6 +1516,55 @@ const roleDB = {
         function(err) {
           if (err) reject(err);
           else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Clear custom role from member (set to default)
+  async clearMemberRole(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE server_members 
+         SET role_id = NULL
+         WHERE server_id = ? AND user_id = ?`,
+        [serverId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Remove specific role from member
+  async removeMemberRole(serverId, userId, roleId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `DELETE FROM member_roles 
+         WHERE server_id = ? AND user_id = ? AND role_id = ?`,
+        [serverId, userId, roleId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: this.changes > 0 });
+        }
+      );
+    });
+  },
+
+  // Get all member's roles (plural)
+  async getMemberRoles(serverId, userId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT sr.id, sr.name, sr.color, sr.permissions, sr.position
+         FROM member_roles mr
+         JOIN server_roles sr ON mr.role_id = sr.id
+         WHERE mr.server_id = ? AND mr.user_id = ?
+         ORDER BY sr.position DESC`,
+        [serverId, userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
         }
       );
     });
@@ -1639,7 +1894,7 @@ const channelDB = {
 
 // Message operations
 const messageDB = {
-  async create(channelId, userId, content, replyToId = null, attachments = null, type = 'user') {
+  async create(channelId, userId, content, replyToId = null, attachments = null, type = 'user', forwardedFrom = null) {
     const id = uuidv4();
     const timestamp = getCurrentTimestamp();
     
@@ -1648,8 +1903,8 @@ const messageDB = {
     
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO messages (id, channel_id, user_id, content, reply_to_id, attachments, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [id, channelId, actualUserId, content, replyToId, attachments ? JSON.stringify(attachments) : null, timestamp],
+        'INSERT INTO messages (id, channel_id, user_id, content, reply_to_id, attachments, forwarded_from, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, channelId, actualUserId, content, replyToId, attachments ? JSON.stringify(attachments) : null, forwardedFrom ? JSON.stringify(forwardedFrom) : null, timestamp],
         async function(err) {
           if (err) reject(err);
           else {
@@ -1691,6 +1946,14 @@ const messageDB = {
                   row.attachments = JSON.parse(row.attachments);
                 } catch (e) {
                   row.attachments = [];
+                }
+              }
+              // Parse forwarded_from if exists
+              if (row.forwarded_from) {
+                try {
+                  row.forwardedFrom = JSON.parse(row.forwarded_from);
+                } catch (e) {
+                  row.forwardedFrom = null;
                 }
               }
               // Format user object with displayName and role info
@@ -1781,6 +2044,15 @@ const messageDB = {
                   row.attachments = JSON.parse(row.attachments);
                 } catch (e) {
                   row.attachments = [];
+                }
+              }
+              
+              // Parse forwarded_from if exists
+              if (row.forwarded_from) {
+                try {
+                  row.forwardedFrom = JSON.parse(row.forwarded_from);
+                } catch (e) {
+                  row.forwardedFrom = null;
                 }
               }
               
@@ -2140,6 +2412,21 @@ const messageDB = {
         function(err) {
           if (err) reject(err);
           else resolve(true);
+        }
+      );
+    });
+  },
+
+  async getReadStatus(userId, channelId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT last_read_message_id, last_read_at 
+         FROM channel_read_status 
+         WHERE user_id = ? AND channel_id = ?`,
+        [userId, channelId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
         }
       );
     });

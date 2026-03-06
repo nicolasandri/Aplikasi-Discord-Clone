@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
@@ -9,19 +8,16 @@ import { InvitePage } from '@/pages/InvitePage';
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 
-function AppContent() {
+// Protected route component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [showLogin, setShowLogin] = useState(true);
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+}
 
-  if (isAuthenticated) {
-    return <ChatLayout />;
-  }
-
-  return showLogin ? (
-    <Login onToggleForm={() => setShowLogin(false)} />
-  ) : (
-    <Register onToggleForm={() => setShowLogin(true)} />
-  );
+// Public route component (redirects to home if already authenticated)
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 function App() {
@@ -32,8 +28,38 @@ function App() {
         <AuthProvider>
           <BrowserRouter>
             <Routes>
-              <Route path="/invite/:code" element={<InvitePage />} />
-              <Route path="/*" element={<AppContent />} />
+              <Route 
+                path="/login" 
+                element={
+                  <PublicRoute>
+                    <Login />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/register" 
+                element={
+                  <PublicRoute>
+                    <Register />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/invite/:code" 
+                element={<InvitePage />} 
+              />
+              <Route 
+                path="/" 
+                element={
+                  <ProtectedRoute>
+                    <ChatLayout />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="*" 
+                element={<Navigate to="/" replace />} 
+              />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

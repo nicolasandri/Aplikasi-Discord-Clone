@@ -342,21 +342,20 @@ export function ForwardModal({ isOpen, onClose, message, servers, channels: _cha
 
         {/* Message Preview & Comment */}
         <div className="px-4 py-3 border-t border-[#1f2023]">
-          {/* Original Message Preview */}
-          <div className="bg-[#1e1f22] rounded p-3 mb-3">
-            <div className="flex items-center gap-2 mb-1">
+          {/* Original Message Preview - Discord Style */}
+          <div className="bg-[#2b2d31] rounded-lg p-3 mb-3 border-l-4 border-[#00d4ff]">
+            <div className="flex items-center gap-2 mb-2">
               <img
                 src={message.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username}`}
                 alt={message.user?.username}
-                className="w-6 h-6 rounded-full"
+                className="w-5 h-5 rounded-full"
               />
-              <span className="text-white text-sm font-medium">{message.user?.displayName || message.user?.username}</span>
-              <span className="text-[#6a6a7a] text-xs">Original message</span>
+              <span className="text-[#00d4ff] text-sm font-medium">{message.user?.displayName || message.user?.username}</span>
             </div>
-            <p className="text-[#b5bac1] text-sm line-clamp-2">{getMessagePreview()}</p>
+            <p className="text-[#dbdee1] text-sm line-clamp-3">{getMessagePreview()}</p>
             {message.attachments && message.attachments.length > 0 && (
-              <div className="mt-2 text-[#6a6a7a] text-xs">
-                {message.attachments.length} attachment{message.attachments.length > 1 ? 's' : ''}
+              <div className="mt-2 text-[#949ba4] text-xs">
+                {message.attachments.length} lampiran
               </div>
             )}
           </div>

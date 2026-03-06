@@ -13,6 +13,7 @@ export interface Server {
   name: string;
   icon: string;
   owner_id?: string;
+  banner?: string;
 }
 
 export interface ServerRole {
@@ -58,6 +59,20 @@ export interface FileAttachment {
   size: number;
 }
 
+export interface ForwardedFrom {
+  messageId: string;
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatar?: string;
+  channelId: string;
+  channelName: string;
+  serverId?: string;
+  serverName?: string;
+  timestamp: string;
+  content?: string;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -71,6 +86,7 @@ export interface Message {
   attachments?: FileAttachment[];
   type?: 'user' | 'system';
   isSystem?: boolean;
+  forwardedFrom?: ForwardedFrom | null;
   newMember?: {
     id: string;
     username: string;
@@ -89,6 +105,7 @@ export interface ServerMember extends User {
   joinMethod?: string;
   isBot?: boolean;
   createdAt?: string;
+  roles?: Array<{ id: string; name: string; color: string }>;
 }
 
 export interface AuthState {

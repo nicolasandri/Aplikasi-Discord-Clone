@@ -1,38 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, User, Mail, Lock, HelpCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, Mail, Lock, User, HelpCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 interface RegisterProps {
-  onToggleForm: () => void;
+  onToggleForm?: () => void;
 }
 
 export function Register({ onToggleForm }: RegisterProps) {
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const { register, loading, error } = useAuth();
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [username, setUsername] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const { register, loading, error, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to home when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleToggleForm = () => {
+    if (onToggleForm) {
+      onToggleForm();
+    } else {
+      navigate('/login');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocalError(null);
-
+    setPasswordError(null);
+    
     if (password !== confirmPassword) {
-      setLocalError('Password tidak cocok');
+      setPasswordError('Password tidak cocok');
       return;
     }
 
     if (password.length < 6) {
-      setLocalError('Password minimal 6 karakter');
+      setPasswordError('Password minimal 6 karakter');
       return;
     }
 
     try {
       await register(username, email, password);
+      // Navigation handled by useEffect above
     } catch {
       // Error handled in context
     }
@@ -53,14 +71,13 @@ export function Register({ onToggleForm }: RegisterProps) {
 
       {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-8 py-4">
-        <div className="flex items-center gap-2">
-          <img 
-            src="/workgrid-logos/logo-64.png" 
-            alt="WorkGrid" 
-            className="w-8 h-8 rounded-lg object-contain"
-          />
-          <span className="text-white font-semibold text-lg">WorkGrid</span>
-        </div>
+        <button 
+          onClick={handleToggleForm}
+          className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="text-sm font-medium">Kembali ke Login</span>
+        </button>
         <div className="flex items-center gap-6">
           <button className="text-gray-300 hover:text-white text-sm flex items-center gap-1 transition-colors">
             <HelpCircle className="w-4 h-4" />
@@ -76,7 +93,7 @@ export function Register({ onToggleForm }: RegisterProps) {
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-4 relative z-10">
         <div className="w-full max-w-md bg-[#1a1b2e]/90 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/10">
-          <div className="p-10 md:p-12">
+          <div className="p-10">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-6">
               <img 
@@ -88,7 +105,7 @@ export function Register({ onToggleForm }: RegisterProps) {
 
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-white mb-2">Buat Akun</h2>
-              <p className="text-gray-400">Bergabung dengan komunitas WorkGrid!</p>
+              <p className="text-gray-400">Bergabung dengan tim Anda di WorkGrid</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -104,7 +121,7 @@ export function Register({ onToggleForm }: RegisterProps) {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="bg-[#0f0f1a] border-[#2a2b3d] text-white placeholder:text-gray-600 focus:border-[#00d4ff] focus:ring-[#00d4ff]/20 h-12 pl-12 rounded-xl"
-                    placeholder="username_anda"
+                    placeholder="johndoe"
                     required
                   />
                 </div>
@@ -164,8 +181,10 @@ export function Register({ onToggleForm }: RegisterProps) {
                 </div>
               </div>
 
-              {(error || localError) && (
-                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg">{error || localError}</div>
+              {(error || passwordError) && (
+                <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg">
+                  {error || passwordError}
+                </div>
               )}
 
               <Button
@@ -180,11 +199,11 @@ export function Register({ onToggleForm }: RegisterProps) {
                 )}
               </Button>
 
-              <div className="text-gray-400 text-sm text-center">
+              <div className="text-center text-gray-400 text-sm">
                 Sudah punya akun?{' '}
                 <button
                   type="button"
-                  onClick={onToggleForm}
+                  onClick={handleToggleForm}
                   className="text-[#00d4ff] hover:text-[#00b8db] transition-colors font-medium"
                 >
                   Masuk
@@ -197,4 +216,3 @@ export function Register({ onToggleForm }: RegisterProps) {
     </div>
   );
 }
-

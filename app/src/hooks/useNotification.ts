@@ -1,15 +1,25 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-
-// Path to notification sound
-const NOTIFICATION_SOUND = '/sounds/workgrid-notification.mp3';
 
 interface UseNotificationOptions {
   enabled?: boolean;
   soundEnabled?: boolean;
   desktopEnabled?: boolean;
+}
+
+// Global audio element to avoid re-creation
+let globalAudio: HTMLAudioElement | null = null;
+
+function getAudio() {
+  if (!globalAudio && typeof window !== 'undefined') {
+    globalAudio = new Audio('/sounds/workgrid-notification.mp3');
+    globalAudio.volume = 0.5;
+    globalAudio.preload = 'auto';
+  }
+  return globalAudio;
 }
 
 export function useNotification(options: UseNotificationOptions = {}) {
@@ -19,128 +29,87 @@ export function useNotification(options: UseNotificationOptions = {}) {
     desktopEnabled = true 
   } = options;
   
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [hasPermission, setHasPermission] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission>('default');
 
-  // Initialize audio element
+  // Check permission on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      audioRef.current = new Audio(NOTIFICATION_SOUND);
-      audioRef.current.volume = 0.5;
-      audioRef.current.load();
+    if ('Notification' in window) {
+      setPermission(Notification.permission);
     }
   }, []);
 
-  // Request notification permission on first user interaction
-  useEffect(() => {
-    const initNotifications = async () => {
-      if (!enabled) return;
-      
-      // Initialize audio on first interaction
-      if (audioRef.current && !isInitialized) {
-        try {
-          await audioRef.current.play();
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-          setIsInitialized(true);
-        } catch (e) {
-          // Audio will be initialized on next interaction
-        }
-      }
-      
-      // Request notification permission
-      if (desktopEnabled && 'Notification' in window) {
-        if (Notification.permission === 'granted') {
-          setHasPermission(true);
-        } else if (Notification.permission !== 'denied') {
-          const permission = await Notification.requestPermission();
-          setHasPermission(permission === 'granted');
-        }
-      }
-    };
-
-    // Listen for first user interaction
-    window.addEventListener('click', initNotifications, { once: true });
-    window.addEventListener('keydown', initNotifications, { once: true });
-
-    return () => {
-      window.removeEventListener('click', initNotifications);
-      window.removeEventListener('keydown', initNotifications);
-    };
-  }, [enabled, desktopEnabled, isInitialized]);
-
-  const playSound = useCallback(async () => {
-    if (!soundEnabled || !audioRef.current) return;
+  // Request permission
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    if (!('Notification' in window)) return false;
     
     try {
-      audioRef.current.currentTime = 0;
-      await audioRef.current.play();
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      return result === 'granted';
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
+  // Play sound
+  const playSound = useCallback(async () => {
+    if (!soundEnabled) return;
+    
+    const audio = getAudio();
+    if (!audio) return;
+    
+    try {
+      audio.currentTime = 0;
+      await audio.play();
     } catch (err) {
-      console.log('Audio play failed:', err);
+      // Ignore audio errors
     }
   }, [soundEnabled]);
 
+  // Main notify function
   const notify = useCallback(async ({
     title,
     body,
     icon,
-    silent = false,
-    tag,
   }: {
     title: string;
     body: string;
     icon?: string;
-    silent?: boolean;
-    tag?: string;
   }) => {
     if (!enabled) return;
 
-    console.log('🔔 Notify called:', { title, body, soundEnabled, silent });
+    console.log('🔔 NOTIFICATION:', title, '-', body);
 
-    // Always play sound if enabled (even in browser)
-    if (soundEnabled && !silent) {
+    // 1. Play sound
+    if (soundEnabled) {
       await playSound();
     }
 
-    // Show desktop notification
-    if (desktopEnabled && 'Notification' in window) {
-      // Check if we should show notification
-      let shouldShow = false;
-      
-      if (isElectron) {
-        // Electron: check if window is focused
-        try {
-          const electronAPI = (window as any).electronAPI;
-          const isFocused = await electronAPI?.isFocused?.();
-          shouldShow = !isFocused;
-          console.log('Electron focused:', isFocused, 'Should show:', shouldShow);
-        } catch (e) {
-          shouldShow = true;
-        }
-      } else {
-        // Browser: check document visibility
-        shouldShow = document.visibilityState === 'hidden';
-        console.log('Browser visibility:', document.visibilityState, 'Should show:', shouldShow);
-      }
+    // 2. Show toast (ALWAYS show toast for every message)
+    toast(title, {
+      description: body,
+      duration: 4000,
+      icon: '🔔',
+    });
 
-      if (shouldShow && hasPermission) {
-        try {
-          new Notification(title, {
-            body,
-            icon: icon || '/workgrid_app_icon.png',
-            tag: tag || 'workgrid-message',
-            requireInteraction: false,
-          });
-          console.log('✅ Notification shown');
-        } catch (e) {
-          console.error('❌ Notification error:', e);
-        }
-      } else {
-        console.log('Notification skipped:', { shouldShow, hasPermission });
+    // 3. Show desktop notification if permission granted
+    if (desktopEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body,
+          icon: icon || '/workgrid_app_icon.png',
+          tag: `notif-${Date.now()}-${Math.random()}`,
+        });
+      } catch (e) {
+        console.error('Desktop notification error:', e);
       }
     }
-  }, [enabled, soundEnabled, desktopEnabled, hasPermission, playSound]);
+  }, [enabled, soundEnabled, desktopEnabled, playSound]);
 
-  return { notify, playSound, hasPermission, isInitialized };
+  return { 
+    notify, 
+    playSound, 
+    permission,
+    requestPermission 
+  };
 }

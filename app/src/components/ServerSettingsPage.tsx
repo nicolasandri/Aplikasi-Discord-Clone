@@ -72,6 +72,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     if (server) {
       setServerName(server.name);
       setServerIcon(server.icon || '');
+      setBannerColor(server.banner || BANNER_COLORS[0].bg);
       fetchMembers();
     }
   }, [server]);
@@ -143,13 +144,13 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: serverName, icon: serverIcon, description }),
+        body: JSON.stringify({ name: serverName, icon: serverIcon, description, banner: bannerColor }),
       });
       
       if (res.ok) {
         const updatedServer = await res.json();
         console.log('[handleSave] Server updated successfully:', updatedServer);
-        onUpdateServer?.(server.id, { name: serverName, icon: serverIcon });
+        onUpdateServer?.(server.id, { name: serverName, icon: serverIcon, banner: bannerColor });
         alert('Server berhasil diperbarui!');
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -181,10 +182,12 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
   
   const currentUserId = getCurrentUserId();
   const currentMember = members.find(m => m.id === currentUserId);
-  const isOwner = currentMember?.role === 'owner';
+  // Check ownership from server.owner_id (more reliable than role field)
+  const isOwner = server?.owner_id === currentUserId;
   
   // Debug logging
   console.log('[ServerSettingsPage] currentUserId:', currentUserId);
+  console.log('[ServerSettingsPage] server?.owner_id:', server?.owner_id);
   console.log('[ServerSettingsPage] currentMember:', currentMember);
   console.log('[ServerSettingsPage] isOwner:', isOwner);
 
@@ -227,7 +230,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
 
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: Settings },
-    { id: 'roles' as const, label: 'Roles', icon: Shield },
+    { id: 'roles' as const, label: 'Jobdesk', icon: Shield },
     { id: 'members' as const, label: 'Members', icon: Users },
     { id: 'invites' as const, label: 'Invites', icon: UserPlus },
     { id: 'bans' as const, label: 'Bans', icon: UserX },

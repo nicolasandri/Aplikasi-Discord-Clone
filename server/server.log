@@ -1,16 +1,15 @@
-
-> chatcord-server@2.0.0 start
-> node server.js
-
-[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
 📦 Using database: SQLite
 ✅ Database initialized
 Server running on port 3001
-🔌 Client connected for voice: 72-i7B_z4_uxpz7vAAAB
-🔌 Client connected: 72-i7B_z4_uxpz7vAAAB
-✅ Socket authenticated: 72-i7B_z4_uxpz7vAAAB User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
-📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 427f2e6b-dc62-488b-810b-4125ecebc6fd
-🔌 Client connected for voice: mU40D1cwW-kzEFeJAAAD
-🔌 Client connected: mU40D1cwW-kzEFeJAAAD
-✅ Socket authenticated: mU40D1cwW-kzEFeJAAAD User: be97eaa0-ec14-45c8-9b40-9af3ebcd3327
+🔄 All users status reset to offline
+🔌 Client connected for voice: w614jMOfozmQ_pcKAAAB
+🔌 Client connected: w614jMOfozmQ_pcKAAAB
+✅ Socket authenticated: w614jMOfozmQ_pcKAAAB User: be97eaa0-ec14-45c8-9b40-9af3ebcd3327
+🔌 Client connected for voice: hjnJbWF-hPXd263LAAAD
+🔌 Client connected: hjnJbWF-hPXd263LAAAD
+✅ Socket authenticated: hjnJbWF-hPXd263LAAAD User: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
+🟢 User status changed to online: be97eaa0-ec14-45c8-9b40-9af3ebcd3327
+🟢 User status changed to online: 4e0bd272-0fee-4fe4-92ba-615fd90bb757
 📥 User joined channel room: be97eaa0-ec14-45c8-9b40-9af3ebcd3327 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa
+📥 User joined channel room: 4e0bd272-0fee-4fe4-92ba-615fd90bb757 Channel: 49c7d1ea-65a2-49e5-ba04-79df46cd39aa

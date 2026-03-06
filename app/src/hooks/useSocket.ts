@@ -76,6 +76,8 @@ export function useSocket(
   useEffect(() => {
     if (!token) return;
 
+    console.log('🔌 useSocket: Initializing socket connection...');
+    
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       withCredentials: true,
@@ -88,11 +90,16 @@ export function useSocket(
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      log('✅ Socket connected:', socket.id);
+      console.log('🔌 useSocket: Socket connected:', socket.id);
       setIsConnected(true);
       socket.emit('authenticate', token);
       // Expose socket to window for DMChatArea and other components
       (window as any).socket = socket;
+    });
+
+    // Debug: Log ALL incoming events
+    socket.onAny((eventName, ...args) => {
+      console.log('🔌 Socket: Event received:', eventName, args?.[0]?.id || args?.[0]?.messageId || '');
     });
 
     socket.on('disconnect', () => {
@@ -112,7 +119,7 @@ export function useSocket(
     });
 
     socket.on('new_message', (message: Message) => {
-      // BUG-020: Use callbacksRef to prevent stale closure
+      console.log('🔌 Socket: new_message', message.id);
       if (callbacksRef.current.onMessage) {
         callbacksRef.current.onMessage(message);
       }
@@ -198,20 +205,26 @@ export function useSocket(
   }, [token]); // BUG-020: Only depend on token, callbacks are accessed via ref
 
   const joinChannel = useCallback((channelId: string) => {
+    console.log('🔌 Socket: Joining channel:', channelId);
     if (socketRef.current) {
       socketRef.current.emit('join_channel', channelId);
     }
   }, []);
 
   const leaveChannel = useCallback((channelId: string) => {
+    console.log('🔌 Socket: Leaving channel:', channelId);
     if (socketRef.current) {
       socketRef.current.emit('leave_channel', channelId);
     }
   }, []);
 
   const sendMessage = useCallback((channelId: string, content: string, replyTo?: Message | null, attachments?: any[]) => {
+    console.log('🔌 Socket: Sending message to channel:', channelId, 'Content:', content?.substring(0, 30));
     if (socketRef.current) {
       socketRef.current.emit('send_message', { channelId, content, replyTo, attachments });
+      console.log('🔌 Socket: send_message emitted');
+    } else {
+      console.error('🔌 Socket: Cannot send message, socket not connected');
     }
   }, []);
 

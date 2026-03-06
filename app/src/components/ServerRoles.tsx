@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   Shield, Plus, Search, MoreVertical, Edit2, X, ChevronLeft, 
-  UserPlus, Trash2, Check, Crown, ShieldCheck, User
+  UserPlus, Trash2, Check, Crown, ShieldCheck, User,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import type { ServerMember } from '@/types';
 
 interface Role {
@@ -44,14 +46,14 @@ const BASE_URL = isElectron
 const DEFAULT_COLORS = [
   '#00d4ff', '#eb459e', '#ed4245', '#f39c12', '#f1c40f', 
   '#9b59b6', '#3498db', '#1abc9c', '#2ecc71', '#34495e',
-  '#95a5a6', '#e74c3c', '#e67e22', '#f39c12', '#27ae60',
+  '#95a5a6', '#e74c3c', '#e67e22', '#27ae60',
   '#2980b9', '#8e44ad', '#c0392b', '#7f8c8d', '#2c3e50'
 ];
 
 const PERMISSIONS = [
   { id: 'VIEW_CHANNEL', name: 'View Channels', bit: 0, description: 'Allows members to view channels by default (excluding private channels).' },
   { id: 'MANAGE_CHANNELS', name: 'Manage Channels', bit: 1, description: 'Allows members to create, edit, or delete channels.' },
-  { id: 'MANAGE_ROLES', name: 'Manage Roles', bit: 2, description: 'Allows members to create, edit, and delete roles.' },
+  { id: 'MANAGE_ROLES', name: 'Manage Jobdesk', bit: 2, description: 'Allows members to create, edit, and delete roles.' },
   { id: 'KICK_MEMBERS', name: 'Kick Members', bit: 3, description: 'Allows members to kick members.' },
   { id: 'BAN_MEMBERS', name: 'Ban Members', bit: 4, description: 'Allows members to ban members.' },
   { id: 'MANAGE_MESSAGES', name: 'Manage Messages', bit: 5, description: 'Allows members to delete messages by other members.' },
@@ -91,6 +93,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       });
       if (res.ok) {
         const data = await res.json();
+        console.log('[ServerRoles] fetched roles:', data);
         setRoles(data.sort((a: Role, b: Role) => b.position - a.position));
       }
     } catch (error) {
@@ -141,9 +144,20 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         setShowCreateModal(false);
         setNewRoleName('');
         setNewRoleColor('#99aab5');
+        toast.success('Jobdesk berhasil dibuat', {
+          description: `Jobdesk "${newRole.name}" telah dibuat.`,
+        });
+      } else {
+        const error = await res.json();
+        toast.error('Gagal membuat Jobdesk', {
+          description: error.error || 'Terjadi kesalahan saat membuat role.',
+        });
       }
     } catch (error) {
       console.error('Failed to create role:', error);
+      toast.error('Gagal membuat role', {
+        description: 'Tidak dapat terhubung ke server.',
+      });
     }
   };
 
@@ -164,9 +178,20 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       if (res.ok) {
         const updated = await res.json();
         setRoles(roles.map(r => r.id === updated.id ? updated : r).sort((a, b) => b.position - a.position));
+        toast.success('Perubahan berhasil disimpan', {
+          description: `Role "${updated.name}" telah diperbarui.`,
+        });
+      } else {
+        const error = await res.json();
+        toast.error('Gagal menyimpan perubahan', {
+          description: error.error || 'Terjadi kesalahan saat menyimpan role.',
+        });
       }
     } catch (error) {
       console.error('Failed to update role:', error);
+      toast.error('Gagal menyimpan perubahan', {
+        description: 'Tidak dapat terhubung ke server.',
+      });
     }
   };
 
@@ -186,9 +211,47 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         if (editingRole?.id === roleToDelete.id) {
           setEditingRole(null);
         }
+        toast.success('Jobdesk berhasil dihapus', {
+          description: `Jobdesk "${roleToDelete.name}" telah dihapus.`,
+        });
+      } else {
+        const error = await res.json();
+        toast.error('Gagal menghapus Jobdesk', {
+          description: error.error || 'Terjadi kesalahan saat menghapus role.',
+        });
       }
     } catch (error) {
       console.error('Failed to delete role:', error);
+      toast.error('Gagal menghapus role', {
+        description: 'Tidak dapat terhubung ke server.',
+      });
+    }
+  };
+
+  const handleReorderRole = async (roleId: string, direction: 'up' | 'down') => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/servers/${serverId}/roles/${roleId}/reorder`, {
+        method: 'PUT',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ direction }),
+      });
+      
+      if (res.ok) {
+        await fetchRoles();
+        toast.success('Urutan Jobdesk diperbarui');
+      } else {
+        const error = await res.json();
+        toast.error('Gagal mengubah urutan', {
+          description: error.error || 'Terjadi kesalahan.',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to reorder role:', error);
+      toast.error('Gagal mengubah urutan');
     }
   };
 
@@ -208,9 +271,16 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       
       if (res.ok) {
         await fetchMembers();
+        toast.success('Member ditambahkan ke role');
+      } else {
+        const error = await res.json();
+        toast.error('Gagal menambahkan member', {
+          description: error.error || 'Terjadi kesalahan.',
+        });
       }
     } catch (error) {
       console.error('Failed to assign role:', error);
+      toast.error('Gagal menambahkan member');
     }
   };
 
@@ -219,20 +289,26 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/role`, {
-        method: 'PUT',
+      // Use DELETE endpoint to remove specific role
+      const res = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/roles/${editingRole.id}`, {
+        method: 'DELETE',
         headers: { 
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ role: 'member' }),
       });
       
       if (res.ok) {
         await fetchMembers();
+        toast.success('Member dihapus dari jobdesk');
+      } else {
+        const error = await res.json();
+        toast.error('Gagal menghapus member', {
+          description: error.error || 'Terjadi kesalahan.',
+        });
       }
     } catch (error) {
       console.error('Failed to remove role:', error);
+      toast.error('Gagal menghapus member');
     }
   };
 
@@ -251,11 +327,19 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
   );
 
   const getMembersWithRole = (roleId: string) => {
-    return members.filter(m => m.role_id === roleId);
+    // Check in roles array (multiple roles support) or legacy role_id
+    return members.filter(m => 
+      (m.roles && m.roles.some((r: any) => r.id === roleId)) || 
+      m.role_id === roleId
+    );
   };
 
   const getMembersWithoutRole = (roleId: string) => {
-    return members.filter(m => m.role_id !== roleId);
+    // Member doesn't have this role if not in roles array and not legacy role_id
+    return members.filter(m => 
+      !(m.roles && m.roles.some((r: any) => r.id === roleId)) && 
+      m.role_id !== roleId
+    );
   };
 
   if (isLoading) {
@@ -276,7 +360,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
 
     return (
       <div className="flex h-full">
-        {/* Left Sidebar - Role List */}
+        {/* Left Sidebar - Jobdesk List */}
         <div className="w-60 bg-[#2b2d31] border-r border-[#1f2023] flex flex-col">
           <button
             onClick={() => setEditingRole(null)}
@@ -330,7 +414,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
           {/* Header */}
           <div className="h-14 border-b border-[#1f2023] flex items-center justify-between px-6">
             <h2 className="text-white font-semibold flex items-center gap-2">
-              Edit Role — {editingRole.name}
+              Edit Jobdesk — {editingRole.name}
             </h2>
             <div className="flex items-center gap-2">
               {!editingRole.is_default && (
@@ -341,7 +425,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Role
+                  Hapus Jobdesk
                 </Button>
               )}
               <Button
@@ -378,7 +462,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               <div className="max-w-xl space-y-6">
                 <div>
                   <label className="block text-[#dbdee1] text-xs font-bold uppercase mb-2">
-                    Role Name
+                    Nama Jobdesk
                   </label>
                   <Input
                     value={editingRole.name}
@@ -389,7 +473,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
 
                 <div>
                   <label className="block text-[#dbdee1] text-xs font-bold uppercase mb-2">
-                    Role Color
+                    Warna Jobdesk
                   </label>
                   <div className="grid grid-cols-10 gap-2">
                     {DEFAULT_COLORS.map(color => (
@@ -459,8 +543,8 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               <div className="max-w-2xl">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-white font-semibold">Manage Members ({membersWithRole.length})</h3>
-                    <p className="text-[#949ba4] text-sm">Members with this role</p>
+                    <h3 className="text-white font-semibold">Kelola Anggota ({membersWithRole.length})</h3>
+                    <p className="text-[#949ba4] text-sm">Anggota dengan Jobdesk ini</p>
                   </div>
                   <Button
                     onClick={() => {
@@ -471,7 +555,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                     className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Add Members
+                    Tambah Anggota
                   </Button>
                 </div>
 
@@ -481,7 +565,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                       key={member.id}
                       className="flex items-center justify-between p-3 bg-[#2b2d31] rounded-lg group"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <img
                           src={member.avatar 
                             ? (member.avatar.startsWith('http') ? member.avatar : `${BASE_URL}${member.avatar}`)
@@ -489,19 +573,36 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                           alt={member.username}
                           className="w-8 h-8 rounded-full"
                         />
-                        <div>
-                          <div className="text-white font-medium flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-white font-medium flex items-center gap-2 flex-wrap">
                             {member.displayName || member.username}
                             {member.role === 'owner' && <Crown className="w-4 h-4 text-[#ffd700]" />}
                             {member.role === 'admin' && <ShieldCheck className="w-4 h-4 text-[#ed4245]" />}
                           </div>
                           <div className="text-[#949ba4] text-sm">{member.username}</div>
+                          {/* Display all roles as badges */}
+                          {member.roles && member.roles.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {member.roles.map((role: any) => (
+                                <span
+                                  key={role.id}
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                                  style={{ 
+                                    backgroundColor: `${role.color}30`,
+                                    color: role.color 
+                                  }}
+                                >
+                                  {role.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <button
                         onClick={() => handleRemoveRole(member.id)}
-                        className="p-2 hover:bg-[#ed4245]/10 rounded text-[#949ba4] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-all"
-                        title="Remove from role"
+                        className="p-2 hover:bg-[#ed4245]/10 rounded text-[#949ba4] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                        title={`Hapus dari Jobdesk ${editingRole.name}`}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -511,7 +612,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   {membersWithRole.length === 0 && (
                     <div className="text-center py-8 text-[#949ba4]">
                       <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No members have this role yet.</p>
+                      <p>Belum ada anggota dengan Jobdesk ini.</p>
                       <Button
                         onClick={() => {
                           setShowAddMembersModal(true);
@@ -521,7 +622,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                         variant="ghost"
                         className="mt-2 text-[#00d4ff] hover:text-[#00b8db]"
                       >
-                        Add members
+                        Tambah anggota
                       </Button>
                     </div>
                   )}
@@ -531,13 +632,13 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
           </div>
         </div>
 
-        {/* Add Members Modal */}
+        {/* Tambah Anggota Modal */}
         <Dialog open={showAddMembersModal} onOpenChange={setShowAddMembersModal}>
           <DialogContent className="bg-[#313338] border-[#1f2023] text-white max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-white">Add members</DialogTitle>
+              <DialogTitle className="text-white">Tambah anggota</DialogTitle>
               <p className="text-[#949ba4] text-sm">
-                Select up to 30 members to add to role <span style={{ color: editingRole.color }}>{editingRole.name}</span>
+                Pilih maksimal 30 anggota untuk ditambahkan ke Jobdesk <span style={{ color: editingRole.color }}>{editingRole.name}</span>
               </p>
             </DialogHeader>
             
@@ -552,7 +653,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-1">
-              <div className="text-xs font-bold text-[#949ba4] uppercase px-2 py-1">Members</div>
+              <div className="text-xs font-bold text-[#949ba4] uppercase px-2 py-1">Anggota</div>
               {filteredAvailableMembers.map(member => (
                 <label
                   key={member.id}
@@ -590,7 +691,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               
               {filteredAvailableMembers.length === 0 && (
                 <div className="text-center py-4 text-[#949ba4] text-sm">
-                  No members available to add
+                  Tidak ada anggota yang tersedia untuk ditambahkan
                 </div>
               )}
             </div>
@@ -604,7 +705,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                 }}
                 className="text-[#b5bac1] hover:text-white"
               >
-                Cancel
+                Batal
               </Button>
               <Button
                 onClick={async () => {
@@ -617,7 +718,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                 disabled={selectedMembers.length === 0}
                 className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
               >
-                Add {selectedMembers.length > 0 && `(${selectedMembers.length})`}
+                Tambah {selectedMembers.length > 0 && `(${selectedMembers.length})`}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -627,10 +728,10 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         <AlertDialog open={!!roleToDelete} onOpenChange={() => setRoleToDelete(null)}>
           <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-white">Delete Role</AlertDialogTitle>
+              <AlertDialogTitle className="text-white">Hapus Jobdesk</AlertDialogTitle>
               <AlertDialogDescription className="text-[#a0a0b0]">
-                Are you sure you want to delete <span style={{ color: roleToDelete?.color }}>{roleToDelete?.name}</span>? 
-                This action cannot be undone.
+                Apakah Anda yakin ingin menghapus <span style={{ color: roleToDelete?.color }}>{roleToDelete?.name}</span>? 
+                Tindakan ini tidak dapat dibatalkan.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -638,13 +739,13 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                 className="bg-[#2a2b3d] text-white border-[#40444b] hover:bg-[#35373c]"
                 onClick={() => setRoleToDelete(null)}
               >
-                Cancel
+                Batal
               </AlertDialogCancel>
               <AlertDialogAction
                 className="bg-[#ed4245] text-white hover:bg-[#c0392b]"
                 onClick={handleDeleteRole}
               >
-                Delete Role
+                Hapus Jobdesk
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -659,7 +760,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       {/* Header */}
       <div className="mb-6">
         <p className="text-[#949ba4] text-sm">
-          Use roles to group your server members and assign permissions.
+          Gunakan Jobdesk untuk mengelompokkan anggota server dan menetapkan izin.
         </p>
       </div>
 
@@ -677,7 +778,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
           </div>
           <div>
             <h3 className="text-white font-medium">Default Permissions</h3>
-            <p className="text-[#949ba4] text-sm">@everyone • applies to all server members</p>
+            <p className="text-[#949ba4] text-sm">@everyone • berlaku untuk semua anggota server</p>
           </div>
         </div>
         <ChevronLeft className="w-5 h-5 text-[#949ba4] rotate-180" />
@@ -695,7 +796,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#949ba4]" />
           <Input
-            placeholder="Search Roles"
+            placeholder="Cari Jobdesk"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 bg-[#1e1f22] border-[#1f2023] text-white"
@@ -707,25 +808,25 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
             className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Create Role
+            Buat Jobdesk
           </Button>
         )}
       </div>
 
       {/* Info Text */}
       <p className="text-[#949ba4] text-sm mb-4">
-        Members use the color of the highest role they have on this list. Drag roles to reorder them.{` `}
-        <a href="#" className="text-[#00d4ff] hover:underline">Need help with permissions?</a>
+        Anggota menggunakan warna dari Jobdesk tertinggi yang mereka miliki di daftar ini. Seret Jobdesk untuk mengurutkannya.{` `}
+        <a href="#" className="text-[#00d4ff] hover:underline">Butuh bantuan dengan izin?</a>
       </p>
 
-      {/* Roles Table Header */}
+      {/* Jobdesk Table Header */}
       <div className="flex items-center px-4 py-2 text-xs font-bold text-[#949ba4] uppercase border-b border-[#1f2023]">
-        <span className="flex-1">Roles — {filteredRoles.filter(r => !r.is_default).length}</span>
-        <span className="w-48 text-right pr-4">Members</span>
+        <span className="flex-1">Jobdesk — {filteredRoles.filter(r => !r.is_default).length}</span>
+        <span className="w-48 text-right pr-4">Anggota</span>
         <span className="w-32"></span>
       </div>
 
-      {/* Roles List */}
+      {/* Jobdesk List */}
       <div className="space-y-1">
         {filteredRoles.filter(r => !r.is_default).map(role => (
           <div 
@@ -742,7 +843,27 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               <span className="text-white font-medium">{role.name}</span>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {/* Reorder buttons - show for all roles */}
+              {isOwner && (
+                <div className="flex items-center gap-1 mr-2 bg-[#1e1f22] rounded p-1">
+                  <button
+                    onClick={() => handleReorderRole(role.id, 'up')}
+                    className="p-1.5 bg-[#2b2d31] hover:bg-[#404249] rounded text-[#b5bac1] hover:text-white border border-[#404249]"
+                    title="Naik"
+                  >
+                    <ArrowUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => handleReorderRole(role.id, 'down')}
+                    className="p-1.5 bg-[#2b2d31] hover:bg-[#404249] rounded text-[#b5bac1] hover:text-white border border-[#404249]"
+                    title="Turun"
+                  >
+                    <ArrowDown className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
               {/* Member count with icon */}
               <div className="text-[#949ba4] flex items-center gap-1">
                 <span>{getRoleMemberCount(role.id)}</span>
@@ -769,14 +890,16 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                 <Edit2 className="w-4 h-4" />
               </button>
               
-              {/* More/Delete button */}
-              <button
-                onClick={() => setRoleToDelete(role)}
-                className="p-2 hover:bg-[#ed4245]/10 rounded text-[#b5bac1] hover:text-[#ed4245]"
-                title="Delete"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
+              {/* More/Delete button - hide for default roles */}
+              {!role.is_default && (
+                <button
+                  onClick={() => setRoleToDelete(role)}
+                  className="p-2 hover:bg-[#ed4245]/10 rounded text-[#b5bac1] hover:text-[#ed4245]"
+                  title="Delete"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -785,33 +908,33 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       {filteredRoles.filter(r => !r.is_default).length === 0 && !isLoading && (
         <div className="text-center py-12 text-[#949ba4]">
           <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No roles found. Create one to get started!</p>
+          <p>Tidak ada Jobdesk. Buat Jobdesk untuk memulai!</p>
         </div>
       )}
 
-      {/* Create Role Modal */}
+      {/* Buat Jobdesk Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="bg-[#313338] border-[#1f2023] text-white">
           <DialogHeader>
-            <DialogTitle className="text-white">Create Role</DialogTitle>
+            <DialogTitle className="text-white">Buat Jobdesk</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
               <label className="block text-[#dbdee1] text-xs font-bold uppercase mb-2">
-                Role Name
+                Nama Jobdesk
               </label>
               <Input
                 value={newRoleName}
                 onChange={(e) => setNewRoleName(e.target.value)}
-                placeholder="New Role"
+                placeholder="Nama Jobdesk Baru"
                 className="bg-[#1e1f22] border-[#1f2023] text-white"
               />
             </div>
 
             <div>
               <label className="block text-[#dbdee1] text-xs font-bold uppercase mb-2">
-                Role Color
+                Warna Jobdesk
               </label>
               <div className="grid grid-cols-10 gap-2">
                 {DEFAULT_COLORS.map(color => (
@@ -838,14 +961,14 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               }}
               className="text-[#b5bac1] hover:text-white"
             >
-              Cancel
+              Batal
             </Button>
             <Button
               onClick={handleCreateRole}
               disabled={!newRoleName.trim()}
               className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
             >
-              Create Role
+              Buat Jobdesk
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -855,10 +978,10 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
       <AlertDialog open={!!roleToDelete} onOpenChange={() => setRoleToDelete(null)}>
         <AlertDialogContent className="bg-[#2b2d31] border-[#1e1f22] text-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Role</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Hapus Jobdesk</AlertDialogTitle>
             <AlertDialogDescription className="text-[#a0a0b0]">
-              Are you sure you want to delete <span style={{ color: roleToDelete?.color }}>{roleToDelete?.name}</span>? 
-              This action cannot be undone.
+              Apakah Anda yakin ingin menghapus <span style={{ color: roleToDelete?.color }}>{roleToDelete?.name}</span>? 
+              Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -866,13 +989,13 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               className="bg-[#2a2b3d] text-white border-[#40444b] hover:bg-[#35373c]"
               onClick={() => setRoleToDelete(null)}
             >
-              Cancel
+              Batal
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-[#ed4245] text-white hover:bg-[#c0392b]"
               onClick={handleDeleteRole}
             >
-              Delete Role
+              Hapus Jobdesk
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

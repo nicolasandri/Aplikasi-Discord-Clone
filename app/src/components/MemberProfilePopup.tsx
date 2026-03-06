@@ -24,8 +24,9 @@ const statusText = {
   offline: 'Offline',
 };
 
-export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, serverId: _serverId }: MemberProfilePopupProps) {
+export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, serverId }: MemberProfilePopupProps) {
   const [mounted, setMounted] = useState(false);
+  const [customRoles, setCustomRoles] = useState<Array<{ id: string; name: string; color: string; position: number }>>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,11 +35,31 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
       console.log('MemberProfilePopup - role_name:', member?.role_name);
       console.log('MemberProfilePopup - role:', member?.role);
       console.log('MemberProfilePopup - role_id:', member?.role_id);
+      
+      // Fetch custom roles for sorting
+      if (serverId) {
+        fetchCustomRoles(serverId);
+      }
     } else {
       const timer = setTimeout(() => setMounted(false), 200);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, member]);
+  }, [isOpen, member, serverId]);
+  
+  const fetchCustomRoles = async (sid: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3001/api/servers/${sid}/roles`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCustomRoles(data.filter((r: any) => !r.is_default));
+      }
+    } catch (e) {
+      console.error('Failed to fetch custom roles:', e);
+    }
+  };
 
   if (!mounted || !member) return null;
 
@@ -56,8 +77,17 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
     return `http://localhost:3001${member.avatar}`;
   };
 
-  // Get banner color based on role
+  // Get banner color based on highest role
   const getBannerColor = () => {
+    // Sort member roles by position and get highest
+    if (member.roles && member.roles.length > 0 && customRoles.length > 0) {
+      const sortedRoles = [...member.roles].sort((a, b) => {
+        const roleA = customRoles.find(cr => cr.id === a.id);
+        const roleB = customRoles.find(cr => cr.id === b.id);
+        return (roleB?.position || 0) - (roleA?.position || 0);
+      });
+      return sortedRoles[0]?.color || member.role_color || '#00d4ff';
+    }
     if (member.role_color) return member.role_color;
     if (member.role === 'owner') return '#ffd700';
     if (member.role === 'admin') return '#ed4245';
@@ -124,11 +154,11 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
 
         {/* Profile Info */}
         <div className="px-4 pb-4 pt-3">
-          {/* Username */}
+          {/* Username - use highest role color */}
           <div className="mb-1">
             <h2 
               className="text-xl font-extrabold text-white tracking-tight"
-              style={{ color: member.role_color || '#fff' }}
+              style={{ color: getBannerColor() }}
             >
               {displayName}
             </h2>
@@ -163,29 +193,57 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
             </div>
           </div>
 
-          {/* Role */}
+          {/* Jobdesk / Roles */}
           <div className="mb-4">
             <h3 className="text-xs font-semibold text-white uppercase tracking-wide mb-2">
-              Role
+              JOBDESK
             </h3>
-            <div 
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
-              style={{ 
-                backgroundColor: `${member.role_color || '#99aab5'}20`,
-                color: member.role_color || '#99aab5'
-              }}
-            >
+            
+            {/* Display all roles sorted by position */}
+            {member.roles && member.roles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {[...member.roles].sort((a, b) => {
+                  const roleA = customRoles.find(cr => cr.id === a.id);
+                  const roleB = customRoles.find(cr => cr.id === b.id);
+                  return (roleB?.position || 0) - (roleA?.position || 0);
+                }).map((role: any) => (
+                  <div 
+                    key={role.id}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+                    style={{ 
+                      backgroundColor: `${role.color || '#99aab5'}20`,
+                      color: role.color || '#99aab5'
+                    }}
+                  >
+                    <div 
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: role.color || '#99aab5' }}
+                    />
+                    {role.name}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Fallback to single role display */
               <div 
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: member.role_color || '#99aab5' }}
-              />
-              {(member.role_name && member.role_name.trim() !== '') ? member.role_name : 
-               (member.role === 'owner' ? 'Owner' : 
-                member.role === 'admin' ? 'Admin' : 
-                member.role === 'moderator' ? 'Moderator' : 
-                member.role === 'custom' ? 'Custom Role' : 
-                'Member')}
-            </div>
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+                style={{ 
+                  backgroundColor: `${member.role_color || '#99aab5'}20`,
+                  color: member.role_color || '#99aab5'
+                }}
+              >
+                <div 
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: member.role_color || '#99aab5' }}
+                />
+                {(member.role_name && member.role_name.trim() !== '') ? member.role_name : 
+                 (member.role === 'owner' ? 'Owner' : 
+                  member.role === 'admin' ? 'Admin' : 
+                  member.role === 'moderator' ? 'Moderator' : 
+                  member.role === 'custom' ? 'Custom Role' : 
+                  'Member')}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

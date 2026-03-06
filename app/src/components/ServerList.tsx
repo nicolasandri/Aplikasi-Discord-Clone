@@ -11,6 +11,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { Server } from '@/types';
 
 // Detect if running in Electron
@@ -67,73 +73,76 @@ function ServerIconButton({
   const hasUnread = unreadCount && unreadCount > 0;
   
   return (
-    <button
-      onClick={onClick}
-      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative group ${
-        isSelected
-          ? 'bg-[#00d4ff]'
-          : 'bg-[#0d0d14] hover:bg-[#00d4ff]'
-      }`}
-      style={{ 
-        overflow: 'hidden',
-        borderRadius: '50%',
-        flexShrink: 0
-      }}
-    >
-      {iconUrl && !imgError ? (
-        <div 
-          className="absolute inset-0 w-full h-full"
-          style={{ 
-            borderRadius: '50%',
-            overflow: 'hidden'
-          }}
-        >
-          <img 
-            src={iconUrl} 
-            alt={server.name} 
-            className="w-full h-full"
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onClick}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative ${
+              isSelected
+                ? 'bg-[#00d4ff]'
+                : 'bg-[#0d0d14] hover:bg-[#00d4ff]'
+            }`}
             style={{ 
-              objectFit: 'cover',
-              width: '100%',
-              height: '100%',
-              display: 'block'
+              borderRadius: '50%',
+              flexShrink: 0
             }}
-            onError={() => setImgError(true)}
-          />
-        </div>
-      ) : (
-        <span className="text-xl font-bold text-white relative z-10">{initial}</span>
-      )}
-      
-      {/* Selected indicator */}
-      {isSelected && (
-        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full z-20" />
-      )}
-      
-      {/* Unread indicator (white dot) */}
-      {!isSelected && hasUnread && (
-        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full z-20" />
-      )}
-      
-      {/* Hover indicator */}
-      {!isSelected && !hasUnread && (
-        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity z-20" />
-      )}
+          >
+            {iconUrl && !imgError ? (
+              <div 
+                className="absolute inset-0 w-full h-full"
+                style={{ 
+                  borderRadius: '50%',
+                  overflow: 'hidden'
+                }}
+              >
+                <img 
+                  src={iconUrl} 
+                  alt={server.name} 
+                  className="w-full h-full"
+                  style={{ 
+                    objectFit: 'cover',
+                    width: '100%',
+                    height: '100%',
+                    display: 'block'
+                  }}
+                  onError={() => setImgError(true)}
+                />
+              </div>
+            ) : (
+              <span className="text-xl font-bold text-white relative z-10">{initial}</span>
+            )}
+            
+            {/* Selected indicator */}
+            {isSelected && (
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full z-20" />
+            )}
+            
+            {/* Unread indicator (white dot) */}
+            {!isSelected && hasUnread && (
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full z-20" />
+            )}
+            
+            {/* Hover indicator */}
+            {!isSelected && !hasUnread && (
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-2 bg-white rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity z-20" />
+            )}
 
-      {/* Unread badge */}
-      {hasUnread && (
-        <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#08080c] z-20 ${
-          hasMention ? 'bg-[#ed4245] text-white' : 'bg-[#b9bbbe] text-[#2f3136]'
-        }`}>
-          {unreadCount > 99 ? '99+' : unreadCount}
-        </div>
-      )}
-
-      {/* Tooltip */}
-      <div className="absolute left-16 bg-[#0d0d14] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-        {server.name}
-      </div>
-    </button>
+            {/* Unread badge */}
+            {hasUnread && (
+              <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#08080c] z-20 ${
+                hasMention ? 'bg-[#ed4245] text-white' : 'bg-[#b9bbbe] text-[#2f3136]'
+              }`}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </div>
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={12}>
+          <p className="font-semibold">{server.name}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -387,42 +396,46 @@ export function ServerList({
       {/* Scrollable Server Area */}
       <div className="flex-1 flex flex-col items-center py-3 gap-2 overflow-y-auto min-h-0">
         {/* Direct Messages / Friends Button */}
-      <div className="relative group">
-        <button
-          onClick={handleDMClick}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
-            isFriendsOpen || selectedServerId === 'home'
-              ? 'bg-[#00d4ff] rounded-2xl'
-              : 'bg-[#0d0d14] hover:bg-[#00d4ff] hover:rounded-2xl'
-          }`}
-        >
-          <MessageCircle className="w-6 h-6 text-white" />
-        </button>
-        
-        {/* Selected indicator */}
-        {(isFriendsOpen || selectedServerId === 'home') && (
-          <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
-        )}
-        
-        {/* Unread badge */}
-        {pendingCount > 0 && (
-          <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
-            {pendingCount > 9 ? '9+' : pendingCount}
-          </Badge>
-        )}
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="relative">
+              <button
+                onClick={handleDMClick}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
+                  isFriendsOpen || selectedServerId === 'home'
+                    ? 'bg-[#00d4ff] rounded-2xl'
+                    : 'bg-[#0d0d14] hover:bg-[#00d4ff] hover:rounded-2xl'
+                }`}
+              >
+                <MessageCircle className="w-6 h-6 text-white" />
+              </button>
+              
+              {/* Selected indicator */}
+              {(isFriendsOpen || selectedServerId === 'home') && (
+                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
+              )}
+              
+              {/* Unread badge */}
+              {pendingCount > 0 && (
+                <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </Badge>
+              )}
 
-        {/* Online friend count badge */}
-        {onlineFriendCount > 0 && pendingCount === 0 && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00d4ff] rounded-full border-2 border-[#08080c] flex items-center justify-center">
-            <span className="text-[8px] text-white font-bold">{onlineFriendCount > 9 ? '9+' : onlineFriendCount}</span>
-          </div>
-        )}
-        
-        {/* Tooltip */}
-        <div className="absolute left-16 bg-[#0d0d14] text-white text-sm px-3 py-2 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-          Direct Messages {pendingCount > 0 && `(${pendingCount} pending)`}
-        </div>
-      </div>
+              {/* Online friend count badge */}
+              {onlineFriendCount > 0 && pendingCount === 0 && (
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00d4ff] rounded-full border-2 border-[#08080c] flex items-center justify-center">
+                  <span className="text-[8px] text-white font-bold">{onlineFriendCount > 9 ? '9+' : onlineFriendCount}</span>
+                </div>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12}>
+            <p className="font-semibold">Pesan Langsung {pendingCount > 0 && `(${pendingCount})`}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <div className="w-8 h-[2px] bg-[#0d0d14] rounded-full my-1" />
 
@@ -445,13 +458,22 @@ export function ServerList({
         );
       })}
 
-      {/* Add Server Button -->
+      {/* Add Server Button */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogTrigger asChild>
-          <button className="w-12 h-12 rounded-full bg-[#0d0d14] hover:bg-[#00d4ff] flex items-center justify-center transition-all duration-200 group mt-2">
-            <Plus className="w-6 h-6 text-[#00d4ff] group-hover:text-white transition-colors" />
-          </button>
-        </DialogTrigger>
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <button className="w-12 h-12 rounded-full bg-[#0d0d14] hover:bg-[#00d4ff] flex items-center justify-center transition-all duration-200 mt-2 relative">
+                  <Plus className="w-6 h-6 text-[#00d4ff] group-hover:text-white transition-colors" />
+                </button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={12}>
+              <p className="font-semibold">Tambah Server</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <DialogContent className="bg-[#0d0d14] border-[#08080c] text-white">
           <DialogHeader>
             <DialogTitle className="text-xl">Buat Server Baru</DialogTitle>

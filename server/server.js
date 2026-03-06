@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const multer = require('multer');
@@ -10,6 +11,7 @@ const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
+const cheerio = require('cheerio');
 
 // Set timezone to Asia/Jakarta (WIB) for all date operations
 process.env.TZ = 'Asia/Jakarta';
@@ -907,7 +909,7 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
   console.log('[PUT /api/servers/:serverId] Called with serverId:', req.params.serverId);
   try {
     const { serverId } = req.params;
-    const { name, icon, description } = req.body;
+    const { name, icon, description, banner } = req.body;
     const userId = req.userId;
     
     // Check if server exists
@@ -934,6 +936,7 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
     if (name !== undefined) updates.name = name;
     if (icon !== undefined) updates.icon = icon;
     if (description !== undefined) updates.description = description;
+    if (banner !== undefined) updates.banner = banner;
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -1312,7 +1315,7 @@ app.put('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req, r
   try {
     const { serverId, roleId } = req.params;
     const userId = req.userId;
-    const { name, color } = req.body;
+    const { name, color, permissions } = req.body;
     
     // Check permissions (Manage Roles)
     const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
@@ -1334,6 +1337,7 @@ app.put('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req, r
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (color !== undefined) updates.color = color;
+    if (permissions !== undefined) updates.permissions = permissions;
     
     await roleDB.updateRole(roleId, updates);
     
@@ -1359,12 +1363,14 @@ app.delete('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req
     
     // Check if role exists and belongs to this server
     const role = await roleDB.getRoleById(roleId);
+    console.log('[Delete Role] role:', role);
     if (!role || role.server_id !== serverId) {
       return res.status(404).json({ error: 'Role not found' });
     }
     
     // Cannot delete default role
-    if (role.is_default) {
+    console.log('[Delete Role] is_default:', role.is_default, typeof role.is_default);
+    if (role.is_default === 1 || role.is_default === true) {
       return res.status(403).json({ error: 'Cannot delete default role' });
     }
     
@@ -1373,6 +1379,65 @@ app.delete('/api/servers/:serverId/roles/:roleId', authenticateToken, async (req
   } catch (error) {
     console.error('Delete role error:', error);
     res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
+// Reorder a role (move up or down)
+app.put('/api/servers/:serverId/roles/:roleId/reorder', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const { direction } = req.body;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Check if role exists and belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Allow reordering all roles (including default)
+    const allRoles = await roleDB.getServerRoles(serverId);
+    const customRoles = allRoles.sort((a, b) => b.position - a.position);
+    
+    const currentIndex = customRoles.findIndex(r => r.id === roleId);
+    if (currentIndex === -1) {
+      return res.status(404).json({ error: 'Role not found in server' });
+    }
+    
+    // Calculate new position
+    let newPosition;
+    if (direction === 'up') {
+      // Move up = higher position
+      if (currentIndex === 0) {
+        return res.status(400).json({ error: 'Role is already at the top' });
+      }
+      const roleAbove = customRoles[currentIndex - 1];
+      newPosition = roleAbove.position + 1;
+    } else {
+      // Move down = lower position
+      if (currentIndex === customRoles.length - 1) {
+        return res.status(400).json({ error: 'Role is already at the bottom' });
+      }
+      const roleBelow = customRoles[currentIndex + 1];
+      newPosition = roleBelow.position - 1;
+    }
+    
+    // Update role position
+    await roleDB.updateRole(roleId, { position: newPosition });
+    
+    // Normalize positions to ensure they're sequential
+    await roleDB.normalizeRolePositions(serverId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reorder role error:', error);
+    res.status(500).json({ error: 'Failed to reorder role' });
   }
 });
 
@@ -1406,6 +1471,28 @@ app.put('/api/servers/:serverId/members/:userId/custom-role', authenticateToken,
   } catch (error) {
     console.error('Assign role error:', error);
     res.status(500).json({ error: 'Failed to assign role' });
+  }
+});
+
+// Remove member from a specific role
+app.delete('/api/servers/:serverId/members/:userId/roles/:roleId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId, roleId } = req.params;
+    const requesterId = req.userId;
+    
+    // Check if requester has permission to manage roles
+    const hasPermission = await permissionDB.hasPermission(requesterId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Remove specific role from member
+    await roleDB.removeMemberRole(serverId, userId, roleId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove member role error:', error);
+    res.status(500).json({ error: 'Failed to remove member role' });
   }
 });
 
@@ -1537,8 +1624,14 @@ app.post('/api/messages/:messageId/pin', authenticateToken, async (req, res) => 
       return res.status(404).json({ error: 'Message not found' });
     }
     
+    // Get server_id from message (messageDB.getById returns server_id from channels table)
+    const serverId = message.server_id;
+    if (!serverId) {
+      return res.status(400).json({ error: 'Cannot determine server for this message' });
+    }
+    
     // Check user permissions (must have manage_messages permission)
-    const hasPermission = await checkPermission(userId, message.channel_id, PERMISSIONS.MANAGE_MESSAGES);
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_MESSAGES);
     if (!hasPermission) {
       return res.status(403).json({ error: 'You do not have permission to pin messages' });
     }
@@ -1572,8 +1665,14 @@ app.post('/api/messages/:messageId/unpin', authenticateToken, async (req, res) =
       return res.status(404).json({ error: 'Message not found' });
     }
     
+    // Get server_id from message
+    const serverId = message.server_id;
+    if (!serverId) {
+      return res.status(400).json({ error: 'Cannot determine server for this message' });
+    }
+    
     // Check user permissions (must have manage_messages permission)
-    const hasPermission = await checkPermission(userId, message.channel_id, PERMISSIONS.MANAGE_MESSAGES);
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_MESSAGES);
     if (!hasPermission) {
       return res.status(403).json({ error: 'You do not have permission to unpin messages' });
     }
@@ -2267,7 +2366,9 @@ app.get('/api/channels/:channelId', authenticateToken, async (req, res) => {
 app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res) => {
   try {
     const { channelId } = req.params;
-    const { content, replyToId, attachments } = req.body;
+    const { content, replyToId, attachments, forwardedFrom } = req.body;
+    
+    console.log('📥 Server: Send channel message - channelId:', channelId, 'userId:', req.userId);
     
     // Get channel to verify access
     const channel = await channelDB.getById(channelId);
@@ -2284,10 +2385,12 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     }
     
     // Create message
-    const message = await messageDB.create(channelId, req.userId, content, replyToId, attachments);
+    const message = await messageDB.create(channelId, req.userId, content, replyToId, attachments, 'user', forwardedFrom);
     
+    console.log('📤 Server: Broadcasting new_message to channel:', channelId);
     // Emit socket event
     io.to(channelId).emit('new_message', message);
+    console.log('📤 Server: new_message broadcasted to', channelId);
     
     // Send mention notifications (async, don't block response)
     const sender = await userDB.findById(req.userId);
@@ -2520,6 +2623,23 @@ app.post('/api/channels/:channelId/read', authenticateToken, async (req, res) =>
   } catch (error) {
     console.error('Mark channel as read error:', error);
     res.status(500).json({ error: 'Failed to mark as read' });
+  }
+});
+
+// Get last read message for a channel
+app.get('/api/channels/:channelId/read', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { channelId } = req.params;
+    
+    const readStatus = await messageDB.getReadStatus(userId, channelId);
+    res.json({ 
+      lastReadMessageId: readStatus?.last_read_message_id || null,
+      lastReadAt: readStatus?.last_read_at || null
+    });
+  } catch (error) {
+    console.error('Get read status error:', error);
+    res.status(500).json({ error: 'Failed to get read status' });
   }
 });
 
@@ -3055,6 +3175,149 @@ app.delete('/api/devices/others', authenticateToken, async (req, res) => {
   }
 });
 
+// Link Preview / Embed Endpoint
+app.get('/api/link-preview', authenticateToken, async (req, res) => {
+  try {
+    const { url } = req.query;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    // Validate URL format
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return res.status(400).json({ error: 'Invalid URL protocol' });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+    
+    // Fetch the webpage
+    const fetchHtml = (url) => {
+      return new Promise((resolve, reject) => {
+        const client = url.startsWith('https:') ? https : http;
+        const request = client.get(url, {
+          timeout: 5000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          }
+        }, (response) => {
+          // Handle redirects
+          if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
+            const redirectUrl = response.headers.location;
+            if (redirectUrl) {
+              const absoluteUrl = redirectUrl.startsWith('http') 
+                ? redirectUrl 
+                : new URL(redirectUrl, url).href;
+              resolve(fetchHtml(absoluteUrl));
+              return;
+            }
+          }
+          
+          if (response.statusCode !== 200) {
+            reject(new Error(`HTTP ${response.statusCode}`));
+            return;
+          }
+          
+          let data = '';
+          response.on('data', chunk => data += chunk);
+          response.on('end', () => resolve(data));
+        });
+        
+        request.on('error', reject);
+        request.on('timeout', () => {
+          request.destroy();
+          reject(new Error('Request timeout'));
+        });
+      });
+    };
+    
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+    
+    // Extract Open Graph metadata
+    const getMeta = (property) => {
+      // Try Open Graph first
+      let value = $(`meta[property="og:${property}"]`).attr('content');
+      if (!value) {
+        value = $(`meta[name="og:${property}"]`).attr('content');
+      }
+      // Fallback to standard meta tags
+      if (!value) {
+        if (property === 'title') {
+          value = $('title').text() || $('h1').first().text();
+        } else if (property === 'description') {
+          value = $(`meta[name="description"]`).attr('content');
+        } else if (property === 'image') {
+          // Try common image meta tags
+          value = $(`meta[name="twitter:image"]`).attr('content') ||
+                  $(`meta[name="twitter:image:src"]`).attr('content');
+        } else if (property === 'site_name') {
+          value = $(`meta[property="og:site_name"]`).attr('content') ||
+                  parsedUrl.hostname.replace(/^www\./, '');
+        }
+      }
+      return value || null;
+    };
+    
+    const metadata = {
+      url: url,
+      title: getMeta('title') || parsedUrl.hostname,
+      description: getMeta('description'),
+      image: getMeta('image'),
+      siteName: getMeta('site_name') || parsedUrl.hostname.replace(/^www\./, ''),
+      favicon: null,
+      color: $(`meta[name="theme-color"]`).attr('content') || 
+             $(`meta[property="og:color"]`).attr('content') || 
+             null
+    };
+    
+    // Try to find favicon
+    const faviconPath = $('link[rel="icon"]').attr('href') ||
+                       $('link[rel="shortcut icon"]').attr('href') ||
+                       $('link[rel="apple-touch-icon"]').attr('href');
+    
+    if (faviconPath) {
+      metadata.favicon = faviconPath.startsWith('http') 
+        ? faviconPath 
+        : new URL(faviconPath, url).href;
+    } else {
+      metadata.favicon = `${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`;
+    }
+    
+    // Make image URL absolute
+    if (metadata.image && !metadata.image.startsWith('http')) {
+      metadata.image = new URL(metadata.image, url).href;
+    }
+    
+    res.json(metadata);
+    
+  } catch (error) {
+    console.error('Link preview error:', error.message);
+    // Return basic info even if fetch fails
+    try {
+      const parsedUrl = new URL(req.query.url);
+      res.json({
+        url: req.query.url,
+        title: parsedUrl.hostname,
+        description: null,
+        image: null,
+        siteName: parsedUrl.hostname.replace(/^www\./, ''),
+        favicon: `${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`,
+        color: null,
+        error: 'Failed to fetch preview'
+      });
+    } catch {
+      res.status(500).json({ error: 'Failed to fetch link preview' });
+    }
+  }
+});
+
 // Helper function to get user socket
 function getUserSocket(userId) {
   return Array.from(io.sockets.sockets.values()).find(s => s.userId === userId);
@@ -3230,7 +3493,7 @@ io.on('connection', (socket) => {
   socket.on('join_channel', (channelId) => {
     if (!socket.userId) return;
     socket.join(channelId);
-    log('📥 User joined channel room:', socket.userId, 'Channel:', channelId);
+    console.log('📥 Server: User joined channel room:', socket.userId, 'Channel:', channelId);
   });
 
   // Handle leave channel
@@ -3242,7 +3505,10 @@ io.on('connection', (socket) => {
 
   // Handle send message
   socket.on('send_message', async (data) => {
+    console.log('📥 Server: send_message received from user:', socket.userId, 'Data:', data?.channelId, data?.content?.substring(0, 30));
+    
     if (!socket.userId) {
+      console.log('❌ Server: send_message rejected - not authenticated');
       socket.emit('message_error', { error: 'Not authenticated' });
       return;
     }
@@ -3280,7 +3546,9 @@ io.on('connection', (socket) => {
       const message = await messageDB.create(channelId, socket.userId, content, replyToId, attachments);
       
       // Broadcast to all users in channel
+      console.log('📤 Server: Broadcasting new_message to channel:', channelId, 'Message:', message.id);
       io.to(channelId).emit('new_message', message);
+      console.log('📤 Server: new_message broadcasted');
       
     } catch (error) {
       console.error('Send message error:', error);

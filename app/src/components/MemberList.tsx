@@ -236,7 +236,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       if (response.ok) {
         toast({
           title: 'Berhasil',
-          description: `Role berhasil diubah`,
+          description: `Jobdesk berhasil diubah`,
         });
         fetchMembers();
       } else {
@@ -273,7 +273,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       if (response.ok) {
         toast({
           title: 'Berhasil',
-          description: `Role "${roleName}" berhasil diassign`,
+          description: `Jobdesk "${roleName}" berhasil diassign`,
         });
         fetchMembers();
       } else {
@@ -368,9 +368,28 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     }
   };
 
-  // Get display role for member
+  // Get display role for member - use highest position role color
   const getMemberDisplay = (member: ServerMember) => {
-    // If member has a custom role with name
+    // If member has multiple roles, use the highest position one (first in sorted array)
+    if (member.roles && member.roles.length > 0) {
+      console.log('[getMemberDisplay] member:', member.username, 'roles:', member.roles, 'sortedRoles:', sortedRoles.map(r => ({ id: r.id, name: r.name, position: r.position })));
+      // Sort by position (highest first)
+      const sortedMemberRoles = [...member.roles].sort((a, b) => {
+        const roleA = sortedRoles.find(sr => sr.id === a.id);
+        const roleB = sortedRoles.find(sr => sr.id === b.id);
+        console.log('[getMemberDisplay] comparing:', a.name, 'position:', roleA?.position, 'vs', b.name, 'position:', roleB?.position);
+        return (roleB?.position || 0) - (roleA?.position || 0);
+      });
+      const highestRole = sortedMemberRoles[0];
+      console.log('[getMemberDisplay] highestRole:', highestRole.name, 'color:', highestRole.color);
+      return {
+        name: highestRole.name,
+        color: highestRole.color || '#99aab5',
+        isCustom: true,
+      };
+    }
+    
+    // If member has a custom role with name (legacy)
     if (member.role_name) {
       return {
         name: member.role_name,
@@ -408,56 +427,98 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
   const onlineMembers = membersWithLiveStatus.filter(m => m.status && m.status !== 'offline');
   const offlineMembers = membersWithLiveStatus.filter(m => !m.status || m.status === 'offline');
   
-  // Build role groups for online members
-  const onlineRoleGroups: { roleName: string; roleColor: string; members: ServerMember[] }[] = [];
+  // Helper function to get member's role combination
+  const getMemberRoleCombination = (member: ServerMember) => {
+    const roles: Array<{ name: string; color: string; position: number }> = [];
+    
+    // Add owner/admin/moderator as special roles
+    if (member.role === 'owner') {
+      roles.push({ name: 'Owner', color: '#ffd700', position: 9999 });
+    } else if (member.role === 'admin') {
+      roles.push({ name: 'Admin', color: '#ed4245', position: 100 });
+    } else if (member.role === 'moderator') {
+      roles.push({ name: 'Moderator', color: '#43b581', position: 50 });
+    }
+    
+    // Add custom roles from roles array
+    if (member.roles && member.roles.length > 0) {
+      member.roles.forEach(r => {
+        const roleInfo = sortedRoles.find(sr => sr.id === r.id);
+        roles.push({
+          name: r.name,
+          color: r.color,
+          position: roleInfo?.position || 0
+        });
+      });
+    } else if (member.role_id) {
+      // Legacy single role
+      const roleInfo = sortedRoles.find(sr => sr.id === member.role_id);
+      if (roleInfo) {
+        roles.push({
+          name: roleInfo.name,
+          color: roleInfo.color,
+          position: roleInfo.position
+        });
+      }
+    }
+    
+    // If no roles, add Member
+    if (roles.length === 0) {
+      roles.push({ name: 'Member', color: '#99aab5', position: 0 });
+    }
+    
+    // Sort by position (highest first)
+    roles.sort((a, b) => b.position - a.position);
+    
+    return roles;
+  };
   
-  // Owner first
-  const onlineOwners = onlineMembers.filter(m => m.role === 'owner');
-  onlineRoleGroups.push({ 
-    roleName: 'Owner', 
-    roleColor: '#ffd700', 
-    members: onlineOwners 
+  // Build role groups for online members with combined roles
+  interface RoleGroup {
+    roleParts: Array<{ name: string; color: string }>;
+    members: ServerMember[];
+    maxPosition: number;
+  }
+  
+  // Group members by their role combination
+  const roleCombinationMap = new Map<string, RoleGroup>();
+  
+  onlineMembers.forEach(member => {
+    const memberRoles = getMemberRoleCombination(member);
+    const roleKey = memberRoles.map(r => r.name).join(' - ');
+    
+    if (!roleCombinationMap.has(roleKey)) {
+      roleCombinationMap.set(roleKey, {
+        roleParts: memberRoles.map(r => ({ name: r.name, color: r.color })),
+        members: [],
+        maxPosition: Math.max(...memberRoles.map(r => r.position))
+      });
+    }
+    roleCombinationMap.get(roleKey)!.members.push(member);
   });
   
-  // Custom roles in position order
-  sortedRoles.forEach(role => {
-    const membersWithThisRole = onlineMembers.filter(m => m.role_id === role.id);
-    onlineRoleGroups.push({
-      roleName: role.name,
-      roleColor: role.color,
-      members: membersWithThisRole
+  // Convert map to array and sort by position 
+  // Following server settings order: highest position (top of list) first
+  const sortedCombinations = Array.from(roleCombinationMap.entries())
+    .map(([key, value]) => value)
+    .sort((a, b) => {
+      // Primary sort: by maxPosition descending (highest position first)
+      const diff = b.maxPosition - a.maxPosition;
+      if (diff !== 0) return diff;
+      // Secondary sort: by first role name for consistency
+      return (a.roleParts[0]?.name || '').localeCompare(b.roleParts[0]?.name || '');
     });
-  });
   
-  // Admin (legacy)
-  const onlineAdmins = onlineMembers.filter(m => m.role === 'admin' && !m.role_id);
-  onlineRoleGroups.push({ 
-    roleName: 'Admin', 
-    roleColor: '#ed4245', 
-    members: onlineAdmins 
-  });
-  
-  // Moderator (legacy)
-  const onlineModerators = onlineMembers.filter(m => m.role === 'moderator' && !m.role_id);
-  onlineRoleGroups.push({ 
-    roleName: 'Moderator', 
-    roleColor: '#43b581', 
-    members: onlineModerators 
-  });
-  
-  // Regular members
-  const onlineRegular = onlineMembers.filter(m => 
-    (m.role === 'member' && !m.role_id) || 
-    (!m.role_id && m.role !== 'owner' && m.role !== 'admin' && m.role !== 'moderator')
-  );
-  onlineRoleGroups.push({ 
-    roleName: 'Member', 
-    roleColor: '#99aab5', 
-    members: onlineRegular 
-  });
+  // Debug logging
+  console.log('[MemberList] sortedRoles:', sortedRoles.map(r => ({ name: r.name, position: r.position })));
+  console.log('[MemberList] sortedCombinations:', sortedCombinations.map(c => ({ 
+    name: c.roleParts.map(p => p.name).join(' - '), 
+    maxPosition: c.maxPosition 
+  })));
 
   const MemberItem = ({ member, showRole = true }: { member: ServerMember; showRole?: boolean }) => {
     const display = getMemberDisplay(member);
+    console.log('[MemberItem] member:', member.username, 'roles:', member.roles, 'display.color:', display.color);
     const canManage = canManageUser(member.role, member.id);
     // Only show context menu for admins, moderators, and owners
     const isStaff = currentUserRole === 'owner' || currentUserRole === 'admin' || currentUserRole === 'moderator';
@@ -514,7 +575,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
               style={{ 
                 color: member.status === 'offline' 
                   ? '#72767d' 
-                  : (member.role_color || display.color)
+                  : display.color
               }}
             >
               {displayName}
@@ -556,7 +617,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           {(isOwner || currentUserRole === 'admin') && (
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
-                Role Standar
+                Jobdesk Standar
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="bg-[#18191c] border-[#232438]">
                 {(['member', 'moderator', 'admin'] as const).map((role) => (
@@ -581,7 +642,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && customRoles.length > 0 && (
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
-                Role Custom ({customRoles.length})
+                Jobdesk Custom ({customRoles.length})
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="bg-[#18191c] border-[#232438]">
                 {customRoles.map((role) => (
@@ -651,15 +712,20 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         
         <div className="flex-1 overflow-y-auto p-4">
           {/* Online Members grouped by Role - only show groups with members */}
-          {onlineRoleGroups
+          {sortedCombinations
             .filter(group => group.members.length > 0)
-            .map((group) => (
-              <div key={group.roleName} className="mb-4">
-                <h3 
-                  className="text-xs font-semibold uppercase tracking-wide mb-2 px-2"
-                  style={{ color: group.roleColor }}
-                >
-                  {group.roleName} — {group.members.length}
+            .map((group, index) => (
+              <div key={index} className="mb-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide mb-2 px-2">
+                  {group.roleParts.map((part, i) => (
+                    <span key={i}>
+                      <span style={{ color: part.color }}>{part.name}</span>
+                      {i < group.roleParts.length - 1 && (
+                        <span className="text-[#96989d] mx-1">—</span>
+                      )}
+                    </span>
+                  ))}
+                  <span className="text-[#96989d] ml-1">— {group.members.length}</span>
                 </h3>
                 <div className="space-y-1">
                   {group.members.map((member) => (

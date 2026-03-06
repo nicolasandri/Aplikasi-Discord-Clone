@@ -77,18 +77,44 @@ export function ChatLayout() {
   const dmChannelsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Notification hook
-  const { notify, hasPermission } = useNotification({
+  const { notify, permission, requestPermission } = useNotification({
     enabled: true,
     soundEnabled: true,
     desktopEnabled: true,
   });
 
+  // Use refs to access current values in callbacks without triggering re-subscriptions
+  const channelsRef = useRef(channels);
+  const selectedChannelIdRef = useRef(selectedChannelId);
+  const notifyRef = useRef(notify);
+  
+  useEffect(() => {
+    channelsRef.current = channels;
+  }, [channels]);
+  
+  useEffect(() => {
+    selectedChannelIdRef.current = selectedChannelId;
+  }, [selectedChannelId]);
+  
+  useEffect(() => {
+    notifyRef.current = notify;
+  }, [notify]);
+
   // Request notification permission on mount
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      console.log('Notification permission will be requested on first interaction');
+    // Request permission immediately on mount
+    if ('Notification' in window) {
+      console.log('🔔 Initial notification permission:', Notification.permission);
+      if (Notification.permission === 'default') {
+        // Request on first user interaction
+        const requestOnInteraction = () => {
+          requestPermission();
+        };
+        window.addEventListener('click', requestOnInteraction, { once: true });
+        window.addEventListener('keydown', requestOnInteraction, { once: true });
+      }
     }
-  }, []);
+  }, [requestPermission]);
 
   // Fetch servers on mount
   useEffect(() => {
@@ -97,6 +123,16 @@ export function ChatLayout() {
     fetchDMUnreadCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Test notification function (for debugging)
+  const testNotification = useCallback(() => {
+    console.log('🧪 Testing notification...');
+    notify({
+      title: 'Test Notifikasi',
+      body: 'Ini adalah pesan test',
+      icon: '/workgrid_app_icon.png',
+    });
+  }, [notify]);
 
   // Auto-select last visited server & channel or DM
   useEffect(() => {
@@ -392,22 +428,22 @@ export function ChatLayout() {
 
   // BUG-019: Socket Event Listeners Re-registration - Use ref pattern
   const dmHandlersRef = useRef({
-    handleDMMessageReceived: (data: { channelId: string; sender?: any }) => {
+    handleDMMessageReceived: (data: { channelId: string; sender?: any; messageId?: string }) => {
       fetchDMUnreadCount();
       if (data.channelId === selectedDMChannelId) {
         // Messages will be updated via socket event in DMChatArea
       }
-      if (viewMode !== 'dm' || selectedDMChannelId !== data.channelId) {
-        const channel = dmChannels.find(c => c.id === data.channelId);
-        if (channel) {
-          const senderName = data.sender?.username || channel.friend?.username || channel.name || 'Pesan Baru';
-          notify({
-            title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
-            body: 'Pesan baru',
-            icon: data.sender?.avatar || channel.friend?.avatar,
-            tag: `dm-${data.channelId}`,
-          });
-        }
+      
+      // Show notification for ALL online users (like Discord)
+      const channel = dmChannels.find(c => c.id === data.channelId);
+      if (channel) {
+        const senderName = data.sender?.displayName || data.sender?.username || channel.friend?.displayName || channel.friend?.username || channel.name || 'Pesan Baru';
+        notify({
+          title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
+          body: 'Pesan baru',
+          icon: data.sender?.avatar || channel.friend?.avatar,
+          tag: `dm-${data.messageId || Date.now()}`, // Unique tag
+        });
       }
     },
     handleGroupDMCreated: (data: { channelId: string; name?: string }) => {
@@ -431,22 +467,22 @@ export function ChatLayout() {
 
   // Update ref when dependencies change
   useEffect(() => {
-    dmHandlersRef.current.handleDMMessageReceived = (data: { channelId: string; sender?: any }) => {
+    dmHandlersRef.current.handleDMMessageReceived = (data: { channelId: string; sender?: any; messageId?: string }) => {
       fetchDMUnreadCount();
       if (data.channelId === selectedDMChannelId) {
         // Messages will be updated via socket event in DMChatArea
       }
-      if (viewMode !== 'dm' || selectedDMChannelId !== data.channelId) {
-        const channel = dmChannels.find(c => c.id === data.channelId);
-        if (channel) {
-          const senderName = data.sender?.username || channel.friend?.username || channel.name || 'Pesan Baru';
-          notify({
-            title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
-            body: 'Pesan baru',
-            icon: data.sender?.avatar || channel.friend?.avatar,
-            tag: `dm-${data.channelId}`,
-          });
-        }
+      
+      // Show notification for ALL online users (like Discord)
+      const channel = dmChannels.find(c => c.id === data.channelId);
+      if (channel) {
+        const senderName = data.sender?.displayName || data.sender?.username || channel.friend?.displayName || channel.friend?.username || channel.name || 'Pesan Baru';
+        notify({
+          title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
+          body: 'Pesan baru',
+          icon: data.sender?.avatar || channel.friend?.avatar,
+          tag: `dm-${data.messageId || Date.now()}`, // Unique tag
+        });
       }
     };
     dmHandlersRef.current.fetchDMUnreadCount = fetchDMUnreadCount;
@@ -483,37 +519,37 @@ export function ChatLayout() {
 
   // Socket connection
   const handleNewMessage = useCallback((message: Message) => {
-    console.log('📨 New message received:', message);
+    console.log('📨 New message:', message.id, 'from:', message.user?.username);
     
     const isOwnMessage = message.userId === user?.id;
-    const isCurrentChannel = message.channelId === selectedChannelId;
+    const currentSelectedChannelId = selectedChannelIdRef.current;
     
-    // Update unread count for the channel
-    if (!isOwnMessage && !isCurrentChannel && selectedServerId) {
-      const hasMention = message.content?.includes(`<@${user?.id}>`) || 
-                         message.content?.includes('<@everyone>') || 
-                         message.content?.includes('<@here>');
+    // Update unread count
+    if (!isOwnMessage && message.channelId !== currentSelectedChannelId) {
       setChannelUnreadCounts(prev => ({
         ...prev,
         [message.channelId]: {
           count: (prev[message.channelId]?.count || 0) + 1,
-          hasMention: prev[message.channelId]?.hasMention || hasMention
+          hasMention: false
         }
       }));
     }
     
+    // NOTIFICATION: Always show for other users' messages
     if (!isOwnMessage) {
-      const shouldNotify = !isCurrentChannel || document.visibilityState === 'hidden';
+      const currentChannels = channelsRef.current;
+      const fromChannel = currentChannels.find(c => c.id === message.channelId);
+      const senderName = message.user?.displayName || message.user?.username || 'Someone';
+      const channelName = fromChannel?.name || 'channel';
       
-      if (shouldNotify && viewMode === 'server') {
-        const fromChannel = channels.find(c => c.id === message.channelId);
-        notify({
-          title: `${message.user?.username || 'Pesan Baru'}${fromChannel ? ` di #${fromChannel.name}` : ''}`,
-          body: message.content || '📎 File terkirim',
-          icon: message.user?.avatar,
-          tag: `message-${message.channelId}`,
-        });
-      }
+      console.log('🔔 TRIGGER NOTIFICATION for:', senderName);
+      
+      // Call notify using ref to always have latest function
+      notifyRef.current({
+        title: `${senderName} di #${channelName}`,
+        body: message.content?.substring(0, 100) || '📎 File',
+        icon: message.user?.avatar,
+      });
     }
     
     setMessages(prev => {
@@ -530,7 +566,7 @@ export function ChatLayout() {
       
       return [...filtered, message];
     });
-  }, [user?.id, selectedChannelId, channels, notify, viewMode]);
+  }, [user?.id]); // Only depend on user.id which is stable
 
   const handleReactionUpdate = useCallback((data: { messageId: string; reactions: any[] }) => {
     console.log('📡 Socket: handleReactionUpdate received:', data.messageId, data.reactions);
@@ -1116,6 +1152,7 @@ export function ChatLayout() {
                   showMemberList={showMemberList}
                   onToggleMemberList={() => setShowMemberList(!showMemberList)}
                   servers={servers}
+                  channels={channels}
                   dmChannels={dmChannels}
                   onReaction={handleReaction}
                   onFocusInput={() => messageInputRef.current?.focus()}
@@ -1350,6 +1387,7 @@ export function ChatLayout() {
               onStartDM={handleStartDMFromProfile}
               onOpenSearch={() => setIsSearchOpen(true)}
               servers={servers}
+              channels={channels}
               dmChannels={dmChannels}
               onReaction={handleReaction}
               showMemberList={showMemberList}
@@ -1384,9 +1422,9 @@ export function ChatLayout() {
         <span className="text-xs text-[#a0a0b0] font-medium">
           {isConnected ? 'Online' : 'Connecting...'}
         </span>
-        {!hasPermission && 'Notification' in window && Notification.permission !== 'granted' && (
+        {permission !== 'granted' && 'Notification' in window && (
           <button
-            onClick={() => Notification.requestPermission()}
+            onClick={() => requestPermission()}
             className="ml-2 text-xs text-[#00d4ff] hover:text-[#00b8db]"
           >
             Enable Notifications
