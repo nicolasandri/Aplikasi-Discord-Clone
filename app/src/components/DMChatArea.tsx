@@ -3,6 +3,7 @@ import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, FileText 
 import { EmojiStickerGIFPicker } from './EmojiStickerGIFPicker';
 import { ImageViewer } from './ImageViewer';
 import { UserProfilePopup } from './UserProfilePopup';
+import { useNotification } from '@/hooks/useNotification';
 
 import {
   DropdownMenu,
@@ -168,6 +169,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   // Track scroll state for smart auto-scroll
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Notification hook
+  const { notify } = useNotification({
+    enabled: true,
+    soundEnabled: true,
+    desktopEnabled: true,
+  });
 
   // Update avatar version when currentUser changes
   useEffect(() => {
@@ -335,6 +343,14 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         // Mark as read if message is from friend (not current user)
         if (mappedMessage.senderId !== currentUserIdRef.current) {
           markAsRead(mappedMessage.id);
+          
+          // Show notification for DM from other user
+          console.log('🔔 TRIGGER DM NOTIFICATION for:', mappedMessage.sender_display_name || mappedMessage.sender_username);
+          notify({
+            title: mappedMessage.sender_display_name || mappedMessage.sender_username || 'Pesan Baru',
+            body: mappedMessage.content?.substring(0, 100) || '📎 File',
+            icon: mappedMessage.sender_avatar,
+          });
         }
       } else {
         console.log('❌ Message is NOT for current channel. Received:', data.channelId, 'Current:', channelIdRef.current);

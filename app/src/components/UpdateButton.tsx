@@ -52,6 +52,40 @@ export function UpdateButton() {
     };
   }, [isElectron]);
 
+  // Handle click - must be defined before any early return (React Hooks rule)
+  const handleClick = useCallback(async () => {
+    if (!window.electronAPI) return;
+
+    switch (updateStatus.status) {
+      case 'available':
+        // Start downloading update
+        try {
+          await window.electronAPI.downloadUpdate();
+        } catch (err) {
+          console.error('Failed to download update:', err);
+        }
+        break;
+
+      case 'downloaded':
+        // Install update
+        window.electronAPI.installUpdate();
+        break;
+
+      case 'not-available':
+      case 'error':
+        // Check for updates again
+        try {
+          await window.electronAPI.checkForUpdates();
+        } catch (err) {
+          console.error('Failed to check for updates:', err);
+        }
+        break;
+
+      default:
+        break;
+    }
+  }, [updateStatus.status]);
+
   // Don't show button if not in Electron
   if (!isElectron) {
     return (
@@ -74,39 +108,6 @@ export function UpdateButton() {
       </TooltipProvider>
     );
   }
-
-  const handleClick = useCallback(async () => {
-    if (!window.electronAPI) return;
-
-    switch (updateStatus.status) {
-      case 'available':
-        // Start downloading update
-        try {
-          await window.electronAPI.downloadUpdate();
-        } catch (err) {
-          console.error('Failed to download update:', err);
-        }
-        break;
-      
-      case 'downloaded':
-        // Install update
-        window.electronAPI.installUpdate();
-        break;
-      
-      case 'downloading':
-        // Do nothing, already downloading
-        break;
-      
-      default:
-        // Check for updates
-        try {
-          await window.electronAPI.checkForUpdates();
-        } catch (err) {
-          console.error('Failed to check updates:', err);
-        }
-        break;
-    }
-  }, [updateStatus.status]);
 
   // Get button state based on update status
   const getButtonState = () => {
