@@ -37,8 +37,13 @@ export function Login({ onToggleForm }: LoginProps) {
     try {
       await login(email, password);
       // Navigation handled by useEffect above
-    } catch {
-      // Error handled in context
+    } catch (err: any) {
+      // Check if this is a force password change error
+      if (err?.code === 'FORCE_PASSWORD_CHANGE') {
+        // Redirect to force change password page
+        navigate('/force-change-password', { replace: true });
+      }
+      // Other errors handled in context
     }
   };
 

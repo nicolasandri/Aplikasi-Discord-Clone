@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const db = require('../database');
-const tokenService = require('../services/token.service');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -16,17 +15,18 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.substring(7);
     
     try {
-      const decoded = tokenService.verifyAccessToken(token);
+      const decoded = jwt.verify(token, JWT_SECRET);
       
       // Verifikasi token_version (untuk force logout)
-      const user = await db.get('SELECT token_version FROM users WHERE id = ?', [decoded.userId]);
+      const user = await db.dbGet('SELECT token_version FROM users WHERE id = ?', [decoded.id || decoded.userId]);
       
       if (!user) {
         return res.status(401).json({ error: 'User tidak ditemukan' });
       }
       
       // Check kalau token version sudah berubah (force logout)
-      if (user.token_version !== undefined && user.token_version !== decoded.tokenVersion) {
+      // Skip jika token tidak punya tokenVersion (backward compatibility)
+      if (decoded.tokenVersion !== undefined && user.token_version !== undefined && user.token_version !== decoded.tokenVersion) {
         return res.status(401).json({ 
           error: 'Token sudah tidak valid. Silakan login kembali.',
           code: 'TOKEN_REVOKED'
@@ -34,6 +34,7 @@ const authenticate = async (req, res, next) => {
       }
       
       req.user = decoded;
+      req.userId = decoded.id || decoded.userId;
       next();
       
     } catch (jwtError) {
@@ -65,8 +66,9 @@ const optionalAuth = async (req, res, next) => {
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
-        const decoded = tokenService.verifyAccessToken(token);
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
+        req.userId = decoded.id || decoded.userId;
       } catch {
         // Ignore error, user tidak terautentikasi
       }

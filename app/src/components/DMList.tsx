@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { MessageCircle, UserPlus, Users, Plus } from 'lucide-react';
+import { MessageCircle, UserPlus, Users, Plus, User as UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { UserProfileButton } from './UserProfileButton';
+import { SidebarUserPanel } from './SidebarUserPanel';
 import type { DMChannel } from '@/types';
 
 // Detect if running in Electron
@@ -293,7 +293,7 @@ export function DMList({
                             : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
                           alt={channel.friend?.displayName || channel.friend?.username || 'User'} 
                         />
-                        <AvatarFallback>{(channel.friend?.displayName || channel.friend?.username || 'U')[0].toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="bg-[#36393f]"><UserIcon className="w-4 h-4 text-[#b9bbbe]" /></AvatarFallback>
                       </Avatar>
                       <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#232438]`} />
                     </>
@@ -350,10 +350,10 @@ export function DMList({
         </div>
       </ScrollArea>
 
-      {/* User Profile - Fixed at bottom */}
+      {/* User Panel - Fixed at bottom like Discord */}
       {onOpenSettings && (
-        <div className="p-2 border-t border-[#0f0f1a] bg-[#232438]">
-          <UserProfileButton onOpenSettings={onOpenSettings} />
+        <div className="p-2 bg-[#292b2f]">
+          <SidebarUserPanel onOpenSettings={onOpenSettings} />
         </div>
       )}
     </div>

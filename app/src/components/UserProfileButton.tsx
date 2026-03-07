@@ -7,8 +7,10 @@ import {
   Users, 
   Copy,
   Check,
-  GripVertical
+  GripVertical,
+  Shield
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -36,6 +38,7 @@ const DEFAULT_POSITION = { x: 16, y: window.innerHeight - 80 };
 
 export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
   const { user, logout, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   // Voice state (for future use)
@@ -133,8 +136,8 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
   }, [isOpen]);
 
   const handleCopyUserId = () => {
-    if (user?.id) {
-      navigator.clipboard.writeText(user.id);
+    if (user?.username) {
+      navigator.clipboard.writeText(user.username);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -373,10 +376,23 @@ export function UserProfileButton({ onOpenSettings }: UserProfileButtonProps) {
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  <span className="text-sm">Copy User ID</span>
+                  <span className="text-sm">Copy Username</span>
                 </>
               )}
             </button>
+
+            {user?.isMasterAdmin && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/admin');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-[#5865F2] hover:bg-[#5865F2] hover:text-white transition-colors text-left"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="text-sm font-medium">Master Admin Dashboard</span>
+              </button>
+            )}
           </div>
 
           {/* Divider */}

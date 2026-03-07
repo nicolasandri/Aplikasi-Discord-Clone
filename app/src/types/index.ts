@@ -6,6 +6,7 @@ export interface User {
   status: 'online' | 'offline' | 'idle' | 'dnd';
   displayName?: string;
   role_color?: string; // Optional role color for message display
+  isMasterAdmin?: boolean; // Master Admin flag
 }
 
 export interface Server {

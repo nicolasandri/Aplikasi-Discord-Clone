@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android via Capacitor), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
+**WorkGrid** (juga dikenal sebagai ChatCord atau Discord Clone) adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android via Capacitor), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
 
 **Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
 
@@ -25,6 +25,7 @@
 - Transfer server ownership
 - Mention system (@user, @role, @everyone, @here)
 - Responsive UI untuk mobile, tablet, dan desktop
+- Auto-update untuk aplikasi desktop (Electron)
 
 ---
 
@@ -48,6 +49,7 @@
 | Recharts | 2.15.4 | Data visualization |
 | Capacitor | 8.1.0 | Mobile (Android) builds |
 | Electron | 40.6.0 | Desktop application |
+| electron-updater | 6.8.3 | Auto-update mechanism |
 
 ### Backend (`/server`)
 | Teknologi | Versi | Tujuan |
@@ -66,6 +68,7 @@
 | pg | 8.13.3 | PostgreSQL driver |
 | web-push | 3.6.7 | Push notifications |
 | Redis | 5.11.0 | Session store, rate limiting |
+| cheerio | 1.2.0 | HTML parsing untuk link previews |
 
 ### Infrastructure
 | Teknologi | Tujuan |
@@ -129,7 +132,8 @@
 │   │   │   ├── ReactionTooltip.tsx # Reaction display
 │   │   │   ├── RichTextEditor.tsx # TipTap editor wrapper
 │   │   │   ├── EmojiStickerGIFPicker.tsx
-│   │   │   └── GIFPicker.tsx
+│   │   │   ├── GIFPicker.tsx
+│   │   │   └── UpdateButton.tsx # Electron update button
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/
@@ -149,9 +153,11 @@
 │   │   ├── pages/
 │   │   │   ├── InvitePage.tsx   # Invite acceptance page
 │   │   │   └── FriendsPage.tsx  # Friends management page
+│   │   ├── services/
+│   │   │   └── auth.service.ts  # Authentication service
 │   │   ├── App.tsx              # Root component
 │   │   ├── main.tsx             # Entry point
-│   │   └── index.css            # Global styles (Discord theme)
+│   │   └── index.css            # Global styles (Cyberpunk theme)
 │   ├── electron/                # Electron desktop app
 │   │   ├── main.cjs             # Main process
 │   │   └── preload.cjs          # Preload script
@@ -174,17 +180,18 @@
 │   ├── database.js              # SQLite database module
 │   ├── database-postgres.js     # PostgreSQL database module
 │   ├── config/
-│   │   └── database.js          # PostgreSQL connection pool
+│   │   ├── database.js          # PostgreSQL connection pool
+│   │   ├── push.js              # Push notification config
+│   │   └── redis.js             # Redis configuration
 │   ├── middleware/
 │   │   ├── auth.js              # JWT authentication middleware
 │   │   └── permissions.js       # RBAC middleware
-│   ├── webrtc/
-│   │   └── signaling.js         # Voice signaling server
 │   ├── services/
-│   │   └── push.js              # Push notification service
+│   │   └── token.service.js     # Token management service
 │   ├── migrations/              # Database migrations
 │   │   ├── 001_initial_schema.sql
 │   │   ├── 002_migrate_sqlite_to_postgres.js
+│   │   ├── 007_add_emoji_stickers.sql
 │   │   └── setup-postgres.js
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image
@@ -352,6 +359,9 @@ DB_SSL=false
 # Or use DATABASE_URL
 DATABASE_URL=postgresql://user:password@host:5432/database
 
+# Redis
+REDIS_URL=redis://localhost:6379
+
 # VAPID Keys for Push Notifications
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
@@ -387,7 +397,7 @@ VITE_SOCKET_URL=https://your-domain.com
 
 ### Styling
 - **Primary:** Tailwind CSS utility classes
-- **Custom:** CSS variables di `index.css` (Discord color scheme)
+- **Custom:** CSS variables di `index.css` (Cyberpunk color scheme)
 - **Variants:** Use `class-variance-authority` (cva)
 - **Utility:** Use `cn()` helper dari `@/lib/utils`
 
@@ -417,6 +427,8 @@ VITE_SOCKET_URL=https://your-domain.com
 |--------|----------|-------------|------|
 | POST | `/api/auth/register` | Register new user | No |
 | POST | `/api/auth/login` | Login user | No |
+| POST | `/api/auth/refresh` | Refresh access token | Yes |
+| POST | `/api/auth/logout` | Logout user | Yes |
 
 #### Users
 | Method | Endpoint | Description | Auth |
@@ -538,6 +550,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | `user_status_changed` | `{ userId, status }` | User status change |
 | `friend_request_received` | `{ request }` | Friend request received |
 | `friend_request_accepted` | `{ friend }` | Friend request accepted |
+| `member_joined` | `{ userId, serverId, username, ... }` | New member joined |
 
 ---
 
@@ -547,7 +560,7 @@ VITE_SOCKET_URL=https://your-domain.com
 
 | Table | Description |
 |-------|-------------|
-| `users` | User accounts (id, username, email, password, avatar, status) |
+| `users` | User accounts (id, username, email, password, avatar, status, token_version) |
 | `servers` | Discord-like servers (id, name, icon, owner_id) |
 | `server_members` | Server membership (server_id, user_id, role, role_id, joined_at) |
 | `categories` | Channel categories (server_id, name, position) |
@@ -628,6 +641,7 @@ const Permissions = {
 
 ### Current Implementation
 - **Authentication:** JWT dengan Bearer token disimpan di localStorage (expires in 7 days)
+- **Token Versioning:** Mendukung force logout dengan token_version di database
 - **Password Hashing:** bcryptjs dengan 12 salt rounds
 - **File Uploads:** Limited to 10MB, MIME type filtering
 - **CORS:** Strict origin checking dengan ALLOWED_ORIGINS
@@ -698,6 +712,16 @@ Pattern ini digunakan di `AuthContext.tsx`, `useSocket.ts`, dan `ChatLayout.tsx`
 ```typescript
 import { useIsMobile } from '@/hooks/use-mobile';
 const isMobile = useIsMobile(); // true untuk screens < 768px
+```
+
+### Electron Auto-Update
+Aplikasi Electron menggunakan `electron-updater` untuk auto-update. Update server dikonfigurasi di `package.json`:
+```json
+"publish": {
+  "provider": "generic",
+  "url": "http://your-update-server:8080",
+  "channel": "latest"
+}
 ```
 
 ---
@@ -781,6 +805,11 @@ Pada server pertama kali start, data berikut akan dibuat:
    - Run `npm run build` di app directory untuk check errors
    - Check `typescript-errors.log` untuk detail
 
+7. **Auto-update not working (Electron):**
+   - Verify update server URL di `package.json`
+   - Check `latest.yml` dan `WorkGrid-setup.exe` tersedia di update server
+   - Review logs di `%APPDATA%/WorkGrid/logs/`
+
 ### Getting Help
 - Check `docs/BUG_REPORT.md` untuk known issues
 - Review Docker logs: `docker-compose logs -f`
@@ -794,6 +823,8 @@ Pada server pertama kali start, data berikut akan dibuat:
 - `docs/BUG_REPORT.md` - Detailed bug tracking
 - `docs/CHANGELOG.md` - Version history
 - `DOCKER_DEPLOYMENT_GUIDE.md` - Docker deployment instructions
+- `DEPLOY_VPS_GUIDE.md` - VPS deployment guide
+- `AUTO_UPDATE_GUIDE.md` - Electron auto-update setup
 - `TODO.md` - Bug fix checklist dan feature status
 - `AGENTS.md` - This file
 - `server/MIGRATION_GUIDE.md` - Database migration guide

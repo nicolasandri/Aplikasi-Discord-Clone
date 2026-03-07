@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ServerList } from './ServerList';
 import { ChannelList } from './ChannelList';
 import { ChatArea } from './ChatArea';
@@ -37,6 +38,8 @@ export type ViewMode = 'server' | 'channels' | 'chat' | 'friends' | 'settings' |
 export function ChatLayout() {
   const { user, token } = useAuth();
   const { isMobile } = useBreakpoint();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [servers, setServers] = useState<Server[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,7 +47,7 @@ export function ChatLayout() {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedDMChannelId, setSelectedDMChannelId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('chat');
+  const [viewMode, setViewMode] = useState<ViewMode>('dm');
   const [mobileView, setMobileView] = useState<ViewMode>('chat');
   const [dmUnreadCounts, setDMUnreadCounts] = useState<Record<string, number>>({});
   const [totalDMUnread, setTotalDMUnread] = useState(0);
@@ -62,6 +65,9 @@ export function ChatLayout() {
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [showMemberList, setShowMemberList] = useState(true);
+  
+  // Track if initial routing has been handled
+  const initialRouteHandled = useRef(false);
   
   // Mobile drawer states
   const [isServerDrawerOpen, setIsServerDrawerOpen] = useState(false);
@@ -124,6 +130,46 @@ export function ChatLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // Sync URL with view mode
+  useEffect(() => {
+    const path = location.pathname;
+    
+    // Parse URL and set initial view mode
+    if (path === '/friends') {
+      setViewMode('friends');
+    } else if (path.startsWith('/channels/')) {
+      // URL format: /channels/:serverId/:channelId
+      const parts = path.split('/');
+      if (parts.length >= 4) {
+        const serverId = parts[2];
+        const channelId = parts[3];
+        setSelectedServerId(serverId);
+        setSelectedChannelId(channelId);
+        setViewMode('server');
+      }
+    } else if (path === '/' || path === '') {
+      // Default to friends view if no specific path
+      if (!selectedServerId && !selectedDMChannelId) {
+        setViewMode('friends');
+        navigate('/friends', { replace: true });
+      }
+    }
+  }, [location.pathname]);
+
+  // Update URL when view mode changes
+  useEffect(() => {
+    if (viewMode === 'friends') {
+      if (location.pathname !== '/friends') {
+        navigate('/friends', { replace: true });
+      }
+    } else if (viewMode === 'server' && selectedServerId && selectedChannelId) {
+      const newPath = `/channels/${selectedServerId}/${selectedChannelId}`;
+      if (location.pathname !== newPath) {
+        navigate(newPath, { replace: true });
+      }
+    }
+  }, [viewMode, selectedServerId, selectedChannelId]);
+
   // Test notification function (for debugging)
   const testNotification = useCallback(() => {
     console.log('🧪 Testing notification...');
@@ -134,8 +180,13 @@ export function ChatLayout() {
     });
   }, [notify]);
 
-  // Auto-select last visited server & channel or DM
+  // Auto-select last visited server & channel or DM (only run once on initial load)
   useEffect(() => {
+    // Skip if already handled or if URL is already set
+    if (initialRouteHandled.current || location.pathname !== '/') {
+      return;
+    }
+    
     // Only run if nothing is selected yet
     if (!selectedServerId && !selectedChannelId && !selectedDMChannelId) {
       const lastVisited = localStorage.getItem('lastVisited');
@@ -151,6 +202,7 @@ export function ChatLayout() {
               console.log('🔄 Restoring last visited DM:', dmChannelId);
               setSelectedDMChannelId(dmChannelId);
               setViewMode('dm');
+              initialRouteHandled.current = true;
               return;
             }
           }
@@ -174,13 +226,23 @@ export function ChatLayout() {
               // Store temporarily and select after channels load
               setPendingChannelId(channelId);
             }
+            initialRouteHandled.current = true;
+            return;
           }
         } catch (e) {
           console.error('Failed to parse lastVisited:', e);
         }
       }
+      
+      // Default to Friends/DM view if nothing was restored
+      if (!selectedServerId && !selectedDMChannelId) {
+        console.log('🔄 Defaulting to Friends view');
+        setViewMode('friends');
+        navigate('/friends', { replace: true });
+        initialRouteHandled.current = true;
+      }
     }
-  }, [servers, dmChannels, selectedServerId, selectedChannelId, selectedDMChannelId]);
+  }, [servers, dmChannels, selectedServerId, selectedChannelId, selectedDMChannelId, location.pathname, navigate]);
 
   // Select pending channel after channels are loaded
   useEffect(() => {

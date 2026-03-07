@@ -9,7 +9,8 @@ import {
   X,
   Search,
   ShieldAlert,
-  Loader2
+  Loader2,
+  User as UserIcon
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -192,6 +193,18 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresh when window becomes visible (user switches back to tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[FriendsPage] Window visible, refreshing friends...');
+        fetchFriends();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchFriends]);
+
   // Polling for sync between desktop and web (every 60 seconds)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -214,18 +227,20 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       if (!s || isSubscribed) return;
       isSubscribed = true;
 
-      const handleFriendRequestReceived = (data: { requestId: string; userId: string; username: string; avatar: string }) => {
+      const handleFriendRequestReceived = (data: { requestId: string; userId: string; username: string; displayName?: string; avatar: string }) => {
+        const name = data.displayName || data.username;
         toast({
           title: 'Permintaan Pertemanan Baru',
-          description: `${data.username} ingin berteman dengan Anda`,
+          description: `${name} ingin berteman dengan Anda`,
         });
         fetchPendingRequests();
       };
 
-      const handleFriendRequestAccepted = (data: { friendId: string; username: string }) => {
+      const handleFriendRequestAccepted = (data: { friendId: string; username: string; displayName?: string }) => {
+        const name = data.displayName || data.username;
         toast({
           title: 'Permintaan Diterima',
-          description: `${data.username} menerima permintaan pertemanan Anda`,
+          description: `${name} menerima permintaan pertemanan Anda`,
         });
         fetchFriends();
         fetchPendingRequests();
@@ -235,9 +250,23 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
         fetchFriends();
       };
 
+      const handleNewFriendAdded = (data: { friend: Friend; message: string }) => {
+        console.log('📢 [FriendsPage] new_friend_added event:', data);
+        toast({
+          title: 'Teman Baru Bergabung! 🎉',
+          description: data.message,
+        });
+        // Force refresh friends list
+        setTimeout(() => {
+          console.log('[FriendsPage] Auto-refreshing after new friend added');
+          fetchFriends();
+        }, 500);
+      };
+
       s.on('friend_request_received', handleFriendRequestReceived);
       s.on('friend_request_accepted', handleFriendRequestAccepted);
       s.on('friend_removed', handleFriendRemoved);
+      s.on('new_friend_added', handleNewFriendAdded);
 
       console.log('✅ FriendsPage: Socket listeners attached');
 
@@ -245,6 +274,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
         s.off('friend_request_received', handleFriendRequestReceived);
         s.off('friend_request_accepted', handleFriendRequestAccepted);
         s.off('friend_removed', handleFriendRemoved);
+        s.off('new_friend_added', handleNewFriendAdded);
         isSubscribed = false;
       };
     };
@@ -512,24 +542,27 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   };
 
   const FriendItem = ({ friend, showActions = true }: { friend: Friend; showActions?: boolean }) => (
-    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#0d0d14] transition-colors group">
+    <div 
+      className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#2f3136] hover:translate-y-[-1px] transition-all duration-200 group cursor-pointer"
+      onClick={() => onStartDM?.(friend)}
+    >
       <div className="relative">
-        <Avatar className="w-10 h-10">
-          <AvatarImage src={friend.avatar} alt={friend.username} />
-          <AvatarFallback>{friend.username[0].toUpperCase()}</AvatarFallback>
+        <Avatar className="w-10 h-10 border-2 border-transparent group-hover:border-[#00d4ff] transition-colors">
+          <AvatarImage src={friend.avatar} alt={friend.displayName || friend.username} />
+          <AvatarFallback className="bg-[#36393f]"><UserIcon className="w-5 h-5 text-[#b9bbbe]" /></AvatarFallback>
         </Avatar>
         <div className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[friend.status]} rounded-full border-2 border-[#0d0d14]`} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white truncate">{friend.displayName || friend.username}</div>
+        <div className="font-medium text-white truncate text-base">{friend.displayName || friend.username}</div>
         <div className="text-xs text-[#b9bbbe]">{statusLabels[friend.status]}</div>
       </div>
       {showActions && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-[#b9bbbe] hover:text-white hover:bg-[#00d4ff]"
+            className="h-8 w-8 text-[#b9bbbe] hover:text-white hover:bg-[#00d4ff] rounded-full"
             onClick={() => onStartDM?.(friend)}
             title="Kirim Pesan"
           >
@@ -538,20 +571,11 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-[#b9bbbe] hover:text-[#ed4245] hover:bg-[#ed4245]/10"
+            className="h-8 w-8 text-[#b9bbbe] hover:text-[#ed4245] hover:bg-[#ed4245]/10 rounded-full"
             onClick={() => handleRemoveFriend(friend.id, friend.username)}
             title="Hapus Teman"
           >
             <UserX className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-[#b9bbbe] hover:text-[#ed4245] hover:bg-[#ed4245]/10"
-            onClick={() => handleBlockUser(friend.id, friend.username)}
-            title="Blokir"
-          >
-            <ShieldAlert className="w-4 h-4" />
           </Button>
         </div>
       )}
@@ -562,7 +586,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0d0d14]/50">
       <Avatar className="w-10 h-10">
         <AvatarImage src={request.requester_avatar} alt={request.requester_display_name || request.requester_username} />
-        <AvatarFallback>{(request.requester_display_name || request.requester_username)?.[0].toUpperCase()}</AvatarFallback>
+        <AvatarFallback className="bg-[#36393f]"><UserIcon className="w-5 h-5 text-[#b9bbbe]" /></AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="font-medium text-white truncate">{request.requester_display_name || request.requester_username}</div>
@@ -593,7 +617,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
     <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0d0d14]/50 opacity-70">
       <Avatar className="w-10 h-10">
         <AvatarImage src={request.recipient_avatar} alt={request.recipient_display_name || request.recipient_username} />
-        <AvatarFallback>{(request.recipient_display_name || request.recipient_username)?.[0].toUpperCase()}</AvatarFallback>
+        <AvatarFallback className="bg-[#36393f]"><UserIcon className="w-5 h-5 text-[#b9bbbe]" /></AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="font-medium text-white truncate">{request.recipient_display_name || request.recipient_username}</div>
@@ -616,7 +640,7 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
       <div className="relative">
         <Avatar className="w-10 h-10">
           <AvatarImage src={user.avatar} alt={user.display_name || user.username} />
-          <AvatarFallback>{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
+          <AvatarFallback className="bg-[#36393f]"><UserIcon className="w-5 h-5 text-[#b9bbbe]" /></AvatarFallback>
         </Avatar>
         <ShieldAlert className="absolute -bottom-1 -right-1 w-4 h-4 text-[#ed4245]" />
       </div>
@@ -710,20 +734,22 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
           )}
 
           {/* Online Tab */}
-          <TabsContent value="online" className="mt-0 space-y-2">
-            <div className="text-[#b9bbbe] text-xs font-semibold uppercase tracking-wide mb-3">
+          <TabsContent value="online" className="mt-0">
+            <div className="text-[#b9bbbe] text-xs font-semibold uppercase tracking-wide mb-3 px-2">
               Online — {filteredFriends(onlineFriends).length}
             </div>
-            {filteredFriends(onlineFriends).length === 0 ? (
-              <div className="text-center py-12 text-[#72767d]">
-                <UserCheck className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Tidak ada teman yang online</p>
-              </div>
-            ) : (
-              filteredFriends(onlineFriends).map(friend => (
-                <FriendItem key={friend.id} friend={friend} />
-              ))
-            )}
+            <div className="space-y-1">
+              {filteredFriends(onlineFriends).length === 0 ? (
+                <div className="text-center py-12 text-[#72767d]">
+                  <UserCheck className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Tidak ada teman yang online</p>
+                </div>
+              ) : (
+                filteredFriends(onlineFriends).map(friend => (
+                  <FriendItem key={friend.id} friend={friend} />
+                ))
+              )}
+            </div>
           </TabsContent>
 
           {/* All Tab */}

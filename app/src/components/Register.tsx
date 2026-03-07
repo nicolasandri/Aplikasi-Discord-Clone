@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Mail, Lock, User, HelpCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, Lock, User, HelpCircle, CheckCircle2, ArrowLeft, Users } from 'lucide-react';
 
 interface RegisterProps {
   onToggleForm?: () => void;
@@ -15,6 +15,7 @@ export function Register({ onToggleForm }: RegisterProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [groupCode, setGroupCode] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const { register, loading, error, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export function Register({ onToggleForm }: RegisterProps) {
     }
 
     try {
-      await register(username, email, password);
+      await register(username, email, password, groupCode || undefined);
       // Navigation handled by useEffect above
     } catch {
       // Error handled in context
@@ -179,6 +180,26 @@ export function Register({ onToggleForm }: RegisterProps) {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="groupCode" className="text-gray-300 text-xs font-medium uppercase tracking-wider">
+                  Kode Grup <span className="text-gray-500 normal-case">(Opsional)</span>
+                </Label>
+                <div className="relative">
+                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <Input
+                    id="groupCode"
+                    type="text"
+                    value={groupCode}
+                    onChange={(e) => setGroupCode(e.target.value.toUpperCase())}
+                    className="bg-[#0f0f1a] border-[#2a2b3d] text-white placeholder:text-gray-600 focus:border-[#00d4ff] focus:ring-[#00d4ff]/20 h-12 pl-12 rounded-xl uppercase"
+                    placeholder="WORKGRID2024"
+                  />
+                </div>
+                <p className="text-gray-500 text-xs">
+                  Masukkan kode grup untuk bergabung ke server tim secara otomatis (jika ada)
+                </p>
               </div>
 
               {(error || passwordError) && (

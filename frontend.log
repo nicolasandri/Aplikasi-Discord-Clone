@@ -1,0 +1,43 @@
+
+  [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m168[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.20.195:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.18.112.1:[1m5173[22m/[39m
+[2m2:40:04 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/servers/14ee678c-3db9-46e3-b68b-4a636a896c28/members?_t=1772826004084[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+[2m2:40:04 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/friends/pending[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+[2m2:40:04 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/dm/channels[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+[2m2:40:25 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/friends/pending[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+[2m2:44:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:44:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:44:46 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:44:58 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:48:29 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:48:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:48:45 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:49:39 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:53:33 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m2:53:50 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m3:08:34 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m3:09:15 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m3:09:32 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m3:10:33 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/MasterAdminDashboard.tsx, /src/index.css[22m
+[2m3:11:01 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/contexts/AuthContext.tsx, /src/index.css[22m
+[2m3:11:01 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/contexts/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m3:11:01 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/Login.tsx, /src/components/Register.tsx, /src/pages/InvitePage.tsx, /src/components/MasterAdminDashboard.tsx, /src/components/ChatLayout.tsx, /src/components/VoiceChannelPanel.tsx, /src/components/SearchModal.tsx, /src/components/ChannelList.tsx, /src/components/SettingsModal.tsx, /src/components/UserProfileButton.tsx, /src/components/NotificationSettings.tsx[22m
+[2m3:11:51 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m3:12:03 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m3:12:12 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m3:12:21 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m

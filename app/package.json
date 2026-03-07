@@ -61,7 +61,7 @@
     },
     "publish": {
       "provider": "generic",
-      "url": "http://localhost:3001/updates",
+      "url": "http://167.172.72.73:8080",
       "channel": "latest"
     },
     "mac": {

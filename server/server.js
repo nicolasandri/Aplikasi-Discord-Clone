@@ -292,6 +292,9 @@ async function seedData() {
       const adminUser = await userDB.create('Admin', 'admin@workgrid.com', 'admin123');
       await userDB.updateProfile(adminUser.id, { status: 'online' });
       
+      // Set admin as master admin
+      await dbRun('UPDATE users SET is_master_admin = 1 WHERE id = ?', [adminUser.id]);
+      
       const server = await serverDB.create(
         'WorkGrid Official',
         'https://api.dicebear.com/7.x/identicon/svg?seed=WorkGrid',
@@ -311,7 +314,7 @@ async function seedData() {
         await channelDB.create(server.id, ch.name, ch.type);
       }
       
-      console.log('✅ Seed data created');
+      console.log('✅ Seed data created (Master Admin: admin@workgrid.com / admin123)');
     } catch (error) {
       console.error('❌ Error creating seed data:', error);
     }
@@ -455,7 +458,9 @@ function formatUserResponse(user) {
     email: user.email,
     avatar: user.avatar,
     displayName: user.display_name,
-    status: user.status || 'offline'
+    status: user.status || 'offline',
+    isMasterAdmin: user.is_master_admin === 1 || user.is_master_admin === true,
+    joinedViaGroupCode: user.joined_via_group_code || null
   };
 }
 
@@ -584,7 +589,7 @@ app.get('/updates/:filename', (req, res) => {
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, groupCode } = req.body;
     
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -603,8 +608,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
     
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
     
     const existingUser = await userDB.findByEmail(email);
@@ -617,7 +622,99 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
     
-    const user = await userDB.create(username, email, password);
+    // Validate group code if provided
+    let autoJoinServer = null;
+    
+    if (groupCode) {
+      // Check using inviteDB (group codes are invites with is_group_code = 1)
+      const invite = await inviteDB.findByCode(groupCode);
+      
+      if (!invite || !invite.is_group_code) {
+        return res.status(400).json({ error: 'Kode grup tidak valid' });
+      }
+      
+      // Check if code has reached max uses
+      if (invite.max_uses && invite.uses >= invite.max_uses) {
+        return res.status(400).json({ error: 'Kode grup sudah mencapai batas penggunaan' });
+      }
+      
+      // Check if code has expired
+      if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+        return res.status(400).json({ error: 'Kode grup sudah expired' });
+      }
+      
+      autoJoinServer = invite.server_id;
+    }
+    
+    const user = await userDB.create(username, email, password, groupCode || null);
+    
+    // Auto-join server if group code provided
+    if (autoJoinServer) {
+      try {
+        // Check if already a member
+        const existingMember = await serverDB.getMember(autoJoinServer, user.id);
+        if (!existingMember) {
+          // Add member to server
+          await serverDB.addMember(autoJoinServer, user.id, 'member');
+          
+          // Increment invite usage
+          await inviteDB.incrementUses(groupCode);
+          
+          console.log(`[Register] User ${username} auto-joined server ${autoJoinServer} via group code ${groupCode}`);
+        }
+      } catch (joinError) {
+        console.error('[Register] Auto-join error:', joinError);
+      }
+    }
+    
+    // Auto-friend dengan user lain yang pakai kode grup yang sama
+    if (groupCode) {
+      try {
+        // Cari semua user lain dengan kode grup yang sama
+        const existingUsers = await userDB.findByGroupCode(groupCode);
+        
+        for (const existingUser of existingUsers) {
+          if (existingUser.id !== user.id) {
+            // Buat pertemanan otomatis (accepted)
+            await friendDB.createAutoFriendship(existingUser.id, user.id);
+            
+            console.log(`[AutoFriend] ${username} berteman dengan ${existingUser.username} via kode ${groupCode}`);
+            
+            // Kirim notifikasi ke user lama via socket
+            const targetSocket = getUserSocket(existingUser.id);
+            if (targetSocket) {
+              targetSocket.emit('new_friend_added', {
+                friend: {
+                  id: user.id,
+                  username: user.username,
+                  displayName: user.displayName || user.username,
+                  avatar: user.avatar,
+                  status: user.status
+                },
+                message: `${user.displayName || username} bergabung menggunakan kode ${groupCode} dan menjadi temanmu`
+              });
+            }
+            
+            // Kirim notifikasi ke user baru juga (newly registered user)
+            const newUserSocket = getUserSocket(user.id);
+            if (newUserSocket) {
+              newUserSocket.emit('new_friend_added', {
+                friend: {
+                  id: existingUser.id,
+                  username: existingUser.username,
+                  displayName: existingUser.displayName || existingUser.username,
+                  avatar: existingUser.avatar,
+                  status: existingUser.status
+                },
+                message: `Anda berteman dengan ${existingUser.displayName || existingUser.username} dari kode ${groupCode}`
+              });
+            }
+          }
+        }
+      } catch (friendError) {
+        console.error('[Register] Auto-friend error:', friendError);
+      }
+    }
     
     // Generate JWT token (7 days expiry)
     const token = jwt.sign(
@@ -628,7 +725,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     
     res.json({ 
       user: formatUserResponse(user), 
-      token
+      token,
+      autoJoinedServer: autoJoinServer ? true : false
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -645,9 +743,14 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
-    const user = await userDB.findByEmail(email);
+    const user = await userDB.findByEmail(email, true);
     if (!user) {
       return res.status(400).json({ error: 'Invalid email or password' });
+    }
+    
+    // Check if user account is active
+    if (user.is_active === 0) {
+      return res.status(403).json({ error: 'Akun Anda telah dinonaktifkan, Hubungi Operator untuk mengaktifkan kembali.' });
     }
     
     const bcrypt = require('bcryptjs');
@@ -656,8 +759,8 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
     
-    // Update user status to online
-    await userDB.updateProfile(user.id, { status: 'online' });
+    // Check if user needs to force change password
+    const needsPasswordChange = await userDB.needsPasswordChange(user.id);
     
     // Generate JWT token (7 days expiry)
     const token = jwt.sign(
@@ -665,6 +768,25 @@ app.post('/api/auth/login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+    
+    // Get client IP address
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
+    
+    // Update last login timestamp and IP
+    await userDB.updateLastLogin(user.id, clientIp);
+    
+    // If password needs to be changed, return special response
+    if (needsPasswordChange) {
+      return res.json({
+        user: formatUserResponse({ ...user, status: 'online' }),
+        token,
+        requirePasswordChange: true,
+        message: 'Anda harus mengganti password sebelum melanjutkan'
+      });
+    }
+    
+    // Update user status to online (only if not requiring password change)
+    await userDB.updateProfile(user.id, { status: 'online' });
     
     res.json({ 
       user: formatUserResponse({ ...user, status: 'online' }), 
@@ -727,7 +849,7 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Change password
+// Change password (requires current password)
 app.put('/api/users/password', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -756,12 +878,48 @@ app.put('/api/users/password', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
     
-    // Update password (database.js will handle hashing)
+    // Update password (database.js will handle hashing and reset force_password_change)
     await userDB.updatePassword(userId, newPassword);
     
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Force change password (after admin reset - no current password required)
+app.post('/api/users/force-change-password', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { newPassword } = req.body;
+    
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    // Check if user really needs to change password
+    const needsChange = await userDB.needsPasswordChange(userId);
+    if (!needsChange) {
+      return res.status(403).json({ error: 'Password change not required' });
+    }
+    
+    // Update password (database.js will handle hashing and reset force_password_change)
+    await userDB.updatePassword(userId, newPassword);
+    
+    // Update user status to online after successful password change
+    await userDB.updateProfile(userId, { status: 'online' });
+    
+    res.json({ 
+      message: 'Password changed successfully. Please login again.',
+      passwordChanged: true 
+    });
+  } catch (error) {
+    console.error('Force change password error:', error);
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
@@ -1760,6 +1918,7 @@ app.post('/api/friends/request', authenticateToken, async (req, res) => {
         requestId: request.id,
         userId: sender.id,
         username: sender.username,
+        displayName: sender.display_name,
         avatar: sender.avatar
       });
     }
@@ -3382,6 +3541,54 @@ io.on('connection', (socket) => {
             username: user.username
           });
           log('🟢 User status changed to online:', decoded.id);
+          
+          // Auto-friend dengan user lain yang pakai kode grup yang sama
+          if (user.joined_via_group_code) {
+            try {
+              const groupCode = user.joined_via_group_code;
+              const existingUsers = await userDB.findByGroupCode(groupCode);
+              
+              for (const existingUser of existingUsers) {
+                if (existingUser.id !== user.id) {
+                  // Check if already friends
+                  const isAlreadyFriend = await friendDB.getFriendship(user.id, existingUser.id);
+                  if (!isAlreadyFriend || isAlreadyFriend.status !== 'accepted') {
+                    // Create auto-friendship
+                    await friendDB.createAutoFriendship(user.id, existingUser.id);
+                    console.log(`[SocketAutoFriend] ${user.username} berteman dengan ${existingUser.username} via kode ${groupCode}`);
+                    
+                    // Notify both users
+                    socket.emit('new_friend_added', {
+                      friend: {
+                        id: existingUser.id,
+                        username: existingUser.username,
+                        displayName: existingUser.displayName || existingUser.username,
+                        avatar: existingUser.avatar,
+                        status: existingUser.status
+                      },
+                      message: `Anda berteman dengan ${existingUser.displayName || existingUser.username} dari kode ${groupCode}`
+                    });
+                    
+                    const targetSocket = getUserSocket(existingUser.id);
+                    if (targetSocket) {
+                      targetSocket.emit('new_friend_added', {
+                        friend: {
+                          id: user.id,
+                          username: user.username,
+                          displayName: user.display_name || user.username,
+                          avatar: user.avatar,
+                          status: 'online'
+                        },
+                        message: `${user.display_name || user.username} (online) berteman dengan Anda via kode ${groupCode}`
+                      });
+                    }
+                  }
+                }
+              }
+            } catch (friendError) {
+              console.error('[Socket] Auto-friend error:', friendError);
+            }
+          }
         }
       } catch (statusError) {
         console.error('Error updating user status on connect:', statusError);
@@ -3659,6 +3866,59 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// ==================== MASTER ADMIN SETUP ====================
+// Setup first master admin (only works if no master admin exists)
+app.post('/api/setup-master-admin', async (req, res) => {
+  try {
+    const { email, secretKey } = req.body;
+    
+    // Secret key untuk setup (harus sama dengan yang di-set di environment)
+    const setupSecretKey = process.env.MASTER_ADMIN_SETUP_KEY || 'workgrid-setup-2024';
+    
+    if (secretKey !== setupSecretKey) {
+      return res.status(403).json({ error: 'Invalid secret key' });
+    }
+    
+    // Cek apakah sudah ada master admin
+    const existingMasterAdmin = await dbGet('SELECT id FROM users WHERE is_master_admin = 1 LIMIT 1');
+    if (existingMasterAdmin) {
+      return res.status(400).json({ error: 'Master admin already exists' });
+    }
+    
+    // Cari user berdasarkan email
+    const user = await userDB.findByEmail(email);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Set user sebagai master admin
+    await dbRun('UPDATE users SET is_master_admin = 1 WHERE id = ?', [user.id]);
+    
+    res.json({ success: true, message: `${email} has been set as Master Admin` });
+  } catch (error) {
+    console.error('Setup master admin error:', error);
+    res.status(500).json({ error: 'Failed to setup master admin' });
+  }
+});
+
+// Check if master admin exists
+app.get('/api/master-admin-status', async (req, res) => {
+  try {
+    const masterAdmin = await dbGet('SELECT COUNT(*) as count FROM users WHERE is_master_admin = 1');
+    res.json({ 
+      hasMasterAdmin: masterAdmin.count > 0,
+      count: masterAdmin.count 
+    });
+  } catch (error) {
+    console.error('Check master admin status error:', error);
+    res.status(500).json({ error: 'Failed to check master admin status' });
+  }
+});
+
+// ==================== MASTER ADMIN ROUTES ====================
+const masterAdminRoutes = require('./routes/master-admin')(dbModule);
+app.use('/api/admin', masterAdminRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3001;

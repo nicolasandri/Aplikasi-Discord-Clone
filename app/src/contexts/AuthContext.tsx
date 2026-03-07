@@ -3,7 +3,7 @@ import type { User, AuthState } from '@/types';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, groupCode?: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
   error: string | null;
@@ -71,6 +71,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Check if user needs to force change password
+      if (data.requirePasswordChange) {
+        // Store token temporarily for password change
+        setToken(data.token);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('tempUser', JSON.stringify(data.user));
+        // Throw error with special code to trigger password change UI
+        const error = new Error(data.message || 'Password change required');
+        (error as any).code = 'FORCE_PASSWORD_CHANGE';
+        throw error;
+      }
+
       setUser(data.user);
       setToken(data.token);
       localStorage.setItem('token', data.token);
@@ -83,14 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
+  const register = async (username: string, email: string, password: string, groupCode?: string) => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email, password, groupCode }),
       });
 
       const data = await response.json();

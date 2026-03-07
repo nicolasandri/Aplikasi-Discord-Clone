@@ -367,6 +367,48 @@ function initDatabase() {
         console.error('Error adding token_version column:', err);
       }
     });
+    
+    // Add is_master_admin column for Master Admin functionality
+    db.run(`ALTER TABLE users ADD COLUMN is_master_admin INTEGER DEFAULT 0`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding is_master_admin column:', err);
+      }
+    });
+
+    // Add force_password_change column for password reset functionality
+    db.run(`ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding force_password_change column:', err);
+      }
+    });
+
+    // Add last_login column to track user login time
+    db.run(`ALTER TABLE users ADD COLUMN last_login DATETIME`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding last_login column:', err);
+      }
+    });
+
+    // Add last_login_ip column to track IP address
+    db.run(`ALTER TABLE users ADD COLUMN last_login_ip TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding last_login_ip column:', err);
+      }
+    });
+
+    // Add is_active column to enable/disable users
+    db.run(`ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding is_active column:', err);
+      }
+    });
+
+    // Add joined_via_group_code column to track which group code user used to register
+    db.run(`ALTER TABLE users ADD COLUMN joined_via_group_code TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding joined_via_group_code column:', err);
+      }
+    });
 
     // Servers table
     db.run(`CREATE TABLE IF NOT EXISTS servers (
@@ -495,10 +537,26 @@ function initDatabase() {
       expires_at DATETIME,
       max_uses INTEGER,
       uses INTEGER DEFAULT 0,
+      is_group_code INTEGER DEFAULT 0,
+      auto_join_channels TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (server_id) REFERENCES servers(id),
       FOREIGN KEY (created_by) REFERENCES users(id)
     )`);
+    
+    // Add is_group_code column if not exists
+    db.run(`ALTER TABLE invites ADD COLUMN is_group_code INTEGER DEFAULT 0`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding is_group_code column:', err);
+      }
+    });
+    
+    // Add auto_join_channels column if not exists
+    db.run(`ALTER TABLE invites ADD COLUMN auto_join_channels TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding auto_join_channels column:', err);
+      }
+    });
 
     // Friend requests table (extended for friendships with updated_at)
     db.run(`CREATE TABLE IF NOT EXISTS friendships (
@@ -760,18 +818,18 @@ function createDefaultRolesForServer(serverId) {
 
 // User operations
 const userDB = {
-  async create(username, email, password) {
+  async create(username, email, password, groupCode = null) {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const id = uuidv4();
     const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
     
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO users (id, username, email, password, avatar) VALUES (?, ?, ?, ?, ?)',
-        [id, username, email, hashedPassword, avatar],
+        'INSERT INTO users (id, username, email, password, avatar, joined_via_group_code) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, username, email, hashedPassword, avatar, groupCode],
         function(err) {
           if (err) reject(err);
-          else resolve({ id, username, email, avatar, status: 'offline' });
+          else resolve({ id, username, email, avatar, status: 'offline', joined_via_group_code: groupCode });
         }
       );
     });
@@ -783,6 +841,55 @@ const userDB = {
         if (err) reject(err);
         else resolve(row);
       });
+    });
+  },
+
+  // Find users by group code (for auto-friend feature)
+  async findByGroupCode(groupCode) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT id, username, email, display_name, avatar, status FROM users WHERE joined_via_group_code = ?',
+        [groupCode],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            // Map display_name to displayName
+            rows.forEach(row => {
+              row.displayName = row.display_name;
+              delete row.display_name;
+            });
+            resolve(rows);
+          }
+        }
+      );
+    });
+  },
+
+  // Update last login timestamp and IP
+  async updateLastLogin(userId, ipAddress) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET last_login = CURRENT_TIMESTAMP, last_login_ip = ? WHERE id = ?',
+        [ipAddress, userId],
+        (err) => {
+          if (err) reject(err);
+          else resolve(true);
+        }
+      );
+    });
+  },
+
+  // Toggle user active status (enable/disable)
+  async toggleUserActive(userId, isActive) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET is_active = ? WHERE id = ?',
+        [isActive ? 1 : 0, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true, changes: this.changes });
+        }
+      );
     });
   },
 
@@ -799,8 +906,8 @@ const userDB = {
   async findById(id, includePassword = false) {
     return new Promise((resolve, reject) => {
       const fields = includePassword 
-        ? 'id, username, display_name, email, password, avatar, status, token_version, created_at'
-        : 'id, username, display_name, email, avatar, status, token_version, created_at';
+        ? 'id, username, display_name, email, password, avatar, status, token_version, is_master_admin, created_at, joined_via_group_code'
+        : 'id, username, display_name, email, avatar, status, token_version, is_master_admin, created_at, joined_via_group_code';
       db.get(`SELECT ${fields} FROM users WHERE id = ?`, [id], (err, row) => {
         if (err) reject(err);
         else resolve(row);
@@ -849,8 +956,23 @@ const userDB = {
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
     return new Promise((resolve, reject) => {
       db.run(
-        'UPDATE users SET password = ? WHERE id = ?',
+        'UPDATE users SET password = ?, force_password_change = 0 WHERE id = ?',
         [hashedPassword, id],
+        function(err) {
+          if (err) reject(err);
+          else resolve(true);
+        }
+      );
+    });
+  },
+
+  // Admin reset password - sets temp password and forces user to change it on login
+  async adminResetPassword(userId, tempPassword) {
+    const hashedPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET password = ?, force_password_change = 1 WHERE id = ?',
+        [hashedPassword, userId],
         function(err) {
           if (err) reject(err);
           else resolve(true);
@@ -861,6 +983,20 @@ const userDB = {
 
   async verifyPassword(password, hashedPassword) {
     return bcrypt.compare(password, hashedPassword);
+  },
+
+  // Check if user needs to force change password
+  async needsPasswordChange(userId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT force_password_change FROM users WHERE id = ?',
+        [userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row?.force_password_change === 1);
+        }
+      );
+    });
   },
 
   // Reset all users status to offline
@@ -2947,34 +3083,36 @@ const friendDB = {
   // Get pending requests (incoming and outgoing)
   async getPendingRequests(userId) {
     return new Promise((resolve, reject) => {
+      // Get incoming requests (others sent to me)
       db.all(
         `SELECT f.id, f.user_id, f.friend_id, f.status, f.created_at,
                 u.id as requester_id, u.username as requester_username, u.display_name as requester_display_name, u.avatar as requester_avatar, u.status as requester_status
          FROM friendships f
          JOIN users u ON f.user_id = u.id
-         WHERE f.friend_id = ? AND f.status = ?
+         WHERE f.friend_id = ? AND f.status = 'pending'
          ORDER BY f.created_at DESC`,
-        [userId, 'pending'],
+        [userId],
         (err, incomingRows) => {
           if (err) {
             reject(err);
             return;
           }
 
+          // Get outgoing requests (I sent to others)
           db.all(
             `SELECT f.id, f.user_id, f.friend_id, f.status, f.created_at,
                     u.id as recipient_id, u.username as recipient_username, u.display_name as recipient_display_name, u.avatar as recipient_avatar, u.status as recipient_status
              FROM friendships f
              JOIN users u ON f.friend_id = u.id
-             WHERE f.user_id = ? AND f.status = ?
+             WHERE f.user_id = ? AND f.status = 'pending'
              ORDER BY f.created_at DESC`,
-            [userId, 'pending'],
+            [userId],
             (err2, outgoingRows) => {
               if (err2) reject(err2);
               else {
                 resolve({
-                  incoming: incomingRows,
-                  outgoing: outgoingRows
+                  incoming: incomingRows || [],
+                  outgoing: outgoingRows || []
                 });
               }
             }
@@ -3065,6 +3203,44 @@ const friendDB = {
           else resolve(row);
         }
       );
+    });
+  },
+
+  // Auto-friend for group code users (creates mutual friendship immediately)
+  async createAutoFriendship(user1Id, user2Id) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Check if already friends
+        const existing = await this.getFriendship(user1Id, user2Id);
+        if (existing && existing.status === 'accepted') {
+          resolve({ success: false, message: 'Already friends' });
+          return;
+        }
+
+        // Delete any pending requests between them
+        await dbRun(
+          'DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
+          [user1Id, user2Id, user2Id, user1Id]
+        );
+
+        // Create mutual friendship (both directions)
+        const id1 = uuidv4();
+        const id2 = uuidv4();
+        
+        await dbRun(
+          'INSERT INTO friendships (id, user_id, friend_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, datetime("now"), datetime("now"))',
+          [id1, user1Id, user2Id, 'accepted']
+        );
+        
+        await dbRun(
+          'INSERT INTO friendships (id, user_id, friend_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, datetime("now"), datetime("now"))',
+          [id2, user2Id, user1Id, 'accepted']
+        );
+        
+        resolve({ success: true, message: 'Auto-friendship created' });
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 };
@@ -3964,8 +4140,133 @@ const sessionDB = {
   }
 };
 
+// ============================================
+// GROUP CODES DATABASE
+// ============================================
+
+const groupCodeDB = {
+  // Create group codes table
+  async createTable() {
+    return new Promise((resolve, reject) => {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS group_codes (
+          id TEXT PRIMARY KEY,
+          code TEXT UNIQUE NOT NULL,
+          server_id TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          max_uses INTEGER,
+          used_count INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `, (err) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+  },
+
+  // Create a new group code
+  async create(code, serverId, createdBy, maxUses = null) {
+    const id = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO group_codes (id, code, server_id, created_by, max_uses) VALUES (?, ?, ?, ?, ?)',
+        [id, code.toUpperCase(), serverId, createdBy, maxUses],
+        function(err) {
+          if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+              reject(new Error('Kode grup sudah ada'));
+            } else {
+              reject(err);
+            }
+          } else {
+            resolve({ id, code: code.toUpperCase(), server_id: serverId, created_by: createdBy, max_uses: maxUses });
+          }
+        }
+      );
+    });
+  },
+
+  // Get all group codes with details
+  async getAll() {
+    return new Promise((resolve, reject) => {
+      db.all(`
+        SELECT 
+          gc.*,
+          s.name as server_name,
+          u.username as creator_username
+        FROM group_codes gc
+        LEFT JOIN servers s ON gc.server_id = s.id
+        LEFT JOIN users u ON gc.created_by = u.id
+        ORDER BY gc.created_at DESC
+      `, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  // Get group code by code string
+  async getByCode(code) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM group_codes WHERE code = ?',
+        [code.toUpperCase()],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+
+  // Increment usage count
+  async incrementUsage(code) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE group_codes SET used_count = used_count + 1 WHERE code = ?',
+        [code.toUpperCase()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true });
+        }
+      );
+    });
+  },
+
+  // Check if code is still valid
+  async isValid(code) {
+    const groupCode = await this.getByCode(code);
+    if (!groupCode) return false;
+    if (groupCode.max_uses && groupCode.used_count >= groupCode.max_uses) return false;
+    return true;
+  },
+
+  // Delete group code
+  async delete(id) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM group_codes WHERE id = ?',
+        [id],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ success: true, changes: this.changes });
+        }
+      );
+    });
+  }
+};
+
+// Initialize group codes table
+groupCodeDB.createTable().catch(console.error);
+
 // Dummy pool for compatibility with PostgreSQL interface
 const pool = { query: () => Promise.resolve({ rows: [] }) };
+
+// Import Master Admin DB
+const { masterAdminDB } = require('./database-master-admin');
 
 module.exports = {
   pool,
@@ -3990,7 +4291,13 @@ module.exports = {
   emojiDB,
   stickerDB,
   sessionDB,
+  masterAdminDB,
+  groupCodeDB,
   Permissions,
   RolePermissions,
-  RoleHierarchy
+  RoleHierarchy,
+  adminResetPassword: userDB.adminResetPassword,
+  needsPasswordChange: userDB.needsPasswordChange,
+  updateLastLogin: userDB.updateLastLogin,
+  toggleUserActive: userDB.toggleUserActive
 };
