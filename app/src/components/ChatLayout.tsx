@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import { ServerList } from './ServerList';
 import { ChannelList } from './ChannelList';
 import { ChatArea } from './ChatArea';
@@ -23,7 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
 import { useNotification } from '@/hooks/useNotification';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import type { Server, Channel, Message, FileAttachment, DMChannel } from '@/types';
+import type { Server, Channel, Message, FileAttachment, DMChannel, User } from '@/types';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -44,11 +45,18 @@ export function ChatLayout() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [dmChannels, setDmChannels] = useState<DMChannel[]>([]);
+  const [friends, setFriends] = useState<User[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedDMChannelId, setSelectedDMChannelId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('dm');
-  const [mobileView, setMobileView] = useState<ViewMode>('chat');
+  const [viewMode, setViewModeState] = useState<ViewMode>('dm');
+  
+  // Wrapper untuk setViewMode dengan logging
+  const setViewMode = useCallback((mode: ViewMode) => {
+    console.log('[setViewMode] Changing from', viewMode, 'to', mode);
+    setViewModeState(mode);
+  }, [viewMode]);
+  const [mobileView, setMobileView] = useState<ViewMode>('friends');
   const [dmUnreadCounts, setDMUnreadCounts] = useState<Record<string, number>>({});
   const [totalDMUnread, setTotalDMUnread] = useState(0);
   const [channelUnreadCounts, setChannelUnreadCounts] = useState<Record<string, { count: number; hasMention: boolean }>>({});
@@ -127,22 +135,49 @@ export function ChatLayout() {
     fetchServers();
     fetchDMChannels();
     fetchDMUnreadCount();
+    fetchFriends();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Refresh servers when window regains focus (for access control updates)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchServers();
+      }
+    };
+    
+    const handleFocus = () => {
+      fetchServers();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Sync URL with view mode
   useEffect(() => {
     const path = location.pathname;
+    console.log('[URL Parse] pathname:', path);
     
     // Parse URL and set initial view mode
     if (path === '/friends') {
+      console.log('[URL Parse] Setting viewMode to friends');
       setViewMode('friends');
     } else if (path.startsWith('/channels/')) {
       // URL format: /channels/:serverId/:channelId
       const parts = path.split('/');
+      console.log('[URL Parse] parts:', parts);
       if (parts.length >= 4) {
         const serverId = parts[2];
         const channelId = parts[3];
+        console.log('[URL Parse] Setting server:', serverId, 'channel:', channelId);
         setSelectedServerId(serverId);
         setSelectedChannelId(channelId);
         setViewMode('server');
@@ -150,6 +185,7 @@ export function ChatLayout() {
     } else if (path === '/' || path === '') {
       // Default to friends view if no specific path
       if (!selectedServerId && !selectedDMChannelId) {
+        console.log('[URL Parse] Defaulting to friends');
         setViewMode('friends');
         navigate('/friends', { replace: true });
       }
@@ -158,8 +194,10 @@ export function ChatLayout() {
 
   // Update URL when view mode changes
   useEffect(() => {
+    console.log('[URL Update] viewMode:', viewMode, 'pathname:', location.pathname);
     if (viewMode === 'friends') {
       if (location.pathname !== '/friends') {
+        console.log('[URL Update] Navigating to /friends');
         navigate('/friends', { replace: true });
       }
     } else if (viewMode === 'server' && selectedServerId && selectedChannelId) {
@@ -451,6 +489,26 @@ export function ChatLayout() {
       }
     }, 500);
   }, [token]);
+
+  // Fetch friends list
+  const fetchFriends = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/friends`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFriends(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch friends:', error);
+    }
+  }, [token]);
+
+  // Calculate online friends count
+  const onlineFriendsCount = useMemo(() => {
+    return friends.filter(f => f.status === 'online').length;
+  }, [friends]);
 
   // Fetch channel unread count for a server
   const fetchChannelUnreadCount = async (serverId: string) => {
@@ -799,6 +857,20 @@ export function ChatLayout() {
       });
       if (response.ok) {
         const data = await response.json();
+        
+        // Check if current selected server is still accessible
+        if (selectedServerId && viewMode === 'server') {
+          const serverStillAccessible = data.some((s: Server) => s.id === selectedServerId);
+          if (!serverStillAccessible) {
+            // Server access revoked, redirect to friends
+            setViewMode('friends');
+            setSelectedServerId(null);
+            setSelectedChannelId(null);
+            navigate('/friends');
+            toast.error('Akses ke server ini telah dicabut oleh admin.');
+          }
+        }
+        
         setServers(data);
         if (data.length > 0 && !selectedServerId && viewMode === 'server') {
           setSelectedServerId(data[0].id);
@@ -809,19 +881,23 @@ export function ChatLayout() {
     } finally {
       setLoading(false);
     }
-  }, [token, selectedServerId, viewMode]);
+  }, [token, selectedServerId, viewMode, navigate, toast]);
 
   const fetchChannels = async (serverId: string) => {
     try {
+      console.log(`[Frontend] Fetching channels for server ${serverId}`);
       const response = await fetch(`${API_URL}/servers/${serverId}/channels`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
+        console.log(`[Frontend] Received ${data.length} channels:`, data.map((c: any) => c.name));
         setChannels(data);
         if (data.length > 0) {
           setSelectedChannelId(data[0].id);
         }
+      } else {
+        console.error('[Frontend] Failed to fetch channels:', response.status);
       }
     } catch (error) {
       console.error('Failed to fetch channels:', error);
@@ -906,7 +982,7 @@ export function ChatLayout() {
         setViewMode('friends');
         break;
       case 'chat':
-        setViewMode(selectedDMChannelId ? 'dm' : 'server');
+        setViewMode('dm');
         break;
       case 'settings':
         setIsSettingsOpen(true);
@@ -949,11 +1025,15 @@ export function ChatLayout() {
   };
 
   const handleStartDM = async (friend: any) => {
+    console.log('[handleStartDM] Starting DM with friend:', friend.username);
     try {
       const existingChannel = dmChannels.find(c => c.friend?.id === friend.id && c.type === 'direct');
+      console.log('[handleStartDM] Existing channel:', existingChannel?.id);
       if (existingChannel) {
+        console.log('[handleStartDM] Using existing channel');
         setSelectedDMChannelId(existingChannel.id);
         setViewMode('dm');
+        console.log('[handleStartDM] Set viewMode to dm, selectedDMChannelId to:', existingChannel.id);
         return;
       }
 
@@ -1091,7 +1171,7 @@ export function ChatLayout() {
 
   const handleBackFromDM = () => {
     setSelectedDMChannelId(null);
-    setViewMode('friends');
+    setViewMode('dm'); // Kembali ke daftar DM, bukan ke Friends
   };
 
   const selectedServer = servers.find(s => s.id === selectedServerId) || null;
@@ -1155,6 +1235,7 @@ export function ChatLayout() {
   }
 
   // MOBILE LAYOUT
+  console.log('[Mobile Layout] viewMode:', viewMode, 'selectedDMChannelId:', selectedDMChannelId, 'selectedDMChannel:', selectedDMChannel?.id);
   if (isMobile) {
     return (
       <div className="h-screen flex flex-col bg-[#0a0a12] overflow-hidden">
@@ -1185,7 +1266,25 @@ export function ChatLayout() {
                     setIsAddMemberModalOpen(true);
                   }}
                   onLeaveGroup={handleLeaveGroup}
-                  onFocusInput={() => {/* DMChatArea handles its own textarea */}}
+                  isMobile={true}
+                />
+              </div>
+            </>
+          ) : viewMode === 'dm' ? (
+            // Show DM List when Chat tab clicked but no DM selected
+            <>
+              <div className="h-12 px-4 flex items-center justify-between bg-[#1a1b2e] border-b border-[#0f0f1a]">
+                <h2 className="text-white font-semibold">Pesan Langsung</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <DMList
+                  selectedChannelId={selectedDMChannelId}
+                  onSelectChannel={handleSelectDMChannel}
+                  onOpenFriends={() => setViewMode('friends')}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onCreateGroupDM={() => setIsGroupDMModalOpen(true)}
+                  unreadCounts={dmUnreadCounts}
+                  isMobile={true}
                 />
               </div>
             </>
@@ -1193,7 +1292,6 @@ export function ChatLayout() {
             <>
               <MobileHeader
                 server={selectedServer}
-                channel={selectedChannel}
                 onOpenServers={() => setIsServerDrawerOpen(true)}
                 onOpenChannels={() => setIsChannelDrawerOpen(!isChannelDrawerOpen)}
                 onOpenMembers={() => setIsMemberDrawerOpen(true)}
@@ -1241,6 +1339,7 @@ export function ChatLayout() {
             currentView={mobileView}
             onViewChange={handleMobileViewChange}
             unreadDMCount={totalDMUnread}
+            onlineFriendsCount={onlineFriendsCount}
           />
         </div>
 
@@ -1270,7 +1369,6 @@ export function ChatLayout() {
         <MobileDrawer
           isOpen={isChannelDrawerOpen}
           onClose={() => setIsChannelDrawerOpen(false)}
-          title={selectedServer?.name || 'Channels'}
         >
           <ChannelList
             server={selectedServer}

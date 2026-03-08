@@ -5,18 +5,20 @@ interface MobileBottomNavProps {
   currentView: ViewMode;
   onViewChange: (view: ViewMode) => void;
   unreadDMCount?: number;
+  onlineFriendsCount?: number;
 }
 
 export function MobileBottomNav({ 
   currentView, 
   onViewChange,
-  unreadDMCount = 0 
+  unreadDMCount: _unreadDMCount = 0,
+  onlineFriendsCount = 0
 }: MobileBottomNavProps) {
   const navItems = [
     { id: 'server' as const, icon: Home, label: 'Server' },
     { id: 'channels' as const, icon: Hash, label: 'Channels' },
+    { id: 'friends' as const, icon: Users, label: 'Friends', badge: onlineFriendsCount },
     { id: 'chat' as const, icon: MessageSquare, label: 'Chat' },
-    { id: 'friends' as const, icon: Users, label: 'Friends', badge: unreadDMCount },
     { id: 'settings' as const, icon: Settings, label: 'Settings' },
   ];
 

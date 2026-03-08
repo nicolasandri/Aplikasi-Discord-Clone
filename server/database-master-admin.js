@@ -52,14 +52,14 @@ const masterAdminDB = {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT s.id, s.name, s.icon, s.owner_id, s.created_at,
-                u.username as owner_username,
+                COALESCE(u.username, 'Unknown') as owner_username,
                 (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id) as member_count,
                 (SELECT COUNT(*) FROM channels c WHERE c.server_id = s.id) as channel_count,
                 (SELECT COUNT(*) FROM messages m 
                  JOIN channels ch ON m.channel_id = ch.id 
                  WHERE ch.server_id = s.id) as message_count
          FROM servers s
-         JOIN users u ON s.owner_id = u.id
+         LEFT JOIN users u ON s.owner_id = u.id
          ORDER BY s.created_at DESC
          LIMIT ? OFFSET ?`,
         [limit, offset],
@@ -243,11 +243,11 @@ const masterAdminDB = {
                 channelType: row.channel_type,
                 senderId: row.sender_id,
                 senderUsername: row.username,
-                senderDisplayName: row.display_name,
+                senderDisplayName: row.display_name || row.username,
                 senderAvatar: row.avatar,
                 recipientId: recipient?.id || null,
                 recipientUsername: recipient?.username || 'Unknown',
-                recipientDisplayName: recipient?.display_name || 'Unknown',
+                recipientDisplayName: recipient?.display_name || recipient?.username || 'Unknown',
                 recipientAvatar: recipient?.avatar || null,
                 content: row.content,
                 attachments: row.attachments ? JSON.parse(row.attachments) : null,
@@ -277,7 +277,8 @@ const masterAdminDB = {
           (SELECT COUNT(*) FROM dm_messages) as total_dm_messages,
           (SELECT COUNT(*) FROM server_members) as total_memberships,
           (SELECT COUNT(*) FROM friendships WHERE status = 'accepted') as total_friendships,
-          (SELECT COUNT(*) FROM users WHERE status = 'online') as online_users`,
+          (SELECT COUNT(*) FROM users WHERE status = 'online') as online_users,
+          (SELECT COUNT(*) FROM users WHERE joined_via_group_code = 'JEBOLTOGEL') as total_jeboltogel_users`,
         [],
         (err, row) => {
           if (err) reject(err);

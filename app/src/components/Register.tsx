@@ -20,10 +20,22 @@ export function Register({ onToggleForm }: RegisterProps) {
   const { register, loading, error, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect to home when authenticated
+  // Redirect to home or default channel when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true });
+      // Check if there's a default channel to redirect to
+      const defaultChannelId = localStorage.getItem('defaultChannelId');
+      const defaultServerId = localStorage.getItem('defaultServerId');
+      
+      if (defaultChannelId && defaultServerId) {
+        // Redirect to the default channel
+        navigate(`/channels/${defaultServerId}/${defaultChannelId}`, { replace: true });
+        // Clear the stored values
+        localStorage.removeItem('defaultChannelId');
+        localStorage.removeItem('defaultServerId');
+      } else {
+        navigate('/', { replace: true });
+      }
     }
   }, [isAuthenticated, navigate]);
 

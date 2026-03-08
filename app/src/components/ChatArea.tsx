@@ -571,12 +571,12 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 onClick={() => onAttachmentClick?.(message, index)}
               >
                 {file.mimetype.startsWith('image/') ? (
-                  <div className={`block ${isMobile ? 'w-full' : 'max-w-md'}`}>
+                  <div className={`block ${isMobile ? 'w-full' : 'max-w-2xl'}`} style={file.width ? { maxWidth: `${file.width}px` } : undefined}>
                     <img 
                       src={getFileUrl(file.url)} 
                       alt={file.originalName}
                       className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#12121a] ${
-                        isMobile ? 'max-h-[200px]' : 'max-h-[300px]'
+                        isMobile ? 'max-h-[400px]' : 'max-h-[600px]'
                       }`}
                       loading="lazy"
                       onError={(e) => {
@@ -586,10 +586,10 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     />
                   </div>
                 ) : file.mimetype.startsWith('video/') ? (
-                  <div className={`relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center ${isMobile ? 'w-full' : 'max-w-md'}`}>
+                  <div className={`relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center ${isMobile ? 'w-full' : 'max-w-2xl'}`}>
                     <video
                       src={getFileUrl(file.url)}
-                      className={`w-full ${isMobile ? 'max-h-[150px]' : 'max-h-[200px]'}`}
+                      className={`w-full ${isMobile ? 'max-h-[350px]' : 'max-h-[550px]'}`}
                       preload="metadata"
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors">
@@ -599,7 +599,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     </div>
                   </div>
                 ) : (
-                  <div className={`flex items-center gap-2 bg-[#12121a] hover:bg-[#0d0d14] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-md'}`}>
+                  <div className={`flex items-center gap-2 bg-[#12121a] hover:bg-[#0d0d14] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-2xl'}`}>
                     <div className={`bg-[#00d4ff] rounded-lg flex items-center justify-center flex-shrink-0 ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
                       <FileText className={`text-white ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </div>

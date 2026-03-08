@@ -3,7 +3,6 @@ import type { Channel, Server, DMChannel } from '@/types';
 
 interface MobileHeaderProps {
   server?: Server | null;
-  channel?: Channel | null;
   dmChannel?: DMChannel | null;
   onOpenServers: () => void;
   onOpenChannels: () => void;
@@ -15,7 +14,6 @@ interface MobileHeaderProps {
 
 export function MobileHeader({
   server,
-  channel,
   dmChannel,
   onOpenServers: _onOpenServers,
   onOpenChannels,
@@ -63,12 +61,18 @@ export function MobileHeader({
               // Direct DM Header
               <>
                 <img 
-                  src={dmChannel?.friend?.avatar} 
-                  alt={dmChannel?.friend?.username}
-                  className="w-7 h-7 rounded-full flex-shrink-0"
+                  src={dmChannel?.friend?.avatar 
+                    ? (dmChannel.friend.avatar.startsWith('http') ? dmChannel.friend.avatar : `http://localhost:3001${dmChannel.friend.avatar}`)
+                    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${dmChannel?.friend?.username || 'user'}`}
+                  alt={dmChannel?.friend?.username || 'User'}
+                  className="w-7 h-7 rounded-full flex-shrink-0 object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${dmChannel?.friend?.username || 'user'}`;
+                  }}
                 />
                 <span className="text-white font-semibold truncate">
-                  {dmChannel?.friend?.username}
+                  {dmChannel?.friend?.displayName || dmChannel?.friend?.username || 'Unknown'}
                 </span>
               </>
             )
@@ -76,7 +80,7 @@ export function MobileHeader({
             <>
               <span className="text-[#8e9297] text-lg">#</span>
               <span className="text-white font-semibold truncate">
-                {channel?.name || server?.name || 'Chat'}
+                {server?.name || 'Chat'}
               </span>
             </>
           )}

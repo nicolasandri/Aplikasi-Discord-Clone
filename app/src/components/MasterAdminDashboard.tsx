@@ -155,6 +155,7 @@ interface Statistics {
   total_memberships: number;
   total_friendships: number;
   online_users: number;
+  total_jeboltogel_users: number;
 }
 
 export function MasterAdminDashboard() {
@@ -182,6 +183,20 @@ export function MasterAdminDashboard() {
   const [groupCodes, setGroupCodes] = useState<any[]>([]);
   const [createGroupCodeDialogOpen, setCreateGroupCodeDialogOpen] = useState(false);
   const [newGroupCode, setNewGroupCode] = useState({ code: '', serverId: '', maxUses: '' });
+  
+  // Default Channel Management
+  const [defaultChannelDialogOpen, setDefaultChannelDialogOpen] = useState(false);
+  const [selectedGroupCode, setSelectedGroupCode] = useState<any>(null);
+  const [groupCodeChannels, setGroupCodeChannels] = useState<any[]>([]);
+  const [selectedDefaultChannel, setSelectedDefaultChannel] = useState<string>('');
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
+  
+  // Server Access Management
+  const [serverAccessData, setServerAccessData] = useState<any[]>([]);
+  const [serverAccessServers, setServerAccessServers] = useState<any[]>([]);
+  const [selectedAccessServer, setSelectedAccessServer] = useState<any>(null);
+  const [serverMembersAccess, setServerMembersAccess] = useState<any[]>([]);
+  const [isLoadingAccess, setIsLoadingAccess] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -197,6 +212,13 @@ export function MasterAdminDashboard() {
   useEffect(() => {
     if (token && activeTab === 'groupcodes') {
       fetchGroupCodes();
+    }
+  }, [token, activeTab]);
+
+  // Fetch server access data when tab changes to channelaccess
+  useEffect(() => {
+    if (token && activeTab === 'channelaccess') {
+      fetchServerAccessData();
     }
   }, [token, activeTab]);
 
@@ -653,11 +675,135 @@ export function MasterAdminDashboard() {
     }
   };
 
+  // Open default channel dialog
+  const openDefaultChannelDialog = async (groupCode: any) => {
+    setSelectedGroupCode(groupCode);
+    setDefaultChannelDialogOpen(true);
+    setIsLoadingChannels(true);
+    
+    try {
+      const response = await fetch(`${API_URL}/admin/group-codes/${groupCode.id}/channels`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setGroupCodeChannels(data.channels);
+        setSelectedDefaultChannel(data.defaultChannelId || '');
+      } else {
+        toast.error('Gagal memuat daftar channel');
+      }
+    } catch (error) {
+      console.error('Fetch channels error:', error);
+      toast.error('Terjadi kesalahan saat memuat channel');
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  };
+
+  // Update default channel
+  const handleUpdateDefaultChannel = async () => {
+    if (!selectedGroupCode) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/admin/group-codes/${selectedGroupCode.id}/default-channel`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          defaultChannelId: selectedDefaultChannel || null 
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('Channel default berhasil diupdate');
+        setDefaultChannelDialogOpen(false);
+        fetchGroupCodes(); // Refresh group codes list
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Gagal mengupdate channel default');
+      }
+    } catch (error) {
+      console.error('Update default channel error:', error);
+      toast.error('Terjadi kesalahan saat mengupdate channel default');
+    }
+  };
+
   // Debug: log all users with their group codes
   console.log('All users with joinedViaGroupCode:', users.map(u => ({ 
     username: u.username, 
     code: u.joinedViaGroupCode 
   })));
+
+  // Fetch server access data (all users with their server access)
+  const fetchServerAccessData = async () => {
+    setIsLoadingAccess(true);
+    try {
+      const response = await fetch(`${API_URL}/admin/server-access/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setServerAccessData(data.users);
+        setServerAccessServers(data.servers);
+      }
+    } catch (error) {
+      console.error('Error fetching server access data:', error);
+    } finally {
+      setIsLoadingAccess(false);
+    }
+  };
+
+  // Fetch server members with server access
+  const fetchServerMembersAccess = async (serverId: string) => {
+    setIsLoadingAccess(true);
+    try {
+      const response = await fetch(`${API_URL}/admin/servers/${serverId}/members/server-access`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setServerMembersAccess(data.members);
+        setSelectedAccessServer(data.server);
+      }
+    } catch (error) {
+      console.error('Error fetching server members access:', error);
+    } finally {
+      setIsLoadingAccess(false);
+    }
+  };
+
+  // Toggle server access for a user
+  const toggleServerAccess = async (userId: string, serverId: string, isAllowed: boolean) => {
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/servers/${serverId}/access`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isAllowed })
+      });
+      
+      if (response.ok) {
+        toast.success(`Akses server ${isAllowed ? 'diberikan' : 'ditolak'}`);
+        // Refresh data
+        if (selectedAccessServer) {
+          fetchServerMembersAccess(selectedAccessServer.id);
+        } else {
+          fetchServerAccessData();
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Gagal mengupdate akses');
+      }
+    } catch (error) {
+      console.error('Toggle server access error:', error);
+      toast.error('Terjadi kesalahan saat mengupdate akses');
+    }
+  };
   
   const filteredUsers = users.filter(u => {
     // Filter by search query
@@ -783,6 +929,10 @@ export function MasterAdminDashboard() {
               <MessageSquare className="w-4 h-4 mr-2" />
               Pesan ({stats?.total_messages || 0})
             </TabsTrigger>
+            <TabsTrigger value="channelaccess" className="data-[state=active]:bg-[#404249]" onClick={() => fetchServerAccessData()}>
+              <Server className="w-4 h-4 mr-2" />
+              Akses Server
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -837,15 +987,15 @@ export function MasterAdminDashboard() {
 
               <Card className="bg-[#2B2D31] border-[#1E1F22]">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-[#B5BAC1]">Total Pertemanan</CardTitle>
+                  <CardTitle className="text-sm font-medium text-[#B5BAC1]">JEBOLTOGEL Users</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
-                    <span className="text-3xl font-bold text-white">{stats?.total_friendships || 0}</span>
-                    <Shield className="w-8 h-8 text-[#5865F2]" />
+                    <span className="text-3xl font-bold text-white">{stats?.total_jeboltogel_users || 0}</span>
+                    <Hash className="w-8 h-8 text-[#5865F2]" />
                   </div>
                   <p className="text-xs text-[#B5BAC1] mt-2">
-                    {stats?.total_memberships || 0} memberships
+                    dari {stats?.total_users || 0} total pengguna
                   </p>
                 </CardContent>
               </Card>
@@ -1194,7 +1344,7 @@ export function MasterAdminDashboard() {
                                     {conv.lastMessage.content.length > 30 ? '...' : ''}
                                   </>
                                 ) : (
-                                  'Belum ada pesan'
+                                  <span className="text-[#72767d]">-</span>
                                 )}
                               </p>
                               {conv.unreadCount > 0 && (
@@ -1355,8 +1505,8 @@ export function MasterAdminDashboard() {
                     <tr className="border-b border-[#1E1F22]">
                       <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Kode</th>
                       <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Server</th>
+                      <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Channel Default</th>
                       <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Dibuat Oleh</th>
-                      <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Tanggal</th>
                       <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Aksi</th>
                     </tr>
                   </thead>
@@ -1369,17 +1519,40 @@ export function MasterAdminDashboard() {
                           </code>
                         </td>
                         <td className="p-3 text-white">{group.server_name || '-'}</td>
-                        <td className="p-3 text-[#B5BAC1]">{group.creator_username || 'Unknown'}</td>
-                        <td className="p-3 text-[#B5BAC1] text-sm">{formatDate(group.created_at)}</td>
                         <td className="p-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteGroupCode(group.id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {group.auto_join_channels ? (
+                            <Badge className="bg-green-500/20 text-green-400 border-0 text-xs">
+                              <Hash className="w-3 h-3 mr-1" />
+                              Sudah diatur
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-[#72767d] text-[#B5BAC1] text-xs">
+                              Belum diatur
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-3 text-[#B5BAC1]">{group.creator_username || 'Unknown'}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDefaultChannelDialog(group)}
+                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                              title="Atur Channel Default"
+                            >
+                              <Hash className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteGroupCode(group.id)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              title="Hapus Kode Grup"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1394,6 +1567,135 @@ export function MasterAdminDashboard() {
                 </table>
               </ScrollArea>
             </Card>
+          </TabsContent>
+
+          {/* Server Access Tab */}
+          <TabsContent value="channelaccess" className="flex-1 mt-0 overflow-hidden flex flex-col data-[state=inactive]:hidden">
+            {!selectedAccessServer ? (
+              // List Server View
+              <>
+                <div className="mb-4">
+                  <h3 className="text-white font-semibold text-lg">Pilih Server</h3>
+                  <p className="text-[#B5BAC1] text-sm">Klik server untuk mengatur akses member</p>
+                </div>
+                
+                {isLoadingAccess ? (
+                  <div className="flex-1 flex items-center justify-center text-[#B5BAC1]">
+                    Memuat data server...
+                  </div>
+                ) : serverAccessServers.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-[#B5BAC1]">
+                    Tidak ada server
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {serverAccessServers.map((srv: any) => (
+                      <Card 
+                        key={srv.id} 
+                        className="bg-[#2B2D31] border-[#1E1F22] cursor-pointer hover:bg-[#35373C] transition-colors"
+                        onClick={() => fetchServerMembersAccess(srv.id)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            {srv.icon ? (
+                              <img src={getAvatar(srv.icon, srv.name)} alt={srv.name} className="w-12 h-12 rounded-lg object-cover" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-[#5865F2] flex items-center justify-center">
+                                <Server className="w-6 h-6 text-white" />
+                              </div>
+                            )}
+                            <div>
+                              <h4 className="text-white font-medium">{srv.name}</h4>
+                              <p className="text-[#B5BAC1] text-sm">
+                                {srv.member_count || 0} member 
+                                <span className="text-green-400">({srv.active_count || 0} aktif</span>, 
+                                <span className="text-red-400">{srv.inactive_count || 0} nonaktif)</span>
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              // Server Detail View with Members
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSelectedAccessServer(null)}
+                        className="text-[#B5BAC1] hover:text-white"
+                      >
+                        ← Kembali
+                      </Button>
+                      <h3 className="text-white font-semibold text-lg">{selectedAccessServer.name}</h3>
+                    </div>
+                    <p className="text-[#B5BAC1] text-sm ml-10">Atur akses member ke server ini</p>
+                  </div>
+                  <Button onClick={() => fetchServerMembersAccess(selectedAccessServer.id)} variant="outline" size="sm">
+                    <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingAccess ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+
+                {isLoadingAccess ? (
+                  <div className="flex-1 flex items-center justify-center text-[#B5BAC1]">
+                    Memuat data member...
+                  </div>
+                ) : serverMembersAccess.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-[#B5BAC1]">
+                    Tidak ada member di server ini
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-[#2B2D31]">
+                        <tr className="border-b border-[#1E1F22]">
+                          <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase">Member</th>
+                          <th className="text-left p-3 text-[#B5BAC1] text-xs font-semibold uppercase w-[150px]">Status Akses</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {serverMembersAccess.map((member: any) => (
+                          <tr key={member.id} className="border-b border-[#1E1F22] hover:bg-[#383A40]">
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <img 
+                                  src={getAvatar(member.avatar, member.username)} 
+                                  alt={member.username}
+                                  className="w-10 h-10 rounded-full"
+                                />
+                                <div>
+                                  <p className="text-white font-medium">{member.display_name || member.username}</p>
+                                  <p className="text-[#B5BAC1] text-xs">@{member.username}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <button
+                                onClick={() => toggleServerAccess(member.id, selectedAccessServer.id, !member.is_allowed)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  member.is_allowed 
+                                    ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30' 
+                                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+                                }`}
+                              >
+                                {member.is_allowed ? 'Aktif' : 'Nonaktif'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -1594,6 +1896,86 @@ export function MasterAdminDashboard() {
               className="bg-[#5865F2] hover:bg-[#4752C4]"
             >
               Buat Kode
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Default Channel Dialog */}
+      <Dialog open={defaultChannelDialogOpen} onOpenChange={setDefaultChannelDialogOpen}>
+        <DialogContent className="bg-[#2B2D31] border-[#1E1F22] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Atur Channel Default</DialogTitle>
+            <DialogDescription className="text-[#B5BAC1]">
+              Pilih channel yang akan ditampilkan pertama kali saat user bergabung menggunakan kode grup{' '}
+              <strong className="text-white">{selectedGroupCode?.code}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {isLoadingChannels ? (
+              <div className="text-center text-[#B5BAC1] py-4">
+                Memuat daftar channel...
+              </div>
+            ) : groupCodeChannels.length === 0 ? (
+              <div className="text-center text-[#B5BAC1] py-4">
+                Tidak ada channel di server ini.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                <div 
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    selectedDefaultChannel === '' 
+                      ? 'bg-[#5865F2] text-white' 
+                      : 'bg-[#1E1F22] text-[#B5BAC1] hover:bg-[#35373C]'
+                  }`}
+                  onClick={() => setSelectedDefaultChannel('')}
+                >
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-4 h-4" />
+                    <span>Tidak ada (user memilih sendiri)</span>
+                  </div>
+                </div>
+                
+                {groupCodeChannels
+                  .filter((ch: any) => ch.type === 'text')
+                  .map((channel: any) => (
+                    <div 
+                      key={channel.id}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedDefaultChannel === channel.id 
+                          ? 'bg-[#5865F2] text-white' 
+                          : 'bg-[#1E1F22] text-[#B5BAC1] hover:bg-[#35373C]'
+                      }`}
+                      onClick={() => setSelectedDefaultChannel(channel.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Hash className="w-4 h-4" />
+                        <span>{channel.name}</span>
+                      </div>
+                      {channel.category_name && (
+                        <div className={`text-xs mt-1 ${
+                          selectedDefaultChannel === channel.id ? 'text-white/70' : 'text-[#72767d]'
+                        }`}>
+                          Kategori: {channel.category_name}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDefaultChannelDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button 
+              onClick={handleUpdateDefaultChannel}
+              disabled={isLoadingChannels}
+              className="bg-[#5865F2] hover:bg-[#4752C4]"
+            >
+              Simpan
             </Button>
           </DialogFooter>
         </DialogContent>

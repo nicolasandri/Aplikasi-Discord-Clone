@@ -222,14 +222,15 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   };
 
   // Handle GIF selection
-  const handleGIFSelect = useCallback((gif: { url: string; title: string }) => {
-    // Add GIF as attachment
+  const handleGIFSelect = useCallback((gif: { url: string; title: string; width?: number }) => {
+    // Add GIF as attachment with size info
     const gifAttachment: FileAttachment = {
       url: gif.url,
       filename: `gif_${Date.now()}.gif`,
       originalName: gif.title || 'GIF',
       mimetype: 'image/gif',
       size: 0, // Size not available from GIPHY
+      width: gif.width,
     };
     const newAttachments = [...attachments, gifAttachment];
     setAttachments(newAttachments);

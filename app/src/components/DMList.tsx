@@ -31,6 +31,7 @@ interface DMListProps {
   onOpenSettings?: () => void;
   onCreateGroupDM?: () => void;
   unreadCounts: Record<string, number>;
+  isMobile?: boolean;
 }
 
 export function DMList({ 
@@ -39,7 +40,8 @@ export function DMList({
   onOpenFriends,
   onOpenSettings,
   onCreateGroupDM,
-  unreadCounts 
+  unreadCounts,
+  isMobile = false
 }: DMListProps) {
   const [dmChannels, setDmChannels] = useState<DMChannel[]>([]);
   const [isFetching, setIsFetching] = useState(false);
@@ -95,8 +97,8 @@ export function DMList({
             status: row.friend_status || 'offline',
             email: '',
           },
-          lastMessage: row.last_message,
-          lastMessageAt: row.last_message_at,
+          lastMessage: row.lastMessage || row.last_message,
+          lastMessageAt: row.lastMessageAt || row.last_message_at,
           unreadCount: row.unread_count || 0,
           updatedAt: row.updated_at || row.last_message_at,
         }));
@@ -144,6 +146,10 @@ export function DMList({
       debouncedFetchDMChannels();
     };
 
+    const handleNewDMMessage = () => {
+      debouncedFetchDMChannels();
+    };
+
     const handleDMChannelUpdated = () => {
       debouncedFetchDMChannels();
     };
@@ -159,11 +165,13 @@ export function DMList({
     };
 
     socket.on('dm_message_received', handleDMMessageReceived);
+    socket.on('new-dm-message', handleNewDMMessage);
     socket.on('dm_channel_updated', handleDMChannelUpdated);
     socket.on('user_left_dm', handleUserLeftDM);
 
     return () => {
       socket.off('dm_message_received', handleDMMessageReceived);
+      socket.off('new-dm-message', handleNewDMMessage);
       socket.off('dm_channel_updated', handleDMChannelUpdated);
       socket.off('user_left_dm', handleUserLeftDM);
       if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
@@ -219,49 +227,53 @@ export function DMList({
   };
 
   return (
-    <div className="w-60 bg-[#232438] flex flex-col">
-      {/* Header */}
-      <div className="h-12 px-4 flex items-center shadow-md border-b border-[#0f0f1a]">
-        <button 
-          onClick={onOpenFriends}
-          className="w-full bg-[#0f0f1a] hover:bg-[#1a1b2e] text-[#a0a0b0] text-sm font-medium py-1.5 px-3 rounded transition-colors text-left"
-        >
-          Cari atau mulai percakapan
-        </button>
-      </div>
-
-      {/* Friends Button */}
-      <div className="px-2 py-2">
-        <button
-          onClick={onOpenFriends}
-          className="w-full flex items-center gap-3 px-2 py-2 rounded hover:bg-[#34373c] text-[#a0a0b0] hover:text-white transition-colors"
-        >
-          <div className="w-8 h-8 rounded-full bg-[#1a1b2e] flex items-center justify-center">
-            <UserPlus className="w-4 h-4" />
+    <div className={`${isMobile ? 'w-full bg-[#0d0d14]' : 'w-60 bg-[#232438]'} flex flex-col h-full`}>
+      {!isMobile && (
+        <>
+          {/* Header */}
+          <div className="h-12 px-4 flex items-center shadow-md border-b border-[#0f0f1a]">
+            <button 
+              onClick={onOpenFriends}
+              className="w-full bg-[#0f0f1a] hover:bg-[#1a1b2e] text-[#a0a0b0] text-sm font-medium py-1.5 px-3 rounded transition-colors text-left"
+            >
+              Cari atau mulai percakapan
+            </button>
           </div>
-          <span className="font-medium">Teman</span>
-        </button>
-      </div>
 
-      {/* Section Title with Create Group Button */}
-      <div className="px-4 py-1 flex items-center justify-between">
-        <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide">
-          Pesan Langsung
-        </h3>
-        {onCreateGroupDM && (
-          <button
-            onClick={onCreateGroupDM}
-            className="text-[#96989d] hover:text-white transition-colors p-1"
-            title="Buat Grup Baru"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+          {/* Friends Button */}
+          <div className="px-2 py-2">
+            <button
+              onClick={onOpenFriends}
+              className="w-full flex items-center gap-3 px-2 py-2 rounded hover:bg-[#34373c] text-[#a0a0b0] hover:text-white transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#1a1b2e] flex items-center justify-center">
+                <UserPlus className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Teman</span>
+            </button>
+          </div>
+
+          {/* Section Title with Create Group Button */}
+          <div className="px-4 py-1 flex items-center justify-between">
+            <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide">
+              Pesan Langsung
+            </h3>
+            {onCreateGroupDM && (
+              <button
+                onClick={onCreateGroupDM}
+                className="text-[#96989d] hover:text-white transition-colors p-1"
+                title="Buat Grup Baru"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* DM List */}
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-0.5">
+      <ScrollArea className={`flex-1 ${isMobile ? 'px-0' : 'px-2'}`}>
+        <div className={`${isMobile ? 'divide-y divide-[#1a1a24]' : 'space-y-0.5'}`}>
           {dmChannels.map((channel) => {
             const isGroup = channel.type === 'group';
             const displayName = isGroup 
@@ -272,30 +284,30 @@ export function DMList({
               <button
                 key={channel.id}
                 onClick={() => onSelectChannel(channel.id)}
-                className={`w-full flex items-center gap-3 px-2 py-2 rounded group relative ${
+                className={`w-full flex items-center gap-3 ${isMobile ? 'px-4 py-3' : 'px-2 py-2 rounded'} group relative ${
                   selectedChannelId === channel.id
-                    ? 'bg-[#2a2b3d] text-white'
-                    : 'hover:bg-[#34373c] text-[#a0a0b0] hover:text-white'
+                    ? isMobile ? 'bg-[#1a1b2e] text-white' : 'bg-[#2a2b3d] text-white'
+                    : isMobile ? 'hover:bg-[#13131a] text-[#a0a0b0] hover:text-white' : 'hover:bg-[#34373c] text-[#a0a0b0] hover:text-white'
                 }`}
               >
                 {/* Avatar or Group Icon */}
                 <div className="relative flex-shrink-0">
                   {isGroup ? (
-                    <div className="w-8 h-8 rounded-full bg-[#00d4ff] flex items-center justify-center">
-                      <Users className="w-4 h-4 text-white" />
+                    <div className={`${isMobile ? 'w-12 h-12' : 'w-8 h-8'} rounded-full bg-[#00d4ff] flex items-center justify-center`}>
+                      <Users className={`${isMobile ? 'w-6 h-6' : 'w-4 h-4'} text-white`} />
                     </div>
                   ) : (
                     <>
-                      <Avatar className="w-8 h-8">
+                      <Avatar className={`${isMobile ? 'w-12 h-12' : 'w-8 h-8'}`}>
                         <AvatarImage 
                           src={channel.friend?.avatar 
                             ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
                             : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
                           alt={channel.friend?.displayName || channel.friend?.username || 'User'} 
                         />
-                        <AvatarFallback className="bg-[#36393f]"><UserIcon className="w-4 h-4 text-[#b9bbbe]" /></AvatarFallback>
+                        <AvatarFallback className="bg-[#36393f]"><UserIcon className={`${isMobile ? 'w-6 h-6' : 'w-4 h-4'} text-[#b9bbbe]`} /></AvatarFallback>
                       </Avatar>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${statusColors[channel.friend?.status || 'offline']} rounded-full border-2 border-[#232438]`} />
+                      <div className={`absolute -bottom-0.5 -right-0.5 ${isMobile ? 'w-3.5 h-3.5 border-2' : 'w-3 h-3 border-2'} ${statusColors[channel.friend?.status || 'offline']} rounded-full ${isMobile ? 'border-[#0d0d14]' : 'border-[#232438]'}`} />
                     </>
                   )}
                 </div>
@@ -303,21 +315,21 @@ export function DMList({
                 {/* Content */}
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex items-center justify-between">
-                    <span className={`font-bold text-sm truncate ${
+                    <span className={`${isMobile ? 'font-semibold text-base' : 'font-bold text-sm'} truncate ${
                       (unreadCounts[channel.id] || 0) > 0 ? 'text-white' : ''
                     }`}>
                       {displayName}
                     </span>
                     {channel.lastMessageAt && (
-                      <span className="text-[10px] text-[#6a6a7a] flex-shrink-0 ml-1">
+                      <span className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-[#6a6a7a] flex-shrink-0 ml-2`}>
                         {formatTime(channel.lastMessageAt)}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs truncate ${
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className={`${isMobile ? 'text-sm' : 'text-xs'} truncate ${
                       (unreadCounts[channel.id] || 0) > 0 
-                        ? 'text-white font-semibold' 
+                        ? 'text-white font-medium' 
                         : 'text-[#6a6a7a]'
                     }`}>
                       {isGroup && channel.lastMessage && (
@@ -328,7 +340,7 @@ export function DMList({
                       {channel.lastMessage || 'Belum ada pesan'}
                     </span>
                     {(unreadCounts[channel.id] || 0) > 0 && (
-                      <Badge className="bg-[#ed4245] text-white text-[10px] min-w-[16px] h-4 flex items-center justify-center p-0 flex-shrink-0 ml-1">
+                      <Badge className={`bg-[#ed4245] text-white flex items-center justify-center p-0 flex-shrink-0 ml-2 ${isMobile ? 'text-xs min-w-[20px] h-5' : 'text-[10px] min-w-[16px] h-4'}`}>
                         {unreadCounts[channel.id] > 9 ? '9+' : unreadCounts[channel.id]}
                       </Badge>
                     )}
@@ -350,8 +362,8 @@ export function DMList({
         </div>
       </ScrollArea>
 
-      {/* User Panel - Fixed at bottom like Discord */}
-      {onOpenSettings && (
+      {/* User Panel - Fixed at bottom like Discord (hidden on mobile) */}
+      {!isMobile && onOpenSettings && (
         <div className="p-2 bg-[#292b2f]">
           <SidebarUserPanel onOpenSettings={onOpenSettings} />
         </div>

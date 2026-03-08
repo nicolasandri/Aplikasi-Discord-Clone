@@ -158,7 +158,7 @@ function App() {
           </Router>
         </AuthProvider>
       </div>
-      <Toaster position="bottom-right" />
+      <Toaster position="top-center" />
     </div>
   );
 }

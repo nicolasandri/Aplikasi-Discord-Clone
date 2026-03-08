@@ -448,14 +448,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <p className="text-white mt-1">{user?.email}</p>
                   </div>
                   {/* Group Code - Only show if user joined via group code */}
-                  {user?.joinedViaGroupCode && (
+                  {(user as any)?.joinedViaGroupCode && (
                     <div className="bg-[#232438] rounded-lg p-3">
                       <Label className="text-[#a0a0b0] text-xs font-bold uppercase flex items-center gap-1">
                         <Users className="w-3 h-3" />
                         Kode Grup
                       </Label>
                       <p className="text-white mt-1 font-mono bg-[#00d4ff]/10 text-[#00d4ff] px-2 py-0.5 rounded inline-block">
-                        {user.joinedViaGroupCode}
+                        {(user as any).joinedViaGroupCode}
                       </p>
                     </div>
                   )}
@@ -698,7 +698,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </div>
 
                     {/* Group Code - Only show if user joined via group code */}
-                    {user?.joinedViaGroupCode && (
+                    {(user as any)?.joinedViaGroupCode && (
                       <div className="flex items-center justify-between">
                         <div>
                           <Label className="text-[#a0a0b0] text-xs font-bold uppercase flex items-center gap-1">
@@ -706,7 +706,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             Kode Grup
                           </Label>
                           <p className="text-white mt-1 font-mono bg-[#00d4ff]/10 text-[#00d4ff] px-2 py-0.5 rounded inline-block">
-                            {user.joinedViaGroupCode}
+                            {(user as any).joinedViaGroupCode}
                           </p>
                         </div>
                       </div>

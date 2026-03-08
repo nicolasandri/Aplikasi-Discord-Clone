@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 interface MobileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
   children: ReactNode;
   side?: 'left' | 'right';
   trigger?: ReactNode;
@@ -31,9 +31,11 @@ export function MobileDrawer({
         side={side} 
         className="w-[280px] bg-[#232438] border-[#0f0f1a] p-0"
       >
-        <SheetHeader className="px-4 py-3 border-b border-[#0f0f1a]">
-          <SheetTitle className="text-white font-semibold">{title}</SheetTitle>
-        </SheetHeader>
+        {title && (
+          <SheetHeader className="px-4 py-3 border-b border-[#0f0f1a]">
+            <SheetTitle className="text-white font-semibold">{title}</SheetTitle>
+          </SheetHeader>
+        )}
         <div className="flex-1 overflow-y-auto">
           {children}
         </div>

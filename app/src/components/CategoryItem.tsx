@@ -143,12 +143,9 @@ export function CategoryItem({
 }: CategoryItemProps) {
   const [_showMenu, _setShowMenu] = useState(false);
 
-  // Sort channels by position if available
-  const sortedChannels = [...channels].sort((a, b) => {
-    const posA = a.position ?? 0;
-    const posB = b.position ?? 0;
-    return posA - posB;
-  });
+  // Use channels as-is (order is managed by drag-and-drop parent)
+  // Position sorting is only used for initial load from server
+  const sortedChannels = channels;
 
   return (
     <div className="mb-2">

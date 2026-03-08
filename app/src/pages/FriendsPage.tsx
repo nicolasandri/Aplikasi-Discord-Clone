@@ -544,7 +544,11 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
   const FriendItem = ({ friend, showActions = true }: { friend: Friend; showActions?: boolean }) => (
     <div 
       className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#2f3136] hover:translate-y-[-1px] transition-all duration-200 group cursor-pointer"
-      onClick={() => onStartDM?.(friend)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onStartDM?.(friend);
+      }}
     >
       <div className="relative">
         <Avatar className="w-10 h-10 border-2 border-transparent group-hover:border-[#00d4ff] transition-colors">
@@ -688,29 +692,6 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
             >
               Semua
             </TabsTrigger>
-            <TabsTrigger 
-              value="pending" 
-              className="data-[state=active]:bg-[#1a1a24] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
-            >
-              Pending
-              {pendingRequests.incoming.length > 0 && (
-                <Badge className="ml-2 bg-[#ed4245] text-white text-xs px-1.5 py-0 h-5 min-w-[20px]">
-                  {pendingRequests.incoming.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger 
-              value="blocked" 
-              className="data-[state=active]:bg-[#1a1a24] text-[#b9bbbe] data-[state=active]:text-white px-3 py-1.5 rounded-md text-sm"
-            >
-              Diblokir
-            </TabsTrigger>
-            <TabsTrigger 
-              value="add" 
-              className="data-[state=active]:bg-[#3ba55d]/20 data-[state=active]:text-[#3ba55d] text-[#3ba55d] px-3 py-1.5 rounded-md text-sm font-medium"
-            >
-              Tambah Teman
-            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -770,103 +751,6 @@ export function FriendsPage({ onClose: _onClose, onStartDM }: FriendsPageProps) 
             )}
           </TabsContent>
 
-          {/* Pending Tab */}
-          <TabsContent value="pending" className="mt-0 space-y-4">
-            {pendingRequests.incoming.length > 0 && (
-              <>
-                <div className="text-[#b9bbbe] text-xs font-semibold uppercase tracking-wide">
-                  Masuk — {pendingRequests.incoming.length}
-                </div>
-                <div className="space-y-2">
-                  {pendingRequests.incoming.map(request => (
-                    <IncomingRequestItem key={request.id} request={request} />
-                  ))}
-                </div>
-              </>
-            )}
-            
-            {pendingRequests.outgoing.length > 0 && (
-              <>
-                <div className="text-[#b9bbbe] text-xs font-semibold uppercase tracking-wide mt-6">
-                  Keluar — {pendingRequests.outgoing.length}
-                </div>
-                <div className="space-y-2">
-                  {pendingRequests.outgoing.map(request => (
-                    <OutgoingRequestItem key={request.id} request={request} />
-                  ))}
-                </div>
-              </>
-            )}
-            
-            {pendingRequests.incoming.length === 0 && pendingRequests.outgoing.length === 0 && (
-              <div className="text-center py-12 text-[#72767d]">
-                <UserPlus className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Tidak ada permintaan tertunda</p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Blocked Tab */}
-          <TabsContent value="blocked" className="mt-0 space-y-2">
-            <div className="text-[#b9bbbe] text-xs font-semibold uppercase tracking-wide mb-3">
-              Diblokir — {blockedUsers.length}
-            </div>
-            {blockedUsers.length === 0 ? (
-              <div className="text-center py-12 text-[#72767d]">
-                <ShieldAlert className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Tidak ada user yang diblokir</p>
-              </div>
-            ) : (
-              blockedUsers.map(user => (
-                <BlockedUserItem key={user.id} user={user} />
-              ))
-            )}
-          </TabsContent>
-
-          {/* Add Friend Tab */}
-          <TabsContent value="add" className="mt-0">
-            <div className="max-w-md">
-              <h3 className="text-white font-semibold text-lg mb-2">TAMBAHKAN TEMAN</h3>
-              <p className="text-[#b9bbbe] text-sm mb-6">
-                Anda dapat menambahkan teman dengan memasukkan username mereka.
-              </p>
-              
-              <form onSubmit={handleAddFriend} className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Masukkan username"
-                    value={addFriendUsername}
-                    onChange={(e) => setAddFriendUsername(e.target.value)}
-                    className="flex-1 bg-[#08080c] border-none text-white placeholder:text-[#72767d]"
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isAddingFriend || !addFriendUsername.trim()}
-                    className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
-                  >
-                    {isAddingFriend ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      'Kirim Permintaan'
-                    )}
-                  </Button>
-                </div>
-              </form>
-
-              {pendingRequests.outgoing.length > 0 && (
-                <div className="mt-8">
-                  <div className="text-[#b9bbbe] text-xs font-semibold uppercase tracking-wide mb-3">
-                    Permintaan Tertunda
-                  </div>
-                  <div className="space-y-2">
-                    {pendingRequests.outgoing.map(request => (
-                      <OutgoingRequestItem key={request.id} request={request} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </TabsContent>
         </Tabs>
       </ScrollArea>
     </div>

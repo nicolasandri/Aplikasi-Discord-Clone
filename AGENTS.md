@@ -1,48 +1,48 @@
-# WorkGrid - Agent Development Guide
+# WorkGrid (Discord Clone) - Agent Development Guide
 
 ## Project Overview
 
-**WorkGrid** (juga dikenal sebagai ChatCord atau Discord Clone) adalah platform kolaborasi tim real-time yang terinspirasi dari Discord, dengan dukungan multi-platform: web, mobile (Android via Capacitor), dan desktop (Electron). Aplikasi ini dibangun dengan React + TypeScript di frontend dan Node.js + Express di backend.
+**WorkGrid** (also known as ChatCord) is a real-time team collaboration platform inspired by Discord, supporting multi-platform deployment: web, mobile (Android via Capacitor), and desktop (Electron). The application is built with React + TypeScript on the frontend and Node.js + Express on the backend.
 
-**Bahasa UI:** Bahasa Indonesia untuk teks yang ditampilkan ke pengguna.
+**UI Language:** Bahasa Indonesia for user-facing text.
 
-### Fitur Utama
-- Autentikasi JWT dengan durasi 7 hari
-- Manajemen server dan channel (text & voice)
-- Messaging real-time dengan Socket.IO
-- File sharing (maksimal 10MB)
-- Reaksi pesan, reply, edit/hapus pesan
-- Pin messages (dengan permission MANAGE_MESSAGES)
-- Direct Messages (DM) antar pengguna (1-on-1 dan group)
-- Voice channels dengan WebRTC
-- Custom roles dengan permission system (Discord-like)
-- Friend system dengan friend requests, block user
-- Push notifications dengan VAPID
+### Key Features
+- JWT Authentication (7-day expiration)
+- Server and channel management (text & voice channels)
+- Real-time messaging with Socket.IO
+- File sharing (max 10MB)
+- Message reactions, replies, edit/delete messages
+- Pin messages (requires MANAGE_MESSAGES permission)
+- Direct Messages (DM) between users (1-on-1 and group)
+- Voice channels with WebRTC
+- Custom roles with Discord-like permission system
+- Friend system with friend requests, block user
+- Push notifications with VAPID
 - Typing indicators
-- Search messages
-- Audit logging untuk server
-- Server invites dengan kode
+- Message search
+- Audit logging for servers
+- Server invites with invite codes
 - Transfer server ownership
 - Mention system (@user, @role, @everyone, @here)
-- Responsive UI untuk mobile, tablet, dan desktop
-- Auto-update untuk aplikasi desktop (Electron)
+- Responsive UI for mobile, tablet, and desktop
+- Auto-update for desktop Electron app
 
 ---
 
 ## Technology Stack
 
 ### Frontend (`/app`)
-| Teknologi | Versi | Tujuan |
-|-----------|-------|--------|
-| React | 19.2.0 | UI framework dengan TypeScript |
-| Vite | 7.2.4 | Build tool dan dev server |
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| React | 19.2.0 | UI framework with TypeScript |
+| Vite | 7.2.4 | Build tool and dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
 | shadcn/ui | - | UI component library (53+ components) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
-| Simple-Peer | 9.11.1 | WebRTC untuk voice chat |
+| Simple-Peer | 9.11.1 | WebRTC for voice chat |
 | Zod | 4.3.5 | Schema validation |
 | React Hook Form | 7.70.0 | Form handling |
 | TipTap | 3.20.0 | Rich text editor |
@@ -52,14 +52,14 @@
 | electron-updater | 6.8.3 | Auto-update mechanism |
 
 ### Backend (`/server`)
-| Teknologi | Versi | Tujuan |
-|-----------|-------|--------|
+| Technology | Version | Purpose |
+|------------|---------|---------|
 | Node.js | 18+ | Runtime |
 | Express | 4.18.2 | Web framework |
 | Socket.IO | 4.7.2 | Real-time WebSocket |
-| PostgreSQL | 15+ | Database utama (production) |
-| SQLite3 | 5.1.7 | Database development |
-| JWT | 9.0.3 | Authentication (expires in 7 days) |
+| PostgreSQL | 15+ | Primary database (production) |
+| SQLite3 | 5.1.7 | Development database |
+| JWT | 9.0.3 | Authentication (7-day expiration) |
 | bcryptjs | 3.0.3 | Password hashing (12 salt rounds) |
 | Multer | 2.0.2 | File uploads (10MB limit) |
 | CORS | 2.8.5 | Cross-origin requests |
@@ -68,11 +68,11 @@
 | pg | 8.13.3 | PostgreSQL driver |
 | web-push | 3.6.7 | Push notifications |
 | Redis | 5.11.0 | Session store, rate limiting |
-| cheerio | 1.2.0 | HTML parsing untuk link previews |
+| cheerio | 1.2.0 | HTML parsing for link previews |
 
 ### Infrastructure
-| Teknologi | Tujuan |
-|-----------|--------|
+| Technology | Purpose |
+|------------|---------|
 | Docker | Containerization |
 | Docker Compose | Multi-container orchestration |
 | Nginx | Reverse proxy, load balancer |
@@ -388,22 +388,22 @@ VITE_SOCKET_URL=https://your-domain.com
 ### TypeScript
 - **Target:** ES2022
 - **Strict mode:** Enabled
-- **Path aliases:** Use `@/` prefix untuk imports
+- **Path aliases:** Use `@/` prefix for imports
 
 ### Component Structure
-- Functional components dengan TypeScript interfaces
-- Props interfaces didefinisikan inline atau di `types/index.ts`
-- shadcn/ui components mengikuti: `src/components/ui/[component].tsx`
+- Functional components with TypeScript interfaces
+- Props interfaces defined inline or in `types/index.ts`
+- shadcn/ui components follow: `src/components/ui/[component].tsx`
 
 ### Styling
 - **Primary:** Tailwind CSS utility classes
-- **Custom:** CSS variables di `index.css` (Cyberpunk color scheme)
+- **Custom:** CSS variables in `index.css` (Cyberpunk color scheme)
 - **Variants:** Use `class-variance-authority` (cva)
-- **Utility:** Use `cn()` helper dari `@/lib/utils`
+- **Utility:** Use `cn()` helper from `@/lib/utils`
 
 ### Naming Conventions
 - Components: PascalCase (e.g., `ChatLayout.tsx`)
-- Hooks: camelCase dengan `use` prefix (e.g., `useSocket.ts`)
+- Hooks: camelCase with `use` prefix (e.g., `useSocket.ts`)
 - Utilities: camelCase (e.g., `utils.ts`)
 - Types/Interfaces: PascalCase (e.g., `User`, `Message`)
 
@@ -575,7 +575,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | `invites` | Server invite codes (code, server_id, created_by, expires_at, max_uses) |
 | `bans` | Server bans (server_id, user_id, reason, created_at) |
 | `voice_participants` | Voice channel participants |
-| `roles` | Custom server roles dengan permissions (server_id, name, color, permissions, position) |
+| `roles` | Custom server roles with permissions (server_id, name, color, permissions, position) |
 | `audit_logs` | Server audit logs (server_id, action, user_id, target_id, details, created_at) |
 | `push_subscriptions` | Push notification subscriptions |
 
@@ -606,10 +606,10 @@ const Permissions = {
 
 ## Testing Strategy
 
-⚠️ **Belum ada test framework yang dikonfigurasi**. Pertimbangkan untuk menambahkan:
-- Vitest untuk unit testing
-- React Testing Library untuk component tests
-- Playwright atau Cypress untuk E2E testing
+**No test framework is currently configured.** Consider adding:
+- Vitest for unit testing
+- React Testing Library for component tests
+- Playwright or Cypress for E2E testing
 
 ### Manual Testing Checklist
 - [ ] Register dengan email valid

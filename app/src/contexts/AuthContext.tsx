@@ -115,6 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(data.token);
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Store default channel info for redirect after registration
+      if (data.defaultChannelId) {
+        localStorage.setItem('defaultChannelId', data.defaultChannelId);
+        localStorage.setItem('defaultServerId', data.serverId);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
       throw err;

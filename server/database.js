@@ -796,6 +796,38 @@ function runMigrations() {
       createDefaultRolesForServer(server.id);
     });
   });
+
+  // Migration: Create user_server_access table for per-user server access control
+  db.run(`CREATE TABLE IF NOT EXISTS user_server_access (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    server_id TEXT NOT NULL,
+    is_allowed INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+    UNIQUE(user_id, server_id)
+  )`);
+
+  // Add indexes for faster queries
+  db.run(`CREATE INDEX IF NOT EXISTS idx_user_server_access_user ON user_server_access(user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_user_server_access_server ON user_server_access(server_id)`);
+
+  // Migration: Create role_channel_access table for per-role channel access control
+  db.run(`CREATE TABLE IF NOT EXISTS role_channel_access (
+    id TEXT PRIMARY KEY,
+    role_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    is_allowed INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES server_roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+    UNIQUE(role_id, channel_id)
+  )`);
+
+  // Add indexes for role_channel_access
+  db.run(`CREATE INDEX IF NOT EXISTS idx_role_channel_access_role ON role_channel_access(role_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_role_channel_access_channel ON role_channel_access(channel_id)`);
 }
 
 // Create default roles for a server
@@ -1077,6 +1109,254 @@ const userDB = {
   }
 };
 
+// User Server Access operations (for per-user server access control)
+const userServerAccessDB = {
+  // Grant or revoke access to a server for a user
+  async setServerAccess(userId, serverId, isAllowed) {
+    return new Promise((resolve, reject) => {
+      const id = uuidv4();
+      db.run(
+        `INSERT INTO user_server_access (id, user_id, server_id, is_allowed, created_at)
+         VALUES (?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(user_id, server_id) 
+         DO UPDATE SET is_allowed = excluded.is_allowed`,
+        [id, userId, serverId, isAllowed ? 1 : 0],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, userId, serverId, isAllowed });
+        }
+      );
+    });
+  },
+
+  // Check if user has access to a server
+  async hasServerAccess(userId, serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT is_allowed FROM user_server_access 
+         WHERE user_id = ? AND server_id = ?`,
+        [userId, serverId],
+        (err, row) => {
+          if (err) reject(err);
+          else {
+            // If no record exists, check server membership (default allow)
+            if (!row) {
+              db.get(
+                `SELECT 1 FROM server_members WHERE user_id = ? AND server_id = ?`,
+                [userId, serverId],
+                (err2, memberRow) => {
+                  if (err2) reject(err2);
+                  else resolve(!!memberRow); // Allow if member, deny if not
+                }
+              );
+            } else {
+              resolve(row.is_allowed === 1);
+            }
+          }
+        }
+      );
+    });
+  },
+
+  // Get all server access for a user
+  async getUserServerAccess(userId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT s.id, s.name, s.icon,
+                CASE WHEN usa.is_allowed IS NULL THEN 1 ELSE usa.is_allowed END as is_allowed
+         FROM servers s
+         JOIN server_members sm ON s.id = sm.server_id
+         LEFT JOIN user_server_access usa ON s.id = usa.server_id AND usa.user_id = ?
+         WHERE sm.user_id = ?
+         ORDER BY s.name`,
+        [userId, userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get all users with their server access
+  async getAllUsersServerAccess() {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT u.id as user_id, u.username, u.display_name, u.avatar,
+                s.id as server_id, s.name as server_name, s.icon as server_icon,
+                usa.is_allowed
+         FROM users u
+         JOIN server_members sm ON u.id = sm.user_id
+         JOIN servers s ON sm.server_id = s.id
+         LEFT JOIN user_server_access usa ON u.id = usa.user_id AND s.id = usa.server_id
+         ORDER BY u.username, s.name`,
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get all members with server access for a specific server
+  async getServerMembersAccess(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT u.id, u.username, u.display_name, u.avatar,
+                CASE WHEN usa.is_allowed IS NULL THEN 1 ELSE usa.is_allowed END as is_allowed
+         FROM users u
+         JOIN server_members sm ON u.id = sm.user_id
+         LEFT JOIN user_server_access usa ON u.id = usa.user_id AND usa.server_id = ?
+         WHERE sm.server_id = ?
+         ORDER BY u.username`,
+        [serverId, serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Delete server access record
+  async deleteServerAccess(userId, serverId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `DELETE FROM user_server_access WHERE user_id = ? AND server_id = ?`,
+        [userId, serverId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+  }
+};
+
+// Role-Channel Access operations (for controlling which channels each role can access)
+const roleChannelAccessDB = {
+  // Grant or revoke access to a channel for a role
+  async setChannelAccess(roleId, channelId, isAllowed) {
+    return new Promise((resolve, reject) => {
+      const id = uuidv4();
+      db.run(
+        `INSERT INTO role_channel_access (id, role_id, channel_id, is_allowed, created_at)
+         VALUES (?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(role_id, channel_id) 
+         DO UPDATE SET is_allowed = excluded.is_allowed`,
+        [id, roleId, channelId, isAllowed ? 1 : 0],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id, roleId, channelId, isAllowed });
+        }
+      );
+    });
+  },
+
+  // Check if role has access to a channel (for backend filtering)
+  async hasChannelAccess(roleId, channelId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT is_allowed FROM role_channel_access 
+         WHERE role_id = ? AND channel_id = ?`,
+        [roleId, channelId],
+        (err, row) => {
+          if (err) reject(err);
+          else {
+            // If no record exists, default to allowed (backward compatible)
+            resolve(!row || row.is_allowed === 1);
+          }
+        }
+      );
+    });
+  },
+
+  // Get all channel access for a specific role
+  async getRoleChannelAccess(roleId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT c.id as channel_id, c.name as channel_name, c.type,
+                CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
+         FROM channels c
+         JOIN server_roles sr ON c.server_id = sr.server_id
+         LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
+         WHERE sr.id = ?
+         ORDER BY c.name`,
+        [roleId, roleId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get all roles with their channel access for a specific server
+  async getServerRolesChannelAccess(serverId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT sr.id as role_id, sr.name as role_name, sr.color,
+                c.id as channel_id, c.name as channel_name, c.type,
+                CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
+         FROM server_roles sr
+         CROSS JOIN channels c ON c.server_id = sr.server_id
+         LEFT JOIN role_channel_access rca ON sr.id = rca.role_id AND c.id = rca.channel_id
+         WHERE sr.server_id = ?
+         ORDER BY sr.position DESC, c.name`,
+        [serverId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Delete channel access record
+  async deleteChannelAccess(roleId, channelId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `DELETE FROM role_channel_access WHERE role_id = ? AND channel_id = ?`,
+        [roleId, channelId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+  },
+
+  // Bulk update channel access for a role
+  async bulkUpdateChannelAccess(roleId, channelAccessList) {
+    return new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        const stmt = db.prepare(
+          `INSERT INTO role_channel_access (id, role_id, channel_id, is_allowed, created_at)
+           VALUES (?, ?, ?, ?, datetime('now'))
+           ON CONFLICT(role_id, channel_id) 
+           DO UPDATE SET is_allowed = excluded.is_allowed`
+        );
+        
+        channelAccessList.forEach(({ channelId, isAllowed }) => {
+          stmt.run(uuidv4(), roleId, channelId, isAllowed ? 1 : 0);
+        });
+        
+        stmt.finalize((err) => {
+          if (err) {
+            db.run('ROLLBACK');
+            reject(err);
+          } else {
+            db.run('COMMIT');
+            resolve({ success: true });
+          }
+        });
+      });
+    });
+  }
+};
+
 
 // Server operations
 const serverDB = {
@@ -1089,6 +1369,19 @@ const serverDB = {
         function(err) {
           if (err) reject(err);
           else resolve({ id, name, icon, owner_id: ownerId });
+        }
+      );
+    });
+  },
+
+  async getById(serverId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM servers WHERE id = ?',
+        [serverId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
         }
       );
     });
@@ -4293,6 +4586,8 @@ module.exports = {
   sessionDB,
   masterAdminDB,
   groupCodeDB,
+  userServerAccessDB,
+  roleChannelAccessDB,
   Permissions,
   RolePermissions,
   RoleHierarchy,

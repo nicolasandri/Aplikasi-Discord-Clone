@@ -34,6 +34,7 @@ interface DMChatAreaProps {
   onAddMember?: (channelId: string) => void;
   onLeaveGroup?: (channelId: string) => void;
   onFocusInput?: () => void;
+  isMobile?: boolean;
 }
 
 const statusColors = {
@@ -145,7 +146,7 @@ function groupMessagesByDate(messages: DMMessage[]): { date: string; messages: D
   }));
 }
 
-export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember, onLeaveGroup, onFocusInput }: DMChatAreaProps) {
+export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember, onLeaveGroup, onFocusInput, isMobile = false }: DMChatAreaProps) {
   const [messages, setMessages] = useState<DMMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -164,6 +165,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingEmitRef = useRef<number>(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const token = localStorage.getItem('token');
   // Track scroll state for smart auto-scroll
@@ -555,7 +557,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
   const handleTyping = () => {
     const socket = (window as any).socket;
     if (socket && socket.connected && channel) {
-      socket.emit('dm-typing', { channelId: channel.id });
+      // Throttle typing events to every 2 seconds
+      const now = Date.now();
+      if (now - lastTypingEmitRef.current > 2000) {
+        socket.emit('dm-typing', { channelId: channel.id });
+        lastTypingEmitRef.current = now;
+      }
     }
   };
 
@@ -655,7 +662,8 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
 
   return (
     <div className="flex-1 bg-[#1a1b2e] flex flex-col min-h-0">
-      {/* Header */}
+      {/* Header - Hidden on mobile */}
+      {!isMobile && (
       <div className="h-12 px-4 flex items-center justify-between shadow-md border-b border-[#0f0f1a]">
         <div className="flex items-center gap-3">
           {channel.type === 'group' ? (
@@ -732,11 +740,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           )}
         </div>
       </div>
+      )}
 
       {/* Messages */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-4"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 min-w-0 w-full"
         onScroll={handleScroll}
         onClick={(e) => {
           // Focus input when clicking on empty area (not on messages)
@@ -812,7 +821,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                         ) : (
                           <div className="w-10 flex-shrink-0" />
                         )}
-                        <div className={`max-w-[70%] ${isOwn ? 'items-end' : ''}`}>
+                        <div className={`max-w-[85%] min-w-0 ${isOwn ? 'items-end' : ''}`}>
                           {showAvatar && (
                             <div className={`flex items-baseline gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
                               <span 
@@ -867,7 +876,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                           
                           {/* Image attachments - outside bubble, no background */}
                           {message.attachments && message.attachments.filter(f => f.mimetype?.startsWith('image/')).length > 0 && (
-                            <div className={`${
+                            <div className={`max-w-full overflow-hidden ${
                               (message.content || message.attachments.some(f => !f.mimetype?.startsWith('image/'))) 
                                 ? 'mt-1' 
                                 : ''
@@ -892,7 +901,11 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                                     <img 
                                       src={file.url?.startsWith('http') ? file.url : `${BASE_URL}${file.url}`}
                                       alt={file.originalName || 'Attachment'}
-                                      className="max-w-[200px] max-h-[200px] rounded-lg object-cover hover:opacity-90 transition-opacity"
+                                      className="rounded-lg object-cover hover:opacity-90 transition-opacity max-w-full h-auto"
+                                      style={isMobile 
+                                        ? { maxWidth: '100%', maxHeight: '300px' } 
+                                        : (file.width ? { maxWidth: `${file.width}px`, maxHeight: '550px' } : { maxWidth: '550px', maxHeight: '550px' })
+                                      }
                                       onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         target.style.display = 'none';
@@ -914,13 +927,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
 
         {/* Typing indicator */}
         {typingUser && (
-          <div className="flex items-center gap-2 px-4 py-2 text-[#a0a0b0] text-sm">
+          <div className={`flex items-center gap-2 ${isMobile ? 'px-2' : 'px-4'} py-2 text-[#a0a0b0] ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <div className="flex gap-1">
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
-            <span>{typingUser} sedang mengetik...</span>
+            <span className="truncate">{typingUser} sedang mengetik...</span>
           </div>
         )}
 
@@ -928,7 +941,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       </div>
 
       {/* Input Area */}
-      <div className="px-3 pb-3 pt-2 bg-[#1a1b2e]">
+      <div className="px-3 pb-3 pt-2 bg-[#1a1b2e] max-w-full">
         {/* Attachment Preview */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
@@ -959,7 +972,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
         )}
         
         <div 
-          className="bg-[#2a2b3d] rounded-lg flex items-end gap-2 p-2 cursor-text"
+          className="bg-[#2a2b3d] rounded-lg flex items-end gap-2 p-2 cursor-text max-w-full overflow-hidden"
           onClick={() => textareaRef.current?.focus()}
         >
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -991,9 +1004,12 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
             onKeyDown={handleKeyDown}
             onInput={handleTyping}
             disabled={isSending || isUploading}
-            placeholder={channel.type === 'group' 
-              ? `Kirim pesan ke grup`
-              : `Kirim pesan ke @${channel.friend?.displayName || channel.friend?.username || 'Unknown'}`
+            placeholder={isMobile 
+              ? 'Ketik pesan...' 
+              : (channel.type === 'group' 
+                ? `Kirim pesan ke grup`
+                : `Kirim pesan ke @${channel.friend?.displayName || channel.friend?.username || 'Unknown'}`
+              )
             }
             className="flex-1 bg-transparent text-white placeholder:text-[#6a6a7a] resize-none outline-none min-h-[40px] max-h-[120px] py-2 disabled:opacity-50"
             rows={1}

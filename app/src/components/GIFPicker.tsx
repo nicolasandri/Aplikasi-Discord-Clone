@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, Search, Loader2, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface GIF {
   id: string;
@@ -11,11 +12,14 @@ interface GIF {
 }
 
 interface GIFPickerProps {
-  onSelect: (gif: { url: string; title: string }) => void;
+  onSelect: (gif: { url: string; title: string; width?: number }) => void;
 }
 
-// GIPHY API Configuration
-const GIPHY_API_KEY = 'YpMijmz8K3JNNhmssCfdWuYmluS0JDAW'; // API key dari user
+// API URL configuration
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+const API_URL = isElectron 
+  ? 'http://localhost:3001/api'
+  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 // Mock GIFs sebagai fallback
 const MOCK_GIFS: GIF[] = [
@@ -36,6 +40,19 @@ const MOCK_GIFS: GIF[] = [
 // Trending search terms untuk filter
 const TRENDING_TERMS = ['hello', 'thank you', 'love', 'hug', 'laugh', 'sad', 'good morning', 'good night'];
 
+// GIF size options - hanya Sedang (300px)
+type GIFSize = 'medium';
+const SIZE_OPTIONS: { value: GIFSize; label: string; width: number }[] = [
+  { value: 'medium', label: 'Sedang', width: 300 },
+];
+
+// Function to resize GIF URL - hanya 300px (Sedang)
+const resizeGIF = (url: string, _size: GIFSize): string => {
+  // URL sudah dalam ukuran yang tepat dari transformGiphyData
+  // Tidak perlu modifikasi lagi
+  return url;
+};
+
 export function GIFPicker({ onSelect }: GIFPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,19 +61,33 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
   const [useMockData, setUseMockData] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Transform GIPHY response
+  // Transform GIPHY response - menggunakan downsized untuk URL yang lebih reliable
   const transformGiphyData = (data: any[]): GIF[] => {
-    return data.map((item: any) => ({
-      id: item.id,
-      url: item.images?.original?.url || item.images?.fixed_height?.url || '',
-      preview: item.images?.fixed_height_downsampled?.url || 
-               item.images?.fixed_height?.url || 
-               item.images?.preview_gif?.url || '',
-      title: item.title || 'GIF',
-    })).filter((gif: GIF) => gif.url && gif.preview);
+    return data.map((item: any) => {
+      // Cari URL yang valid untuk main GIF (max 300-480px untuk performance)
+      const url = item.images?.fixed_height_downsampled?.url ||  // ~200px, compressed
+                 item.images?.fixed_height?.url ||               // ~200px
+                 item.images?.downsized_medium?.url ||          // ~300px
+                 item.images?.downsized?.url ||                 // ~300px
+                 item.images?.original?.url || '';               // fallback
+      
+      // Preview menggunakan versi kecil
+      const preview = item.images?.fixed_height_downsampled?.url || 
+                     item.images?.preview_gif?.url || 
+                     item.images?.fixed_height?.url || url;
+      
+      return {
+        id: item.id,
+        url,
+        preview,
+        title: item.title || 'GIF',
+      };
+    }).filter((gif: GIF) => gif.url && gif.preview);
   };
 
   // Fetch trending GIFs dari GIPHY
+  const { token } = useAuth();
+
   const fetchTrendingGIFs = useCallback(async () => {
     if (useMockData) {
       setGifs(MOCK_GIFS);
@@ -66,8 +97,12 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
     setIsLoading(true);
     setError(null);
     try {
+      // Use backend proxy to avoid CSP issues
       const response = await fetch(
-        `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=g&lang=id`
+        `${API_URL}/giphy/trending`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       
       if (!response.ok) throw new Error('Failed to fetch');
@@ -88,9 +123,9 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [useMockData]);
+  }, [useMockData, token]);
 
-  // Search GIFs dari GIPHY
+  // Search GIFs dari GIPHY via backend proxy
   const searchGIFs = useCallback(async (query: string) => {
     if (!query.trim()) {
       fetchTrendingGIFs();
@@ -101,8 +136,12 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
     setError(null);
     
     try {
+      // Use backend proxy to avoid CSP issues
       const response = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=g&lang=id`
+        `${API_URL}/giphy/search?q=${encodeURIComponent(query)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       
       if (!response.ok) throw new Error('Failed to search');
@@ -131,7 +170,7 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchTrendingGIFs]);
+  }, [fetchTrendingGIFs, token]);
 
   // Load saat buka
   useEffect(() => {
@@ -149,7 +188,9 @@ export function GIFPicker({ onSelect }: GIFPickerProps) {
   }, [searchQuery, searchGIFs]);
 
   const handleSelect = (gif: GIF) => {
-    onSelect({ url: gif.url, title: gif.title });
+    // Langsung kirim GIF dengan ukuran sedang (300px)
+    const resizedUrl = resizeGIF(gif.url, 'medium');
+    onSelect({ url: resizedUrl, title: gif.title, width: 300 });
     setIsOpen(false);
   };
 

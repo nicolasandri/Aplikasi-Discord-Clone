@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Search, Loader2, Smile, Sticker, Gift } from 'lucide-react';
+import { X, Search, Loader2, Smile, Sticker, Gift, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,9 +36,27 @@ interface CustomEmoji {
   isAnimated: boolean;
 }
 
-// GIPHY API Configuration
-const GIPHY_API_KEY = 'YpMijmz8K3JNNhmssCfdWuYmluS0JDAW';
-const GIPHY_BASE_URL = 'https://api.giphy.com/v1/gifs';
+// GIPHY API Configuration - Using backend proxy to avoid CSP issues
+const GIPHY_BASE_URL = '/api/giphy';
+
+// Mock GIFs sebagai fallback
+const MOCK_GIFS: GIF[] = [
+  { id: '1', url: 'https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif', preview: 'https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/200w.gif', title: 'Hello' },
+  { id: '2', url: 'https://media.giphy.com/media/l0HlOvJ7yaacpuSas/giphy.gif', preview: 'https://media.giphy.com/media/l0HlOvJ7yaacpuSas/200w.gif', title: 'Thank You' },
+  { id: '3', url: 'https://media.giphy.com/media/3o7TKU8RvQuomFfUUU/giphy.gif', preview: 'https://media.giphy.com/media/3o7TKU8RvQuomFfUUU/200w.gif', title: 'Happy' },
+  { id: '4', url: 'https://media.giphy.com/media/l0HlPystfePnAI3Z6/giphy.gif', preview: 'https://media.giphy.com/media/l0HlPystfePnAI3Z6/200w.gif', title: 'Good Morning' },
+  { id: '5', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif', preview: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/200w.gif', title: 'Good Night' },
+  { id: '6', url: 'https://media.giphy.com/media/l0HlNQ03J5JxX6lva/giphy.gif', preview: 'https://media.giphy.com/media/l0HlNQ03J5JxX6lva/200w.gif', title: 'Love' },
+  { id: '7', url: 'https://media.giphy.com/media/3o7TKTDn976rzVgky4/giphy.gif', preview: 'https://media.giphy.com/media/3o7TKTDn976rzVgky4/200w.gif', title: 'Hug' },
+  { id: '8', url: 'https://media.giphy.com/media/l0HlR3kHtkgFbYfgQ/giphy.gif', preview: 'https://media.giphy.com/media/l0HlR3kHtkgFbYfgQ/200w.gif', title: 'Laugh' },
+  { id: '9', url: 'https://media.giphy.com/media/3o7TKVgGQh4uOuJbKo/giphy.gif', preview: 'https://media.giphy.com/media/3o7TKVgGQh4uOuJbKo/200w.gif', title: 'Sad' },
+  { id: '10', url: 'https://media.giphy.com/media/l0HlPystfePnAI3Z6/giphy.gif', preview: 'https://media.giphy.com/media/l0HlPystfePnAI3Z6/200w.gif', title: 'Angry' },
+  { id: '11', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif', preview: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/200w.gif', title: 'Surprised' },
+  { id: '12', url: 'https://media.giphy.com/media/l0HlNQ03J5JxX6lva/giphy.gif', preview: 'https://media.giphy.com/media/l0HlNQ03J5JxX6lva/200w.gif', title: 'Cute' },
+];
+
+// Trending search terms untuk filter
+const TRENDING_TERMS = ['hello', 'thank you', 'love', 'hug', 'laugh', 'sad', 'good morning', 'good night'];
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -68,27 +86,40 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
     })).filter((gif: GIF) => gif.url && gif.preview);
   };
 
-  // Fetch GIFs
+  // Fetch GIFs via backend proxy to avoid CSP issues
   const fetchGIFs = useCallback(async (query?: string) => {
     setIsLoading(true);
     try {
       const endpoint = query 
-        ? `${GIPHY_BASE_URL}/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=g&lang=id`
-        : `${GIPHY_BASE_URL}/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=g&lang=id`;
+        ? `${API_URL}/giphy/search?q=${encodeURIComponent(query)}&limit=20`
+        : `${API_URL}/giphy/trending?limit=20`;
       
-      const response = await fetch(endpoint);
-      if (!response.ok) throw new Error('Failed to fetch');
+      const response = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.error('GIF fetch unauthorized');
+        }
+        throw new Error('Failed to fetch');
+      }
       
       const data = await response.json();
       const formattedGIFs = transformGiphyData(data.data);
-      setGifs(formattedGIFs);
+      
+      if (formattedGIFs.length > 0) {
+        setGifs(formattedGIFs);
+      } else {
+        setGifs(MOCK_GIFS);
+      }
     } catch (err) {
       console.error('Error fetching GIFs:', err);
-      setGifs([]);
+      setGifs(MOCK_GIFS);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [token]);
 
   // Fetch custom emojis and stickers
   const fetchServerData = useCallback(async () => {
@@ -286,14 +317,14 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
           </TabsContent>
 
           {/* GIFs Tab */}
-          <TabsContent value="gif" className="flex-1 m-0">
-            <div className="h-full flex flex-col">
+          <TabsContent value="gif" className="flex-1 m-0 min-h-0">
+            <div className="h-full flex flex-col min-h-0">
               {/* Search Bar */}
-              <div className="px-4 py-2 border-b border-[#0f0f1a]">
+              <div className="px-4 py-2 border-b border-[#0f0f1a] flex-shrink-0">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6a6a7a]" />
                   <Input
-                    placeholder="Search GIFs..."
+                    placeholder="Cari GIF..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 bg-[#0f0f1a] border-none text-white placeholder:text-[#6a6a7a]"
@@ -301,16 +332,31 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
                 </div>
               </div>
 
-              {/* GIFs Grid */}
-              <ScrollArea className="flex-1 p-4">
+              {/* Quick Filters */}
+              {!searchQuery && (
+                <div className="px-4 py-2 flex flex-wrap gap-2 border-b border-[#0f0f1a] flex-shrink-0">
+                  {TRENDING_TERMS.map((term) => (
+                    <button
+                      key={term}
+                      onClick={() => setSearchQuery(term)}
+                      className="px-3 py-1 text-xs bg-[#2a2b3d] hover:bg-[#00d4ff] text-[#a0a0b0] hover:text-white rounded-full transition-colors"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* GIFs Grid - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-4 min-h-0 gif-picker-scroll">
                 {isLoading ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="w-8 h-8 text-[#00d4ff] animate-spin" />
                   </div>
                 ) : gifs.length === 0 ? (
                   <div className="text-center py-8 text-[#6a6a7a]">
-                    <Gift className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>No GIFs found</p>
+                    <div className="text-4xl mb-2">🎉</div>
+                    <p>Tidak ada GIF ditemukan</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
@@ -334,7 +380,7 @@ export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelect
                     ))}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

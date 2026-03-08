@@ -216,7 +216,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'];
 
-const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, Permissions } = dbModule;
+const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, Permissions } = dbModule;
 
 // BUG-021: Conditional Logging
 const DEBUG = process.env.NODE_ENV !== 'production';
@@ -624,6 +624,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     
     // Validate group code if provided
     let autoJoinServer = null;
+    let defaultChannelId = null;
     
     if (groupCode) {
       // Check using inviteDB (group codes are invites with is_group_code = 1)
@@ -644,6 +645,16 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       }
       
       autoJoinServer = invite.server_id;
+      
+      // Get default channel from auto_join_channels
+      if (invite.auto_join_channels) {
+        try {
+          const channelsArr = JSON.parse(invite.auto_join_channels);
+          defaultChannelId = channelsArr[0] || null;
+        } catch (e) {
+          defaultChannelId = null;
+        }
+      }
     }
     
     const user = await userDB.create(username, email, password, groupCode || null);
@@ -659,6 +670,14 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
           
           // Increment invite usage
           await inviteDB.incrementUses(groupCode);
+          
+          // Grant default access to the server
+          try {
+            await userServerAccessDB.setServerAccess(user.id, autoJoinServer, true);
+            console.log(`[Register] Granted default server access to user ${username} for server ${autoJoinServer}`);
+          } catch (accessError) {
+            console.error('[Register] Error granting default server access:', accessError);
+          }
           
           console.log(`[Register] User ${username} auto-joined server ${autoJoinServer} via group code ${groupCode}`);
         }
@@ -726,7 +745,9 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     res.json({ 
       user: formatUserResponse(user), 
       token,
-      autoJoinedServer: autoJoinServer ? true : false
+      autoJoinedServer: autoJoinServer ? true : false,
+      defaultChannelId: defaultChannelId,
+      serverId: autoJoinServer
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -950,7 +971,17 @@ app.post('/api/users/avatar', authenticateToken, upload.single('file'), async (r
 app.get('/api/servers', authenticateToken, async (req, res) => {
   try {
     const servers = await serverDB.getUserServers(req.userId);
-    res.json(servers);
+    
+    // Filter servers based on user access
+    const accessibleServers = [];
+    for (const server of servers) {
+      const hasAccess = await userServerAccessDB.hasServerAccess(req.userId, server.id);
+      if (hasAccess) {
+        accessibleServers.push(server);
+      }
+    }
+    
+    res.json(accessibleServers);
   } catch (error) {
     console.error('Get servers error:', error);
     res.status(500).json({ error: 'Failed to get servers' });
@@ -995,6 +1026,12 @@ app.get('/api/servers/:serverId', authenticateToken, async (req, res) => {
     
     if (!server) {
       return res.status(404).json({ error: 'Server not found' });
+    }
+    
+    // Check if user has access to this server
+    const hasAccess = await userServerAccessDB.hasServerAccess(req.userId, serverId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
     }
     
     // Check if user is member
@@ -1146,6 +1183,12 @@ app.get('/api/servers/:serverId/permissions', authenticateToken, async (req, res
   try {
     const { serverId } = req.params;
     
+    // Check if user has access to this server
+    const hasAccess = await userServerAccessDB.hasServerAccess(req.userId, serverId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
+    
     // Check if user is member
     const members = await serverDB.getMembers(serverId);
     const member = members.find(m => m.id === req.userId);
@@ -1183,10 +1226,19 @@ app.get('/api/servers/:serverId/permissions', authenticateToken, async (req, res
 app.get('/api/servers/:serverId/categories', authenticateToken, async (req, res) => {
   try {
     const { serverId } = req.params;
+    const userId = req.userId;
+    
+    console.log(`[CategoryFilter] User ${userId} requesting categories for server ${serverId}`);
+    
+    // Check if user has access to this server
+    const hasAccess = await userServerAccessDB.hasServerAccess(userId, serverId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
     
     // Check if user is member
     const members = await serverDB.getMembers(serverId);
-    const isMember = members.some(m => m.id === req.userId);
+    const isMember = members.some(m => m.id === userId);
     
     if (!isMember) {
       return res.status(403).json({ error: 'Access denied' });
@@ -1198,11 +1250,65 @@ app.get('/api/servers/:serverId/categories', authenticateToken, async (req, res)
     // Get all channels
     const allChannels = await channelDB.getByServer(serverId);
     
+    // Check if user is owner (owner can see all channels)
+    const server = await serverDB.getById(serverId);
+    const isOwner = server && server.owner_id === userId;
+    
+    // Get user's member info
+    const member = await dbGet(
+      'SELECT role, role_id FROM server_members WHERE user_id = ? AND server_id = ?',
+      [userId, serverId]
+    );
+    
+    // Check legacy role
+    const hasLegacyRole = ['admin', 'owner', 'moderator'].includes(member?.role);
+    
+    // Get custom roles
+    const userRoles = await dbAll(
+      `SELECT sr.id, sr.name 
+       FROM member_roles mr
+       JOIN server_roles sr ON mr.role_id = sr.id
+       WHERE mr.user_id = ? AND mr.server_id = ?`,
+      [userId, serverId]
+    );
+    
+    const roleIds = [
+      ...userRoles.map(r => r.id),
+      ...(member?.role_id ? [member.role_id] : [])
+    ];
+    const uniqueRoleIds = [...new Set(roleIds)];
+    
+    console.log(`[CategoryFilter] isOwner: ${isOwner}, hasLegacyRole: ${hasLegacyRole}, roleIds:`, uniqueRoleIds);
+    
+    // Filter channels based on access
+    let allowedChannels = allChannels;
+    
+    if (!isOwner && !hasLegacyRole && uniqueRoleIds.length > 0) {
+      // Filter channels based on role access
+      allowedChannels = [];
+      for (const channel of allChannels) {
+        let hasChannelAccess = false;
+        for (const roleId of uniqueRoleIds) {
+          const access = await roleChannelAccessDB.hasChannelAccess(roleId, channel.id);
+          if (access) {
+            hasChannelAccess = true;
+            break;
+          }
+        }
+        if (hasChannelAccess) {
+          allowedChannels.push(channel);
+        }
+      }
+      console.log(`[CategoryFilter] Filtered ${allChannels.length} channels to ${allowedChannels.length}`);
+    } else if (isOwner || hasLegacyRole) {
+      console.log(`[CategoryFilter] User is owner/has legacy role - all channels allowed`);
+    }
+    
     // Group channels by category
     const channelsByCategory = new Map();
     const uncategorized = [];
     
-    for (const channel of allChannels) {
+    for (const channel of allowedChannels) {
       if (channel.category_id) {
         if (!channelsByCategory.has(channel.category_id)) {
           channelsByCategory.set(channel.category_id, []);
@@ -1233,8 +1339,100 @@ app.get('/api/servers/:serverId/categories', authenticateToken, async (req, res)
 app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) => {
   try {
     const { serverId } = req.params;
+    const userId = req.userId;
+    
+    console.log(`[ChannelFilter] User ${userId} requesting channels for server ${serverId}`);
+    
+    // Check if user has access to this server
+    const hasAccess = await userServerAccessDB.hasServerAccess(userId, serverId);
+    if (!hasAccess) {
+      console.log(`[ChannelFilter] Server access denied for user ${userId}`);
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
+    
+    // Get all channels
     const channels = await channelDB.getByServer(serverId);
-    res.json(channels);
+    console.log(`[ChannelFilter] Total channels in server: ${channels.length}`);
+    
+    // Check if user is owner (owner can see all channels)
+    const server = await serverDB.getById(serverId);
+    if (server && server.owner_id === userId) {
+      console.log(`[ChannelFilter] User ${userId} is owner - returning all channels`);
+      return res.json(channels);
+    }
+    
+    // Get user's member info
+    const member = await dbGet(
+      'SELECT role, role_id FROM server_members WHERE user_id = ? AND server_id = ?',
+      [userId, serverId]
+    );
+    console.log(`[ChannelFilter] Member info:`, member);
+    
+    // If member has legacy role (admin, moderator), allow all channels
+    // This is for backward compatibility
+    const legacyRole = member?.role;
+    if (legacyRole === 'admin' || legacyRole === 'owner' || legacyRole === 'moderator') {
+      console.log(`[ChannelFilter] User has legacy role '${legacyRole}' - returning all channels`);
+      return res.json(channels);
+    }
+    
+    // Get custom roles assigned to user (from member_roles table)
+    const userRoles = await dbAll(
+      `SELECT sr.id, sr.name 
+       FROM member_roles mr
+       JOIN server_roles sr ON mr.role_id = sr.id
+       WHERE mr.user_id = ? AND mr.server_id = ?`,
+      [userId, serverId]
+    );
+    console.log(`[ChannelFilter] User roles from member_roles:`, userRoles.map(r => r.name));
+    
+    // Also get role from server_members.role_id (legacy/custom role assignment)
+    const memberRole = await dbGet(
+      `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
+      [userId, serverId]
+    );
+    
+    const roleIds = [
+      ...userRoles.map(r => r.id),
+      ...(memberRole?.role_id ? [memberRole.role_id] : [])
+    ];
+    
+    // Remove duplicates
+    const uniqueRoleIds = [...new Set(roleIds)];
+    console.log(`[ChannelFilter] Unique role IDs:`, uniqueRoleIds);
+    
+    // If user has no custom roles, allow all channels (backward compatible)
+    if (uniqueRoleIds.length === 0) {
+      console.log(`[ChannelFilter] No custom roles - returning all channels (backward compat)`);
+      return res.json(channels);
+    }
+    
+    // Filter channels based on role access
+    const accessibleChannels = [];
+    for (const channel of channels) {
+      // Check if any of user's custom roles has access to this channel
+      let hasChannelAccess = false;
+      
+      for (const roleId of uniqueRoleIds) {
+        const access = await roleChannelAccessDB.hasChannelAccess(roleId, channel.id);
+        console.log(`[ChannelFilter] Channel: ${channel.name}, RoleID: ${roleId}, Access: ${access}`);
+        if (access) {
+          hasChannelAccess = true;
+          break;
+        }
+      }
+      
+      // Only include if explicitly allowed
+      if (hasChannelAccess) {
+        accessibleChannels.push(channel);
+        console.log(`[ChannelFilter] Channel ${channel.name} INCLUDED`);
+      } else {
+        console.log(`[ChannelFilter] Channel ${channel.name} EXCLUDED`);
+      }
+    }
+    
+    console.log(`[ChannelFilter] Returning ${accessibleChannels.length} of ${channels.length} channels`);
+    res.json(accessibleChannels);
   } catch (error) {
     console.error('Get channels error:', error);
     res.status(500).json({ error: 'Failed to get channels' });
@@ -1301,6 +1499,13 @@ app.put('/api/servers/:serverId/channels/reorder', authenticateToken, async (req
 app.get('/api/servers/:serverId/members', authenticateToken, async (req, res) => {
   try {
     const { serverId } = req.params;
+    
+    // Check if user has access to this server
+    const hasAccess = await userServerAccessDB.hasServerAccess(req.userId, serverId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
+    
     const members = await serverDB.getMembers(serverId);
     res.json(members);
   } catch (error) {
@@ -1596,6 +1801,104 @@ app.put('/api/servers/:serverId/roles/:roleId/reorder', authenticateToken, async
   } catch (error) {
     console.error('Reorder role error:', error);
     res.status(500).json({ error: 'Failed to reorder role' });
+  }
+});
+
+// ============================================
+// ROLE-CHANNEL ACCESS ENDPOINTS
+// ============================================
+
+// Get all channel access for a specific role
+app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Get all channels for this server with access info for the role
+    const channels = await dbAll(
+      `SELECT c.id, c.name, c.type, c.category_id,
+              CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
+       FROM channels c
+       LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
+       WHERE c.server_id = ?
+       ORDER BY c.position`,
+      [roleId, serverId]
+    );
+    
+    res.json({ channels });
+  } catch (error) {
+    console.error('Get role channel access error:', error);
+    res.status(500).json({ error: 'Failed to get role channel access' });
+  }
+});
+
+// Update channel access for a role
+app.put('/api/servers/:serverId/roles/:roleId/channels/:channelId/access', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId, channelId } = req.params;
+    const { isAllowed } = req.body;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Verify channel belongs to this server
+    const channel = await channelDB.getById(channelId);
+    if (!channel || channel.server_id !== serverId) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    // Verify role belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Set channel access
+    await roleChannelAccessDB.setChannelAccess(roleId, channelId, isAllowed);
+    
+    res.json({ success: true, message: `Akses channel ${isAllowed ? 'diberikan' : 'ditolak'}` });
+  } catch (error) {
+    console.error('Update role channel access error:', error);
+    res.status(500).json({ error: 'Failed to update channel access' });
+  }
+});
+
+// Bulk update channel access for a role
+app.put('/api/servers/:serverId/roles/:roleId/channels/bulk', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, roleId } = req.params;
+    const { channelAccess } = req.body; // Array of { channelId, isAllowed }
+    const userId = req.userId;
+    
+    // Check permissions (Manage Roles)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_ROLES);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage roles' });
+    }
+    
+    // Verify role belongs to this server
+    const role = await roleDB.getRoleById(roleId);
+    if (!role || role.server_id !== serverId) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Bulk update
+    await roleChannelAccessDB.bulkUpdateChannelAccess(roleId, channelAccess);
+    
+    res.json({ success: true, message: 'Akses channel diperbarui' });
+  } catch (error) {
+    console.error('Bulk update role channel access error:', error);
+    res.status(500).json({ error: 'Failed to update channel access' });
   }
 });
 
@@ -2526,8 +2829,9 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
   try {
     const { channelId } = req.params;
     const { content, replyToId, attachments, forwardedFrom } = req.body;
+    const userId = req.userId;
     
-    console.log('📥 Server: Send channel message - channelId:', channelId, 'userId:', req.userId);
+    console.log('📥 Server: Send channel message - channelId:', channelId, 'userId:', userId);
     
     // Get channel to verify access
     const channel = await channelDB.getById(channelId);
@@ -2537,14 +2841,62 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     
     // Check if user is member of the server
     const members = await serverDB.getMembers(channel.server_id);
-    const isMember = members.some(m => m.id === req.userId);
+    const isMember = members.some(m => m.id === userId);
     
     if (!isMember) {
       return res.status(403).json({ error: 'Access denied' });
     }
     
+    // Check if user has access to this server (per-user server access control)
+    const hasServerAccess = await userServerAccessDB.hasServerAccess(userId, channel.server_id);
+    if (!hasServerAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
+    
+    // Check if user has role-based access to this channel
+    const server = await serverDB.getById(channel.server_id);
+    if (server && server.owner_id !== userId) {
+      // Get user's custom roles (from both member_roles and server_members)
+      const userRoles = await dbAll(
+        `SELECT sr.id 
+         FROM member_roles mr
+         JOIN server_roles sr ON mr.role_id = sr.id
+         WHERE mr.user_id = ? AND mr.server_id = ?`,
+        [userId, channel.server_id]
+      );
+      
+      const member = await dbGet(
+        `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
+        [userId, channel.server_id]
+      );
+      
+      const roleIds = [
+        ...userRoles.map(r => r.id),
+        ...(member?.role_id ? [member.role_id] : [])
+      ];
+      
+      // Remove duplicates
+      const uniqueRoleIds = [...new Set(roleIds)];
+      
+      // If user has custom roles, check channel access
+      if (uniqueRoleIds.length > 0) {
+        let hasChannelAccess = false;
+        for (const roleId of uniqueRoleIds) {
+          const access = await roleChannelAccessDB.hasChannelAccess(roleId, channelId);
+          if (access) {
+            hasChannelAccess = true;
+            break;
+          }
+        }
+        
+        if (!hasChannelAccess) {
+          return res.status(403).json({ error: 'Akses ke channel ini ditolak' });
+        }
+      }
+    }
+    
     // Create message
-    const message = await messageDB.create(channelId, req.userId, content, replyToId, attachments, 'user', forwardedFrom);
+    const message = await messageDB.create(channelId, userId, content, replyToId, attachments, 'user', forwardedFrom);
     
     console.log('📤 Server: Broadcasting new_message to channel:', channelId);
     // Emit socket event
@@ -2552,7 +2904,7 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     console.log('📤 Server: new_message broadcasted to', channelId);
     
     // Send mention notifications (async, don't block response)
-    const sender = await userDB.findById(req.userId);
+    const sender = await userDB.findById(userId);
     sendMentionNotifications(
       content,
       req.userId,
@@ -2574,6 +2926,7 @@ app.get('/api/channels/:channelId/messages', authenticateToken, async (req, res)
   try {
     const { channelId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
+    const userId = req.userId;
     
     // Get channel to verify access
     const channel = await channelDB.getById(channelId);
@@ -2583,17 +2936,63 @@ app.get('/api/channels/:channelId/messages', authenticateToken, async (req, res)
     
     // Check if user is member of the server
     const members = await serverDB.getMembers(channel.server_id);
-    const isMember = members.some(m => m.id === req.userId);
+    const isMember = members.some(m => m.id === userId);
     
     if (!isMember) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Check if user has access to this server (per-user server access control)
+    const hasServerAccess = await userServerAccessDB.hasServerAccess(userId, channel.server_id);
+    if (!hasServerAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
+    
+    // Check if user has role-based access to this channel
+    const server = await serverDB.getById(channel.server_id);
+    if (server && server.owner_id !== userId) {
+      // Get user's custom roles
+      const userRoles = await dbAll(
+        `SELECT sr.id 
+         FROM member_roles mr
+         JOIN server_roles sr ON mr.role_id = sr.id
+         WHERE mr.user_id = ? AND mr.server_id = ?`,
+        [userId, channel.server_id]
+      );
+      
+      const memberRole = await dbGet(
+        `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
+        [userId, channel.server_id]
+      );
+      
+      const roleIds = [
+        ...userRoles.map(r => r.id),
+        ...(memberRole?.role_id ? [memberRole.role_id] : [])
+      ];
+      
+      // If user has custom roles, check channel access
+      if (roleIds.length > 0) {
+        let hasChannelAccess = false;
+        for (const roleId of roleIds) {
+          const access = await roleChannelAccessDB.hasChannelAccess(roleId, channelId);
+          if (access) {
+            hasChannelAccess = true;
+            break;
+          }
+        }
+        
+        if (!hasChannelAccess) {
+          return res.status(403).json({ error: 'Akses ke channel ini ditolak' });
+        }
+      }
     }
     
     const messages = await messageDB.getByChannel(channelId, parseInt(limit), parseInt(offset));
     res.json(messages);
   } catch (error) {
     console.error('Get messages error:', error);
-    res.status(500).json({ error: 'Failed to get messages' });
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ error: 'Failed to get messages', details: error.message });
   }
 });
 
@@ -2755,6 +3154,12 @@ app.get('/api/servers/:serverId/unread-count', authenticateToken, async (req, re
   try {
     const userId = req.userId;
     const { serverId } = req.params;
+    
+    // Check if user has access to this server
+    const hasAccess = await userServerAccessDB.hasServerAccess(userId, serverId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Akses ke server ini ditolak oleh admin' });
+    }
     
     // Verify user is member of this server
     const isMember = await serverDB.isMember(serverId, userId);
@@ -3477,6 +3882,48 @@ app.get('/api/link-preview', authenticateToken, async (req, res) => {
   }
 });
 
+// GIPHY API Proxy (to avoid CSP issues)
+const GIPHY_API_KEY = process.env.GIPHY_API_KEY || 'YpMijmz8K3JNNhmssCfdWuYmluS0JDAW';
+const GIPHY_BASE_URL = 'https://api.giphy.com/v1/gifs';
+
+app.get('/api/giphy/trending', authenticateToken, async (req, res) => {
+  try {
+    const limit = req.query.limit || 20;
+    const response = await fetch(`${GIPHY_BASE_URL}/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&rating=g&lang=id`);
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch from Giphy' });
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Giphy trending error:', error);
+    res.status(500).json({ error: 'Failed to fetch trending GIFs' });
+  }
+});
+
+app.get('/api/giphy/search', authenticateToken, async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query;
+    if (!q) {
+      return res.status(400).json({ error: 'Query parameter required' });
+    }
+    
+    const response = await fetch(`${GIPHY_BASE_URL}/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(q)}&limit=${limit}&rating=g&lang=id`);
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch from Giphy' });
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Giphy search error:', error);
+    res.status(500).json({ error: 'Failed to search GIFs' });
+  }
+});
+
 // Helper function to get user socket
 function getUserSocket(userId) {
   return Array.from(io.sockets.sockets.values()).find(s => s.userId === userId);
@@ -3749,6 +4196,13 @@ io.on('connection', (socket) => {
         return;
       }
       
+      // Check if user has access to this server (per-user server access control)
+      const hasAccess = await userServerAccessDB.hasServerAccess(socket.userId, channel.server_id);
+      if (!hasAccess) {
+        socket.emit('message_error', { error: 'Akses ke server ini ditolak oleh admin' });
+        return;
+      }
+      
       // Create message
       const message = await messageDB.create(channelId, socket.userId, content, replyToId, attachments);
       
@@ -3829,6 +4283,42 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Socket send-dm-message error:', error);
       socket.emit('dm-error', { error: 'Failed to send message' });
+    }
+  });
+
+  // Handle DM typing indicator
+  socket.on('dm-typing', async (data) => {
+    try {
+      const { channelId } = data;
+      const userId = socket.userId;
+      
+      if (!userId || !channelId) return;
+      
+      // Verify user is channel member
+      const isMember = await dmDB.isChannelMember(channelId, userId);
+      if (!isMember) return;
+      
+      // Get user info
+      const user = await userDB.findById(userId);
+      if (!user) return;
+      
+      // Get all channel members
+      const members = await dmDB.getChannelMembers(channelId);
+      
+      // Broadcast typing to other members
+      for (const member of members) {
+        if (member.id === userId) continue;
+        
+        const recipientSocket = getUserSocket(member.id);
+        if (recipientSocket) {
+          recipientSocket.emit('dm-typing', {
+            channelId,
+            username: user.username
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Socket dm-typing error:', error);
     }
   });
 

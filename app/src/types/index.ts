@@ -58,6 +58,8 @@ export interface FileAttachment {
   originalName: string;
   mimetype: string;
   size: number;
+  width?: number;
+  height?: number;
 }
 
 export interface ForwardedFrom {
