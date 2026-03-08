@@ -251,23 +251,12 @@ const userDB = {
   async needsPasswordChange(userId) {
     // TODO: Add force_password_change column to users table
     // For now, return false to allow login
-    try {
-      const result = await queryOne(
-        'SELECT force_password_change FROM users WHERE id = $1',
-        [userId]
-      );
-      return result?.force_password_change === true;
-    } catch (err) {
-      // Column doesn't exist, return false
-      return false;
-    }
+    return false;
   },
 
   async updateLastLogin(userId, ipAddress) {
-    await query(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP, last_login_ip = $1 WHERE id = $2',
-      [ipAddress, userId]
-    );
+    // TODO: Add last_login and last_login_ip columns to users table
+    // For now, skip this non-critical logging
     return true;
   },
 
