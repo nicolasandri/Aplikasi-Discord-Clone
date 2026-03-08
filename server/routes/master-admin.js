@@ -242,7 +242,7 @@ module.exports = (dbModule) => {
         return res.status(400).json({ error: 'Kode grup sudah digunakan' });
       }
       
-      const id = require('uuid').v4();
+      const id = require('crypto').randomUUID();
       const channelsJson = autoJoinChannels ? JSON.stringify(autoJoinChannels) : null;
       
       await new Promise((resolve, reject) => {

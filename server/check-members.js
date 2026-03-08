@@ -13,7 +13,7 @@ db.all("SELECT * FROM users WHERE id = ?", [userId], (err, rows) => {
     else console.log('Server:', JSON.stringify(rows2, null, 2));
     
     // Try to add member manually
-    const id = require('uuid').v4();
+    const id = require('crypto').randomUUID();
     db.run(
       'INSERT INTO server_members (id, server_id, user_id, role) VALUES (?, ?, ?, ?)',
       [id, serverId, userId, 'member'],

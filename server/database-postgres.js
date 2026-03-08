@@ -5,7 +5,8 @@
 
 const { pool, query, queryOne, queryMany, withTransaction } = require('./config/database');
 const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const uuidv4 = () => crypto.randomUUID();
 
 // ============================================
 // PERMISSION SYSTEM CONSTANTS
