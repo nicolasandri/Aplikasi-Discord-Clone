@@ -12,7 +12,7 @@ services:
       POSTGRES_DB: workgrid
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./server/migrations:/docker-entrypoint-initdb.d
+      - ../server/migrations:/docker-entrypoint-initdb.d
     networks:
       - workgrid-network
     healthcheck:
@@ -39,7 +39,7 @@ services:
   # Backend API
   backend:
     build:
-      context: ./server
+      context: ../server
       dockerfile: Dockerfile
     container_name: workgrid-backend
     restart: always
@@ -58,7 +58,7 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@workgrid.app}
     volumes:
-      - ./server/uploads:/app/uploads
+      - ../server/uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -72,7 +72,7 @@ services:
   # Frontend (Nginx serving built files)
   frontend:
     build:
-      context: ./app
+      context: ../app
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=/api
@@ -93,9 +93,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.vps.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
+      - ../nginx/nginx.vps.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../certbot/conf:/etc/letsencrypt:ro
+      - ../certbot/www:/var/www/certbot:ro
     depends_on:
       - frontend
       - backend
@@ -110,7 +110,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./updates:/usr/share/nginx/html:ro
+      - ../updates:/usr/share/nginx/html:ro
     networks:
       - workgrid-network
 
