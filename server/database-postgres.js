@@ -1133,6 +1133,11 @@ const dmDB = {
       );
       return { success: true };
     });
+  },
+
+  async resetAllStatus() {
+    await query("UPDATE users SET status = 'offline'");
+    return { success: true };
   }
 };
 
@@ -1235,29 +1240,6 @@ const voiceDB = {
       [channelId, userId]
     );
   }
-};
-
-// ============================================
-// EXPORTS
-// ============================================
-
-module.exports = {
-  pool,
-  initDatabase,
-  userDB,
-  serverDB,
-  categoryDB,
-  channelDB,
-  messageDB,
-  inviteDB,
-  reactionDB,
-  permissionDB,
-  friendDB,
-  dmDB,
-  voiceDB,
-  Permissions,
-  RolePermissions,
-  RoleHierarchy
 };
 
 // ============================================
