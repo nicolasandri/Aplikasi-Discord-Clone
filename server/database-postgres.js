@@ -1362,12 +1362,121 @@ const db = {
 };
 
 // ============================================
+// STUB DATABASES (TODO: Implement full functionality)
+// ============================================
+
+const userServerAccessDB = {
+  async setServerAccess(userId, serverId, isAllowed) {
+    // TODO: Implement
+    return { success: true };
+  },
+  async hasServerAccess(userId, serverId) {
+    // Default to true for now
+    return true;
+  }
+};
+
+const roleChannelAccessDB = {
+  async setChannelAccess(roleId, channelId, isAllowed) {
+    // TODO: Implement
+    return { success: true };
+  },
+  async hasChannelAccess(roleId, channelId) {
+    // Default to true for now
+    return true;
+  },
+  async bulkUpdateChannelAccess(roleId, channelAccess) {
+    // TODO: Implement
+    return { success: true };
+  }
+};
+
+const subscriptionDB = {
+  async create(userId, subscription) {
+    // TODO: Implement
+    return { success: true };
+  },
+  async remove(userId, endpoint) {
+    // TODO: Implement
+    return { success: true };
+  },
+  async removeAllByUser(userId) {
+    // TODO: Implement
+    return { success: true };
+  }
+};
+
+const auditLogDB = {
+  async create(serverId, userId, action, actionType, targetId, targetName, targetType, oldValue, newValue) {
+    // TODO: Implement
+    return { success: true };
+  },
+  async getServerLogs(serverId) {
+    // TODO: Implement
+    return [];
+  }
+};
+
+const sessionDB = {
+  async createSession(userId, sessionData) {
+    // TODO: Implement
+    return { id: 'stub-session-id' };
+  },
+  async getUserSessions(userId) {
+    // TODO: Implement
+    return [];
+  },
+  async getSessionById(deviceId) {
+    // TODO: Implement
+    return null;
+  },
+  async deleteSession(deviceId, userId) {
+    // TODO: Implement
+    return { success: true };
+  },
+  async deleteOtherSessions(userId, currentSessionId) {
+    // TODO: Implement
+    return { success: true };
+  }
+};
+
+const roleDB = {
+  // Placeholder for role database functions
+  async getServerRoles(serverId) {
+    // TODO: Implement
+    return [];
+  }
+};
+
+// ============================================
+// SQLITE COMPATIBILITY HELPERS
+// ============================================
+
+async function dbGet(sql, params = []) {
+  const result = await queryOne(sql, params);
+  return result;
+}
+
+async function dbRun(sql, params = []) {
+  const result = await query(sql, params);
+  return { changes: result.rowCount, lastID: result.rows[0]?.id || null };
+}
+
+async function dbAll(sql, params = []) {
+  const result = await queryMany(sql, params);
+  return result;
+}
+
+// ============================================
 // EXPORTS
 // ============================================
 
 module.exports = {
   pool,
   db,
+  dbGet,
+  dbRun,
+  dbAll,
   initDatabase,
   userDB,
   serverDB,
@@ -1380,6 +1489,12 @@ module.exports = {
   friendDB,
   dmDB,
   voiceDB,
+  userServerAccessDB,
+  roleChannelAccessDB,
+  subscriptionDB,
+  auditLogDB,
+  sessionDB,
+  roleDB,
   Permissions,
   RolePermissions,
   RoleHierarchy
