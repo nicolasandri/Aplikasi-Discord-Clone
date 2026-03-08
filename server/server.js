@@ -1328,16 +1328,23 @@ app.get('/api/servers/:serverId/categories', authenticateToken, async (req, res)
     const isOwner = server && server.owner_id === userId;
     
     // Get user's member info
+    // For now, only select 'role' column as 'role_id' might not exist in all databases
     const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
-    const member = isPostgres 
-      ? await dbGet(
-          'SELECT role, role_id FROM server_members WHERE user_id = $1 AND server_id = $2',
-          [userId, serverId]
-        )
-      : await dbGet(
-          'SELECT role, role_id FROM server_members WHERE user_id = ? AND server_id = ?',
-          [userId, serverId]
-        );
+    let member;
+    try {
+      member = isPostgres 
+        ? await dbGet(
+            'SELECT role FROM server_members WHERE user_id = $1 AND server_id = $2',
+            [userId, serverId]
+          )
+        : await dbGet(
+            'SELECT role FROM server_members WHERE user_id = ? AND server_id = ?',
+            [userId, serverId]
+          );
+    } catch (dbErr) {
+      console.error('[Categories] DB Error:', dbErr.message);
+      member = null;
+    }
     
     // Check legacy role
     const hasLegacyRole = ['admin', 'owner', 'moderator'].includes(member?.role);
@@ -1441,16 +1448,23 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     }
     
     // Get user's member info
+    // For now, only select 'role' column as 'role_id' might not exist in all databases
     const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
-    const member = isPostgres 
-      ? await dbGet(
-          'SELECT role, role_id FROM server_members WHERE user_id = $1 AND server_id = $2',
-          [userId, serverId]
-        )
-      : await dbGet(
-          'SELECT role, role_id FROM server_members WHERE user_id = ? AND server_id = ?',
-          [userId, serverId]
-        );
+    let member;
+    try {
+      member = isPostgres 
+        ? await dbGet(
+            'SELECT role FROM server_members WHERE user_id = $1 AND server_id = $2',
+            [userId, serverId]
+          )
+        : await dbGet(
+            'SELECT role FROM server_members WHERE user_id = ? AND server_id = ?',
+            [userId, serverId]
+          );
+    } catch (dbErr) {
+      console.error('[Categories] DB Error:', dbErr.message);
+      member = null;
+    }
     console.log(`[ChannelFilter] Member info:`, member);
     
     // If member has legacy role (admin, moderator), allow all channels
