@@ -211,9 +211,10 @@ certbot certonly --standalone \
         exit 1
     }
 
-# Start nginx again
+# Start nginx again with reload
 echo -e "${YELLOW}🔄 Starting nginx with SSL...${NC}"
-docker-compose -f deployment/docker-compose.vps.yml start nginx
+cd "$APP_DIR"
+docker-compose -f deployment/docker-compose.vps.yml restart nginx
 
 # Setup auto-renewal
 echo -e "${YELLOW}⏰ Setting up auto-renewal...${NC}"
