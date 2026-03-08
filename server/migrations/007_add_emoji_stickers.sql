@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS custom_emojis (
     uploader_id TEXT NOT NULL,
     is_global BOOLEAN DEFAULT 0,
     is_animated BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS stickers (
     server_id TEXT,
     uploader_id TEXT NOT NULL,
     is_global BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
     FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS sticker_packs (
     server_id TEXT,
     creator_id TEXT NOT NULL,
     is_global BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
     FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
