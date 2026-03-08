@@ -9,7 +9,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
+// UUID - using crypto for compatibility
+const crypto = require('crypto');
+const uuidv4 = () => crypto.randomUUID();
 const rateLimit = require('express-rate-limit');
 const cheerio = require('cheerio');
 
