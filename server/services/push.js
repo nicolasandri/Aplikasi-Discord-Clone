@@ -1,5 +1,9 @@
 const { webpush } = require('../config/push');
-const { subscriptionDB } = require('../database');
+
+// Dynamic database selection
+const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+const dbModule = usePostgres ? require('../database-postgres') : require('../database');
+const { subscriptionDB } = dbModule;
 
 class PushNotificationService {
   /**

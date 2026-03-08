@@ -1,5 +1,7 @@
 // Middleware untuk Master Admin
-const db = require('../database');
+// Dynamic database selection
+const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+const db = usePostgres ? require('../database-postgres') : require('../database');
 
 // Cek apakah user adalah Master Admin
 const requireMasterAdmin = async (req, res, next) => {

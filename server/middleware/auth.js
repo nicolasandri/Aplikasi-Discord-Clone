@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
-const db = require('../database');
+
+// Dynamic database selection
+const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+const db = usePostgres ? require('../database-postgres') : require('../database');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
