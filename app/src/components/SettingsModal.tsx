@@ -13,9 +13,10 @@ import { NotificationSettings } from './NotificationSettings';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = isElectron
+  ? 'http://localhost:3001/api'
+  : (import.meta.env.VITE_API_URL || '/api');
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -302,7 +303,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <>
               <div className="flex items-center gap-3">
                 <img
-                  src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+                  src={user?.avatar?.startsWith('http') ? user?.avatar : `${BASE_URL}${user?.avatar}`}
                   alt={user?.displayName || user?.username}
                   className="w-9 h-9 rounded-full object-cover"
                   onError={(e) => {
@@ -397,7 +398,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="absolute -bottom-8 left-4">
                     <div className="relative">
                       <img
-                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `http://localhost:3001${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
+                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
                         alt={user?.displayName || user?.username}
                         className="w-16 h-16 rounded-full border-4 border-[#0d0d14] bg-[#1a1b2e] object-cover"
                         onError={(e) => {
@@ -490,7 +491,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="p-4 pb-2">
             <div className="flex items-center gap-3 mb-4">
               <img
-                src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+                src={user?.avatar?.startsWith('http') ? user?.avatar : `${BASE_URL}${user?.avatar}`}
                 alt={user?.displayName || user?.username}
                 className="w-10 h-10 rounded-full object-cover"
                 onError={(e) => {
@@ -585,7 +586,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="absolute -bottom-12 left-6">
                     <div className="relative">
                       <img
-                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `http://localhost:3001${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
+                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
                         alt={user?.displayName || user?.username}
                         className="w-24 h-24 rounded-full border-4 border-[#0d0d14] bg-[#1a1b2e] object-cover"
                         onError={(e) => {

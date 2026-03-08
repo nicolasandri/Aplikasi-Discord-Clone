@@ -5,9 +5,10 @@ import { useToast } from '@/hooks/use-toast.tsx';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = isElectron
+  ? 'http://localhost:3001/api'
+  : (import.meta.env.VITE_API_URL || '/api');
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 interface UserProfilePopupProps {
   userId: string;
@@ -402,7 +403,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
               <div className="w-20 h-20 rounded-full border-[6px] border-[#232428] bg-[#232428] overflow-hidden">
                 <img
                   src={profile.avatar 
-                    ? `${profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:3001${profile.avatar}`}?v=${avatarVersion}`
+                    ? `${profile.avatar.startsWith('http') ? profile.avatar : `${BASE_URL}${profile.avatar}`}?v=${avatarVersion}`
                     : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}
                   alt={profile.displayName || profile.username}
                   className="w-full h-full object-cover"

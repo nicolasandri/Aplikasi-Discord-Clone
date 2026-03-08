@@ -21,10 +21,8 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-// Base URL for assets (images, uploads) - always use absolute URL for images
-const BASE_URL = isElectron 
-  ? 'http://localhost:3001' 
-  : 'http://localhost:3001';
+// Base URL for assets (images, uploads)
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 console.log('[DMChatArea] API_URL:', API_URL, 'BASE_URL:', BASE_URL);
 
 interface DMChatAreaProps {

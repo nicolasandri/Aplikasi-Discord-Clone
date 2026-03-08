@@ -6,15 +6,17 @@ import { format } from 'date-fns';
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
-// Use absolute URL for API calls to backend
-const API_URL = 'http://localhost:3001/api';
+// Use absolute URL for Electron, relative for web
+const API_URL = isElectron
+  ? 'http://localhost:3001/api'
+  : (import.meta.env.VITE_API_URL || '/api');
 
 // Get base URL for backend (without /api)
 const BASE_URL = (() => {
   if (API_URL.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
-  return 'http://localhost:3001';
+  return '';
 })();
 
 // Helper to get full avatar URL

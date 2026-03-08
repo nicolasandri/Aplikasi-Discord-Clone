@@ -18,9 +18,7 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 const API_URL = isElectron 
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
-const BASE_URL = isElectron 
-  ? 'http://localhost:3001' 
-  : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001');
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 export function MentionAutocomplete({ query, serverId, onSelect, onClose }: MentionAutocompleteProps) {
   const [members, setMembers] = useState<ServerMember[]>([]);

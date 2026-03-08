@@ -51,7 +51,7 @@ const BASE_URL = (() => {
   if (API_URL.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
-  return 'http://localhost:3001';
+  return '';
 })();
 
 export function ServerAuditLog({ serverId }: ServerAuditLogProps) {

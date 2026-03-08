@@ -18,8 +18,7 @@ const BASE_URL = (() => {
   if (API_URL.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
-  // For relative API URL in dev mode, use localhost:3001
-  return 'http://localhost:3001';
+  return '';
 })();
 
 interface ServerSettingsModalProps {

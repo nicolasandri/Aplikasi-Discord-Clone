@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { X, MessageCircle } from 'lucide-react';
 import type { ServerMember } from '@/types';
 
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+const API_URL = isElectron ? 'http://localhost:3001/api' : (import.meta.env.VITE_API_URL || '/api');
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+
 interface MemberProfilePopupProps {
   member: ServerMember | null;
   isOpen: boolean;
@@ -49,7 +53,7 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
   const fetchCustomRoles = async (sid: string) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:3001/api/servers/${sid}/roles`, {
+      const res = await fetch(`${API_URL}/servers/${sid}/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -74,7 +78,7 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
     if (member.avatar.startsWith('http')) {
       return member.avatar;
     }
-    return `http://localhost:3001${member.avatar}`;
+    return `${BASE_URL}${member.avatar}`;
   };
 
   // Get banner color based on highest role

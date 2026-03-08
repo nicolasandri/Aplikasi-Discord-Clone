@@ -1,6 +1,9 @@
 import { Menu, X, Users, ArrowLeft } from 'lucide-react';
 import type { Channel, Server, DMChannel } from '@/types';
 
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+
 interface MobileHeaderProps {
   server?: Server | null;
   dmChannel?: DMChannel | null;
@@ -62,7 +65,7 @@ export function MobileHeader({
               <>
                 <img 
                   src={dmChannel?.friend?.avatar 
-                    ? (dmChannel.friend.avatar.startsWith('http') ? dmChannel.friend.avatar : `http://localhost:3001${dmChannel.friend.avatar}`)
+                    ? (dmChannel.friend.avatar.startsWith('http') ? dmChannel.friend.avatar : `${BASE_URL}${dmChannel.friend.avatar}`)
                     : `https://api.dicebear.com/7.x/avataaars/svg?seed=${dmChannel?.friend?.username || 'user'}`}
                   alt={dmChannel?.friend?.username || 'User'}
                   className="w-7 h-7 rounded-full flex-shrink-0 object-cover"

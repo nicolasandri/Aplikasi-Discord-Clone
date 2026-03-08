@@ -39,9 +39,7 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 const API_URL = isElectron 
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
-const BASE_URL = isElectron 
-  ? 'http://localhost:3001' 
-  : (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001');
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 const DEFAULT_COLORS = [
   '#00d4ff', '#eb459e', '#ed4245', '#f39c12', '#f1c40f', 

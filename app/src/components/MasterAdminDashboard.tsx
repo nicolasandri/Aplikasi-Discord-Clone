@@ -55,9 +55,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = isElectron
+  ? 'http://localhost:3001/api'
+  : (import.meta.env.VITE_API_URL || '/api');
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 interface UserWithDetails {
   id: string;
@@ -420,7 +421,7 @@ export function MasterAdminDashboard() {
       if (avatar.startsWith('/uploads/') || avatar.startsWith('/api/')) {
         // Remove /api prefix if present
         const cleanPath = avatar.startsWith('/api/') ? avatar.substring(4) : avatar;
-        return `http://localhost:3001${cleanPath}`;
+        return `${BASE_URL}${cleanPath}`;
       }
       return avatar;
     }

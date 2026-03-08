@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 
+// Detect if running in Electron
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+
 // Helper to get full file URL (same as ChatArea)
 const getFileUrl = (url: string): string => {
   if (!url) return '';
   if (url.startsWith('http')) return url;
-  const baseUrl = 'http://localhost:3001';
+  const baseUrl = isElectron ? 'http://localhost:3001' : '';
   const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
   return `${baseUrl}${normalizedUrl}`;
 };

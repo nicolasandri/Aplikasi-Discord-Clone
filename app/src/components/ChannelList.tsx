@@ -40,6 +40,9 @@ interface ChannelListProps {
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
+// Base URL for assets
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+
 // Use absolute URL for Electron, relative for web
 const API_URL = isElectron 
   ? 'http://localhost:3001/api' 
@@ -364,7 +367,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
         <div className="h-[52px] bg-[#292b2f] px-2 flex items-center justify-between">
           <div className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#34373c] cursor-pointer">
             <img
-              src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+              src={user?.avatar?.startsWith('http') ? user?.avatar : `${BASE_URL}${user?.avatar}`}
               alt={user?.displayName || user?.username}
               className="w-8 h-8 rounded-full object-cover"
               onError={(e) => {
@@ -766,7 +769,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
           className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#34373c] cursor-pointer flex-1"
         >
           <img
-            src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+            src={user?.avatar?.startsWith('http') ? user?.avatar : `${BASE_URL}${user?.avatar}`}
             alt={user?.displayName || user?.username}
             className="w-8 h-8 rounded-full object-cover"
             onError={(e) => {
@@ -804,7 +807,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             <div className="p-3 flex items-center gap-3">
               <div className="relative flex-shrink-0">
                 <img
-                  src={user?.avatar?.startsWith('http') ? user?.avatar : `http://localhost:3001${user?.avatar}`}
+                  src={user?.avatar?.startsWith('http') ? user?.avatar : `${BASE_URL}${user?.avatar}`}
                   alt={user?.displayName || user?.username}
                   className="w-12 h-12 rounded-full object-cover bg-[#1a1b2e]"
                   onError={(e) => {

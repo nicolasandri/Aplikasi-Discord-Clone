@@ -15,7 +15,7 @@ const API_URL = isElectron
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 // Base URL for assets (images, uploads)
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 const statusColors = {
   online: 'bg-[#3ba55d]',
