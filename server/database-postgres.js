@@ -282,6 +282,18 @@ const serverDB = {
     return result.rows[0];
   },
 
+  async findById(id) {
+    return await queryOne(
+      'SELECT * FROM servers WHERE id = $1',
+      [id]
+    );
+  },
+
+  // Alias of findById for compatibility
+  async getById(id) {
+    return await this.findById(id);
+  },
+
   async getUserServers(userId) {
     return await queryMany(
       `SELECT s.* FROM servers s
@@ -291,14 +303,14 @@ const serverDB = {
     );
   },
 
-  async addMember(serverId, userId, role = 'member') {
+  async addMember(serverId, userId, role = 'member', joinMethod = 'Manual') {
     const id = uuidv4();
     try {
       await query(
-        `INSERT INTO server_members (id, server_id, user_id, role) 
-         VALUES ($1, $2, $3, $4) 
+        `INSERT INTO server_members (id, server_id, user_id, role, join_method) 
+         VALUES ($1, $2, $3, $4, $5) 
          ON CONFLICT (server_id, user_id) DO NOTHING`,
-        [id, serverId, userId, role]
+        [id, serverId, userId, role, joinMethod]
       );
       return true;
     } catch (error) {
@@ -307,12 +319,40 @@ const serverDB = {
     }
   },
 
+  async isMember(serverId, userId) {
+    const result = await queryOne(
+      'SELECT 1 FROM server_members WHERE server_id = $1 AND user_id = $2',
+      [serverId, userId]
+    );
+    return !!result;
+  },
+
   async getMembers(serverId) {
     return await queryMany(
       `SELECT u.id, u.username, u.avatar, COALESCE(u.status, 'offline') as status, sm.role 
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
        WHERE sm.server_id = $1`,
+      [serverId]
+    );
+  },
+
+  async getChannels(serverId) {
+    return await queryMany(
+      `SELECT c.*, cat.name as category_name
+       FROM channels c
+       LEFT JOIN categories cat ON c.category_id = cat.id
+       WHERE c.server_id = $1
+       ORDER BY c.category_id, c.position`,
+      [serverId]
+    );
+  },
+
+  async getCategories(serverId) {
+    return await queryMany(
+      `SELECT * FROM categories 
+       WHERE server_id = $1 
+       ORDER BY position`,
       [serverId]
     );
   }
