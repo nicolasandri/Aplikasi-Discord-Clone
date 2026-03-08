@@ -361,7 +361,12 @@ async function seedData() {
       await userDB.updateProfile(adminUser.id, { status: 'online' });
       
       // Set admin as master admin
-      await dbRun('UPDATE users SET is_master_admin = 1 WHERE id = ?', [adminUser.id]);
+      const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+      if (isPostgres) {
+        await dbRun('UPDATE users SET is_master_admin = 1 WHERE id = $1', [adminUser.id]);
+      } else {
+        await dbRun('UPDATE users SET is_master_admin = 1 WHERE id = ?', [adminUser.id]);
+      }
       
       const server = await serverDB.create(
         'WorkGrid Official',
