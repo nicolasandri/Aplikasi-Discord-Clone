@@ -364,6 +364,14 @@ const serverDB = {
     );
   },
 
+  async getMemberRole(serverId, userId) {
+    const row = await queryOne(
+      'SELECT role FROM server_members WHERE server_id = $1 AND user_id = $2',
+      [serverId, userId]
+    );
+    return row?.role || null;
+  },
+
   async transferOwnership(serverId, oldOwnerId, newOwnerId) {
     return await withTransaction(async (client) => {
       await client.query('UPDATE servers SET owner_id = $1 WHERE id = $2', [newOwnerId, serverId]);

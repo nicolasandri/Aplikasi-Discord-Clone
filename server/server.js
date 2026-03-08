@@ -1429,6 +1429,44 @@ app.get('/api/servers/:serverId/categories', authenticateToken, async (req, res)
   }
 });
 
+// Create category
+app.post('/api/servers/:serverId/categories', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const { name } = req.body;
+    const userId = req.userId;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nama kategori wajib diisi' });
+    }
+
+    // Check if user is member with manage permissions
+    const server = await serverDB.getById(serverId);
+    if (!server) return res.status(404).json({ error: 'Server tidak ditemukan' });
+
+    const memberRole = await serverDB.getMemberRole(serverId, userId);
+    if (!memberRole) return res.status(403).json({ error: 'Bukan anggota server' });
+
+    if (memberRole !== 'owner' && memberRole !== 'admin') {
+      return res.status(403).json({ error: 'Tidak ada izin untuk membuat kategori' });
+    }
+
+    // Get current max position
+    const categories = await categoryDB.getByServer(serverId);
+    const position = categories.length;
+
+    const category = await categoryDB.create(serverId, name.trim(), position);
+
+    // Emit socket event
+    io.to(`server:${serverId}`).emit('category_created', { category });
+
+    res.status(201).json(category);
+  } catch (error) {
+    console.error('Create category error:', error);
+    res.status(500).json({ error: 'Gagal membuat kategori' });
+  }
+});
+
 // Get server channels
 app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) => {
   try {
