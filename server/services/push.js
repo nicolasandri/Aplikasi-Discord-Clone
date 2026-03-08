@@ -127,6 +127,25 @@ class PushNotificationService {
   }
 
   /**
+   * Send channel message notification
+   * @param {string} userId - Recipient user ID
+   * @param {string} senderName - Name of sender
+   * @param {string} channelName - Channel name
+   * @param {string} messagePreview - Preview of the message
+   * @param {string} url - URL to navigate to when clicked
+   */
+  async sendChannelNotification(userId, senderName, channelName, messagePreview, url) {
+    return this.sendToUser(userId, {
+      title: `${senderName} di #${channelName}`,
+      body: messagePreview.substring(0, 100),
+      icon: '/icon-192x192.png',
+      tag: `channel-${channelName}`,
+      url,
+      data: { type: 'channel-message', channelName }
+    });
+  }
+
+  /**
    * Check if push notifications are configured
    * @returns {boolean}
    */

@@ -1,4 +1,4 @@
-import { MessageSquare, Users, Settings, Hash, Home } from 'lucide-react';
+import { MessageSquare, Users, Settings, Home } from 'lucide-react';
 import type { ViewMode } from './ChatLayout';
 
 interface MobileBottomNavProps {
@@ -16,7 +16,6 @@ export function MobileBottomNav({
 }: MobileBottomNavProps) {
   const navItems = [
     { id: 'server' as const, icon: Home, label: 'Server' },
-    { id: 'channels' as const, icon: Hash, label: 'Channels' },
     { id: 'friends' as const, icon: Users, label: 'Friends', badge: onlineFriendsCount },
     { id: 'chat' as const, icon: MessageSquare, label: 'Chat' },
     { id: 'settings' as const, icon: Settings, label: 'Settings' },

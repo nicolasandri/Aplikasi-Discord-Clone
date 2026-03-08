@@ -34,7 +34,7 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-export type ViewMode = 'server' | 'channels' | 'chat' | 'friends' | 'settings' | 'dm';
+export type ViewMode = 'server' | 'chat' | 'friends' | 'settings' | 'dm';
 
 export function ChatLayout() {
   const { user, token } = useAuth();
@@ -975,9 +975,6 @@ export function ChatLayout() {
       case 'server':
         setIsServerDrawerOpen(true);
         break;
-      case 'channels':
-        setIsChannelDrawerOpen(true);
-        break;
       case 'friends':
         setViewMode('friends');
         break;
@@ -994,16 +991,18 @@ export function ChatLayout() {
     if (serverId === 'home') {
       setViewMode('friends');
       setSelectedDMChannelId(null);
+      setIsServerDrawerOpen(false);
     } else if (serverId) {
       setViewMode('server');
       setSelectedServerId(serverId);
       setSelectedDMChannelId(null);
       // Fetch unread count for this server
       fetchChannelUnreadCount(serverId);
-    }
-    setIsServerDrawerOpen(false);
-    if (isMobile) {
-      setIsChannelDrawerOpen(true);
+      setIsServerDrawerOpen(false);
+      // On mobile, open channel drawer to select channel
+      if (isMobile) {
+        setIsChannelDrawerOpen(true);
+      }
     }
   };
 

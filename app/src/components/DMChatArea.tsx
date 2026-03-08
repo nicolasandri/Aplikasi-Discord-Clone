@@ -259,6 +259,19 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     }
   }, [channel?.id]);
 
+  // Send read receipts for unread messages from friend
+  useEffect(() => {
+    if (!channel || !currentUser) return;
+    
+    const unreadMessages = messages.filter(
+      msg => msg.senderId !== currentUser.id && !msg.isRead
+    );
+    
+    unreadMessages.forEach(msg => {
+      sendReadReceipt(msg.id);
+    });
+  }, [messages, channel, currentUser]);
+
   // Handle scroll event to detect user scrolling
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -301,6 +314,21 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       
       if (data.channelId === channelIdRef.current) {
         console.log('✅ Message is for current channel');
+        
+        // Parse attachments if it's a string
+        let parsedAttachments = data.message.attachments;
+        if (typeof parsedAttachments === 'string') {
+          try {
+            parsedAttachments = JSON.parse(parsedAttachments);
+          } catch (e) {
+            parsedAttachments = [];
+          }
+        }
+        // Ensure attachments is always an array
+        if (!Array.isArray(parsedAttachments)) {
+          parsedAttachments = parsedAttachments ? [parsedAttachments] : [];
+        }
+        
         // Map message from socket to DMMessage interface
         const mappedMessage: DMMessage = {
           id: data.message.id,
@@ -310,7 +338,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           sender_username: data.message.sender_username || data.sender?.username,
           sender_display_name: data.message.sender_display_name || data.sender?.displayName,
           sender_avatar: data.message.sender_avatar || data.sender?.avatar,
-          attachments: data.message.attachments,
+          attachments: parsedAttachments,
           isRead: data.message.is_read === 1 || data.message.is_read === true || data.message.isRead === true,
           createdAt: data.message.created_at || data.message.createdAt,
           editedAt: data.message.edited_at || data.message.editedAt,
@@ -376,15 +404,26 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       console.error('❌ DM error received:', data);
     };
 
+    const handleDMMessageRead = (data: { messageId: string; channelId: string; readBy: string }) => {
+      console.log('✅ DM message read:', data);
+      if (data.channelId === channelIdRef.current) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === data.messageId ? { ...msg, isRead: true } : msg
+        ));
+      }
+    };
+
     socket.on('new-dm-message', handleDMMessage);
     socket.on('dm-typing', handleDMTyping);
     socket.on('dm-error', handleDMError);
+    socket.on('dm-message-read', handleDMMessageRead);
 
     return () => {
       console.log('🔌 Detaching DM socket listeners');
       socket.off('new-dm-message', handleDMMessage);
       socket.off('dm-typing', handleDMTyping);
       socket.off('dm-error', handleDMError);
+      socket.off('dm-message-read', handleDMMessageRead);
     };
   }, []); // Only run once on mount
 
@@ -398,19 +437,35 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       if (response.ok) {
         const data = await response.json();
         // Map database response to DMMessage interface
-        const mappedMessages: DMMessage[] = data.map((row: any) => ({
-          id: row.id,
-          channelId: row.channel_id,
-          senderId: row.sender_id,
-          content: row.content,
-          sender_username: row.sender_username,
-          sender_display_name: row.sender_display_name,
-          sender_avatar: row.sender_avatar,
-          attachments: row.attachments,
-          isRead: row.is_read === 1 || row.is_read === true,
-          createdAt: row.created_at,
-          editedAt: row.edited_at,
-        }));
+        const mappedMessages: DMMessage[] = data.map((row: any) => {
+          // Parse attachments if it's a string
+          let parsedAttachments = row.attachments;
+          if (typeof parsedAttachments === 'string') {
+            try {
+              parsedAttachments = JSON.parse(parsedAttachments);
+            } catch (e) {
+              parsedAttachments = [];
+            }
+          }
+          // Ensure attachments is always an array
+          if (!Array.isArray(parsedAttachments)) {
+            parsedAttachments = parsedAttachments ? [parsedAttachments] : [];
+          }
+          
+          return {
+            id: row.id,
+            channelId: row.channel_id,
+            senderId: row.sender_id,
+            content: row.content,
+            sender_username: row.sender_username,
+            sender_display_name: row.sender_display_name,
+            sender_avatar: row.sender_avatar,
+            attachments: parsedAttachments,
+            isRead: row.is_read === 1 || row.is_read === true,
+            createdAt: row.created_at,
+            editedAt: row.edited_at,
+          };
+        });
         setMessages(mappedMessages);
       }
     } catch (error) {
@@ -460,8 +515,10 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     }
   };
 
-  const sendMessage = useCallback(async () => {
-    if ((!newMessage.trim() && attachments.length === 0) || !channel || !currentUser || isSending) return;
+  // Send message with optional forced attachments (for GIFs/stickers that need immediate send)
+  const sendMessageWithAttachments = useCallback(async (forcedAttachments?: FileAttachment[]) => {
+    const currentAttachments = forcedAttachments || attachments;
+    if ((!newMessage.trim() && currentAttachments.length === 0) || !channel || !currentUser || isSending) return;
 
     // Check cooldown to prevent spam
     const now = Date.now();
@@ -484,7 +541,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
       content: messageContent,
       sender_username: currentUser.username,
       sender_avatar: currentUser.avatar,
-      attachments: attachments.length > 0 ? attachments : undefined,
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       isRead: false,
       createdAt: new Date().toISOString(),
     };
@@ -496,11 +553,11 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     
     if (socket && socket.connected) {
       // Use socket for real-time messaging
-      console.log('Sending via socket:', { channelId: channel.id, content: messageContent, attachments });
+      console.log('Sending via socket:', { channelId: channel.id, content: messageContent, attachments: currentAttachments });
       socket.emit('send-dm-message', {
         channelId: channel.id,
         content: messageContent,
-        attachments: attachments.length > 0 ? attachments : undefined
+        attachments: currentAttachments.length > 0 ? currentAttachments : undefined
       });
       
       // Clear attachments after sending
@@ -528,7 +585,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           },
           body: JSON.stringify({ 
             content: messageContent,
-            attachments: attachments.length > 0 ? attachments : undefined
+            attachments: currentAttachments.length > 0 ? currentAttachments : undefined
           })
         });
         
@@ -554,15 +611,31 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
     // Focus will be restored by useEffect when isSending changes back to false
   }, [newMessage, attachments, channel, currentUser, isSending, token]);
 
+  // Wrapper for normal send (no forced attachments)
+  const sendMessage = useCallback(() => {
+    sendMessageWithAttachments();
+  }, [sendMessageWithAttachments]);
+
   const handleTyping = () => {
     const socket = (window as any).socket;
+    console.log('⌨️ handleTyping called:', { connected: socket?.connected, channelId: channel?.id });
     if (socket && socket.connected && channel) {
       // Throttle typing events to every 2 seconds
       const now = Date.now();
       if (now - lastTypingEmitRef.current > 2000) {
+        console.log('📤 Emitting dm-typing:', channel.id);
         socket.emit('dm-typing', { channelId: channel.id });
         lastTypingEmitRef.current = now;
+      } else {
+        console.log('⏱️ Typing throttled');
       }
+    }
+  };
+
+  const sendReadReceipt = (messageId: string) => {
+    const socket = (window as any).socket;
+    if (socket && socket.connected && channel) {
+      socket.emit('dm-read-receipt', { messageId, channelId: channel.id });
     }
   };
 
@@ -841,6 +914,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                               </span>
                             </div>
                           )}
+                          
                           {/* Message content bubble */}
                           {(message.content || (message.attachments && message.attachments.some(f => !f.mimetype?.startsWith('image/')))) && (
                             <div className={`px-4 py-2 rounded-2xl ${
@@ -871,6 +945,13 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                                     ))}
                                 </div>
                               )}
+                            </div>
+                          )}
+                          
+                          {/* Read receipt indicator for own messages - bottom left */}
+                          {isOwn && message.isRead && (
+                            <div className="flex justify-start w-full -mt-1">
+                              <span className="text-[10px] text-[#00d4ff] font-bold">R</span>
                             </div>
                           )}
                           
@@ -1030,7 +1111,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               }}
               onSelectSticker={(sticker) => {
                 if (isSending) return;
-                // Add sticker as attachment
+                // Send sticker immediately
                 const stickerAttachment: FileAttachment = {
                   url: sticker.url,
                   filename: `sticker_${Date.now()}.png`,
@@ -1038,15 +1119,14 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                   mimetype: 'image/png',
                   size: 0,
                 };
-                setAttachments(prev => [...prev, stickerAttachment]);
-                setTimeout(() => {
-                  sendMessage();
-                  textareaRef.current?.focus();
-                }, 100);
+                // Combine with existing attachments and send immediately
+                const allAttachments = [...attachments, stickerAttachment];
+                sendMessageWithAttachments(allAttachments);
+                textareaRef.current?.focus();
               }}
               onSelectGIF={(gif) => {
                 if (isSending) return;
-                // Add GIF as attachment
+                // Send GIF immediately
                 const gifAttachment: FileAttachment = {
                   url: gif.url,
                   filename: `gif_${Date.now()}.gif`,
@@ -1054,8 +1134,9 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                   mimetype: 'image/gif',
                   size: 0,
                 };
-                setAttachments(prev => [...prev, gifAttachment]);
-                setTimeout(() => sendMessage(), 100);
+                // Combine with existing attachments and send immediately
+                const allAttachments = [...attachments, gifAttachment];
+                sendMessageWithAttachments(allAttachments);
               }}
               serverId={null} // DM doesn't have serverId
             />

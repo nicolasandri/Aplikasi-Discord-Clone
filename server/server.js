@@ -30,28 +30,36 @@ function formatDateTime(date) {
 async function formatMentionsForNotification(content, serverId = null) {
   if (!content) return '';
   
+  console.log('📱 formatMentionsForNotification input:', content);
+  
   let formatted = content;
   
   // Replace user mentions: <@userId> -> @username
-  const userMentionRegex = /<@([a-f0-9-]+)>/g;
+  const userMentionRegex = /<@([a-fA-F0-9-]+)>/g;
   let match;
   while ((match = userMentionRegex.exec(content)) !== null) {
     const userId = match[1];
+    console.log('📱 Found user mention:', match[0], '-> ID:', userId);
     try {
       const user = await userDB.findById(userId);
       if (user) {
+        console.log('📱 Found user:', user.display_name || user.username);
         formatted = formatted.replace(match[0], `@${user.display_name || user.username}`);
       } else {
+        console.log('📱 User not found for ID:', userId);
         formatted = formatted.replace(match[0], '@Unknown User');
       }
     } catch (err) {
+      console.error('📱 Error finding user:', err);
       formatted = formatted.replace(match[0], '@Unknown User');
     }
   }
   
+  console.log('📱 formatMentionsForNotification output:', formatted);
+  
   // Replace role mentions: <@&roleId> -> @roleName (if serverId provided)
   if (serverId) {
-    const roleMentionRegex = /<@&([a-f0-9-]+)>/g;
+    const roleMentionRegex = /<@&([a-fA-F0-9-]+)>/g;
     while ((match = roleMentionRegex.exec(content)) !== null) {
       const roleId = match[1];
       try {
@@ -84,7 +92,7 @@ async function sendMentionNotifications(content, senderId, serverId, channelId, 
   console.log('📱 Checking for mentions in message...');
   
   // Find user mentions: <@userId>
-  const userMentionRegex = /<@([a-f0-9-]+)>/g;
+  const userMentionRegex = /<@([a-fA-F0-9-]+)>/g;
   let match;
   const mentionedUserIds = new Set();
   
@@ -96,7 +104,7 @@ async function sendMentionNotifications(content, senderId, serverId, channelId, 
   }
   
   // Find role mentions: <@&roleId>
-  const roleMentionRegex = /<@&([a-f0-9-]+)>/g;
+  const roleMentionRegex = /<@&([a-fA-F0-9-]+)>/g;
   const mentionedRoleIds = new Set();
   
   while ((match = roleMentionRegex.exec(content)) !== null) {
@@ -203,6 +211,45 @@ async function sendMentionNotifications(content, senderId, serverId, channelId, 
           console.error('📱 Failed to send @here notification:', err);
         }
       }
+    }
+  }
+}
+
+// Send channel message notification to offline members
+async function sendChannelMessageNotifications(content, senderId, serverId, channelId, channelName, senderName) {
+  if (!pushService.isConfigured()) {
+    console.log('📱 Push service not configured, skipping channel notifications');
+    return;
+  }
+  
+  // Get server members
+  const members = await serverDB.getMembers(serverId);
+  
+  // Send notification to members who are offline (not connected via socket)
+  for (const member of members) {
+    if (member.id === senderId) continue; // Skip sender
+    
+    // Check if user is online (has socket connection)
+    const userSocket = getUserSocket(member.id);
+    if (userSocket) {
+      console.log('📱 User', member.id, 'is online via socket, skipping push notification');
+      continue;
+    }
+    
+    // Send push notification to offline users
+    const formattedContent = await formatMentionsForNotification(content || 'Sent an attachment', serverId);
+    console.log('📱 Sending channel message notification to offline user:', member.id);
+    try {
+      await pushService.sendChannelNotification(
+        member.id,
+        senderName,
+        channelName,
+        formattedContent,
+        `/channels/${channelId}`
+      );
+      console.log('📱 Channel notification sent to:', member.id);
+    } catch (err) {
+      console.error('📱 Failed to send channel notification:', err);
     }
   }
 }
@@ -1400,6 +1447,32 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     // Remove duplicates
     const uniqueRoleIds = [...new Set(roleIds)];
     console.log(`[ChannelFilter] Unique role IDs:`, uniqueRoleIds);
+    
+    // Get role details to check for admin/owner permissions
+    const roleDetails = await dbAll(
+      `SELECT id, name, permissions FROM server_roles WHERE id IN (${uniqueRoleIds.map(() => '?').join(',')})`,
+      uniqueRoleIds
+    );
+    
+    // Check if any role has ADMINISTRATOR permission (bit 10 = 1024)
+    const hasAdminRole = roleDetails.some(r => {
+      const perms = parseInt(r.permissions) || 0;
+      return (perms & 1024) !== 0; // ADMINISTRATOR = 1 << 10
+    });
+    
+    // Check if any role has MANAGE_CHANNELS permission (bit 7 = 128)
+    const hasManageChannels = roleDetails.some(r => {
+      const perms = parseInt(r.permissions) || 0;
+      return (perms & 128) !== 0; // MANAGE_CHANNELS = 1 << 7
+    });
+    
+    console.log(`[ChannelFilter] Has admin role: ${hasAdminRole}, Has manage channels: ${hasManageChannels}`);
+    
+    // If user has admin/manage_channels permission, allow all channels
+    if (hasAdminRole || hasManageChannels) {
+      console.log(`[ChannelFilter] User has admin/manage_channels - returning all channels`);
+      return res.json(channels);
+    }
     
     // If user has no custom roles, allow all channels (backward compatible)
     if (uniqueRoleIds.length === 0) {
@@ -2914,6 +2987,16 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
       sender.display_name || sender.username
     ).catch(err => console.error('📱 Error sending mention notifications:', err));
     
+    // Send channel message notifications to offline members (async, don't block response)
+    sendChannelMessageNotifications(
+      content,
+      req.userId,
+      channel.server_id,
+      channelId,
+      channel.name,
+      sender.display_name || sender.username
+    ).catch(err => console.error('📱 Error sending channel notifications:', err));
+    
     res.status(201).json(message);
   } catch (error) {
     console.error('Send message error:', error);
@@ -3047,6 +3130,49 @@ app.get('/api/dm/channels/:channelId/messages', authenticateToken, async (req, r
   } catch (error) {
     console.error('Get DM messages error:', error);
     res.status(500).json({ error: 'Failed to get messages' });
+  }
+});
+
+// Mark DM message as read
+app.post('/api/dm/messages/:messageId/read', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { messageId } = req.params;
+    
+    // Get message details
+    const message = await dmDB.getDMMessageById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Verify user is channel member
+    const isMember = await dmDB.isChannelMember(message.channel_id, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Don't mark own messages as read
+    if (message.sender_id === userId) {
+      return res.json({ success: true });
+    }
+    
+    // Mark as read
+    await dmDB.markDMMessageAsRead(messageId);
+    
+    // Notify sender that message was read
+    const senderSocket = getUserSocket(message.sender_id);
+    if (senderSocket) {
+      senderSocket.emit('dm-message-read', {
+        messageId,
+        channelId: message.channel_id,
+        readBy: userId
+      });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark DM message read error:', error);
+    res.status(500).json({ error: 'Failed to mark message as read' });
   }
 });
 
@@ -4286,30 +4412,75 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle DM read receipt
+  socket.on('dm-read-receipt', async (data) => {
+    try {
+      const { messageId, channelId } = data;
+      const userId = socket.userId;
+      
+      if (!userId || !messageId || !channelId) return;
+      
+      // Get message details
+      const message = await dmDB.getDMMessageById(messageId);
+      if (!message) return;
+      
+      // Don't mark own messages
+      if (message.sender_id === userId) return;
+      
+      // Verify user is channel member
+      const isMember = await dmDB.isChannelMember(channelId, userId);
+      if (!isMember) return;
+      
+      // Mark as read
+      await dmDB.markDMMessageAsRead(messageId);
+      
+      // Notify sender
+      const senderSocket = getUserSocket(message.sender_id);
+      if (senderSocket) {
+        senderSocket.emit('dm-message-read', {
+          messageId,
+          channelId,
+          readBy: userId
+        });
+      }
+    } catch (error) {
+      console.error('Socket dm-read-receipt error:', error);
+    }
+  });
+
   // Handle DM typing indicator
   socket.on('dm-typing', async (data) => {
     try {
       const { channelId } = data;
       const userId = socket.userId;
       
-      if (!userId || !channelId) return;
+      console.log('⌨️ Server received dm-typing:', { channelId, userId });
+      
+      if (!userId || !channelId) {
+        console.log('❌ Missing userId or channelId');
+        return;
+      }
       
       // Verify user is channel member
       const isMember = await dmDB.isChannelMember(channelId, userId);
+      console.log('👥 Is member:', isMember);
       if (!isMember) return;
       
       // Get user info
       const user = await userDB.findById(userId);
+      console.log('👤 User:', user?.username);
       if (!user) return;
       
       // Get all channel members
       const members = await dmDB.getChannelMembers(channelId);
+      console.log('📋 Channel members:', members.length);
       
       // Broadcast typing to other members
       for (const member of members) {
         if (member.id === userId) continue;
         
         const recipientSocket = getUserSocket(member.id);
+        console.log('📤 Emitting dm-typing to:', member.id, 'socket:', !!recipientSocket);
         if (recipientSocket) {
           recipientSocket.emit('dm-typing', {
             channelId,
