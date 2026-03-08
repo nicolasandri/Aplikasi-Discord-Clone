@@ -1,113 +1,116 @@
 #!/bin/bash
-
-# ============================================
-# Discord Clone - SSL Setup with Let's Encrypt
-# ============================================
+# WorkGrid SSL Setup Script
+# Usage: bash /opt/workgrid/deployment/setup-ssl.sh your-domain.com
+# Atau tanpa parameter untuk input manual
 
 set -e
 
+APP_DIR="/opt/workgrid"
+NGINX_CONF="$APP_DIR/nginx/nginx.vps.conf"
+
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN} Discord Clone - SSL Setup${NC}"
-echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}🔒 WorkGrid SSL/HTTPS Setup${NC}"
+echo "=============================="
 echo ""
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
-    echo -e "${RED}Please run as root or with sudo${NC}"
+    echo -e "${RED}❌ Please run as root (use sudo)${NC}"
     exit 1
 fi
 
-# Get domain from user
-read -p "Enter your domain name (e.g., discord.example.com): " DOMAIN
+# Get domain name
+if [ -z "$1" ]; then
+    read -p "Enter your domain name (e.g., workgrid.yourdomain.com): " DOMAIN
+else
+    DOMAIN=$1
+fi
 
 if [ -z "$DOMAIN" ]; then
-    echo -e "${RED}Domain name is required!${NC}"
+    echo -e "${RED}❌ Domain name is required${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}Setting up SSL for: $DOMAIN${NC}"
+echo -e "${YELLOW}📋 Domain: $DOMAIN${NC}"
 echo ""
 
-# ============================================
-# Install Certbot
-# ============================================
-echo -e "${YELLOW}[1/5] Installing Certbot...${NC}"
-
-if command -v certbot &> /dev/null; then
-    echo -e "${GREEN}Certbot already installed${NC}"
-else
-    apt update
-    apt install -y certbot python3-certbot-nginx
-    echo -e "${GREEN}Certbot installed${NC}"
+# Check if certbot is installed
+if ! command -v certbot &> /dev/null; then
+    echo -e "${YELLOW}📦 Installing Certbot...${NC}"
+    apt-get update
+    apt-get install -y certbot python3-certbot-nginx
 fi
 
-# ============================================
-# Create webroot for challenges
-# ============================================
-echo -e "${YELLOW}[2/5] Creating webroot for ACME challenges...${NC}"
-mkdir -p /var/www/certbot
-chown -R www-data:www-data /var/www/certbot
+# Create backup of current nginx config
+echo -e "${YELLOW}💾 Creating backup of current nginx config...${NC}"
+cp "$NGINX_CONF" "$NGINX_CONF.backup.$(date +%Y%m%d%H%M%S)"
 
-# ============================================
-# Update Nginx Configuration
-# ============================================
-echo -e "${YELLOW}[3/5] Updating Nginx configuration...${NC}"
+# Update nginx config with domain
+echo -e "${YELLOW}📝 Updating nginx configuration...${NC}"
 
-# Backup current config
-cp /etc/nginx/sites-available/discord-clone /etc/nginx/sites-available/discord-clone.backup.$(date +%Y%m%d)
+# Create new nginx config with SSL support
+cat > "$NGINX_CONF" << EOF
+upstream backend {
+    server backend:3001;
+}
 
-# Create new config with SSL
-cat > /etc/nginx/sites-available/discord-clone << EOF
+upstream frontend {
+    server frontend:80;
+}
+
 # HTTP - Redirect to HTTPS
 server {
     listen 80;
     server_name $DOMAIN;
     
+    # Certbot challenge
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
     
+    # Redirect all HTTP to HTTPS
     location / {
-        return 301 https://\$server_name\$request_uri;
+        return 301 https://\$host\$request_uri;
     }
 }
 
-# HTTPS
+# HTTPS Server
 server {
     listen 443 ssl http2;
     server_name $DOMAIN;
     
-    # SSL Configuration
+    # SSL Certificates (will be created by certbot)
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
     
-    # SSL Security
+    # SSL Configuration
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    
+    # OCSP Stapling
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    ssl_trusted_certificate /etc/letsencrypt/live/$DOMAIN/chain.pem;
     
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    
-    # Client body size
-    client_max_body_size 50M;
-    
-    # Rate limiting
-    limit_req zone=api burst=20 nodelay;
+    add_header Strict-Transport-Security "max-age=63072000" always;
     
     # Frontend
     location / {
-        proxy_pass http://localhost:80;
+        proxy_pass http://frontend;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -116,22 +119,33 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
-        proxy_read_timeout 86400s;
     }
     
-    # API
+    # API Proxy
     location /api {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://backend;
         proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # WebSocket support
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
     
-    # Socket.io
-    location /socket.io/ {
-        proxy_pass http://localhost:3001;
+    # Socket.IO WebSocket
+    location /socket.io {
+        proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -139,74 +153,112 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # WebSocket specific
         proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
     }
     
-    # Health check
-    location /health {
-        proxy_pass http://localhost:3001;
-        access_log off;
+    # Uploads
+    location /uploads {
+        proxy_pass http://backend;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        client_max_body_size 10M;
     }
 }
 EOF
 
-echo -e "${GREEN}Nginx configuration updated${NC}"
-
-# Test Nginx config
-nginx -t
-echo -e "${GREEN}Nginx configuration test passed${NC}"
-
-# ============================================
-# Obtain SSL Certificate
-# ============================================
-echo -e "${YELLOW}[4/5] Obtaining SSL certificate...${NC}"
-echo -e "${BLUE}Make sure your domain DNS is pointing to this server ($VPS_IP)${NC}"
+echo -e "${GREEN}✅ Nginx config updated${NC}"
 echo ""
 
-# Stop nginx temporarily to free port 80 for standalone mode
-systemctl stop nginx
+# Reload nginx to apply new config
+echo -e "${YELLOW}🔄 Reloading nginx...${NC}"
+cd "$APP_DIR"
+docker-compose -f deployment/docker-compose.vps.yml exec -T nginx nginx -s reload 2>/dev/null || \
+docker-compose -f deployment/docker-compose.vps.yml restart nginx
 
-# Obtain certificate
-certbot certonly --standalone -d $DOMAIN --agree-tos --non-interactive --email admin@$DOMAIN
+# Obtain SSL certificate
+echo -e "${YELLOW}🔐 Obtaining SSL certificate from Let's Encrypt...${NC}"
+echo -e "${YELLOW}   Make sure your domain DNS points to this server!${NC}"
+echo ""
 
-# Start nginx
-systemctl start nginx
+# Create certbot directories
+mkdir -p /var/www/certbot
+mkdir -p /etc/letsencrypt
 
-echo -e "${GREEN}SSL certificate obtained${NC}"
+# Stop nginx container temporarily to free port 80
+docker-compose -f deployment/docker-compose.vps.yml stop nginx
 
-# ============================================
-# Setup Auto-Renewal
-# ============================================
-echo -e "${YELLOW}[5/5] Setting up auto-renewal...${NC}"
+# Obtain certificate using standalone mode
+certbot certonly --standalone \
+    --preferred-challenges http \
+    -d "$DOMAIN" \
+    --agree-tos \
+    --non-interactive \
+    --email "admin@$DOMAIN" \
+    || {
+        echo -e "${RED}❌ Failed to obtain SSL certificate${NC}"
+        echo -e "${YELLOW}⚠️  Make sure:${NC}"
+        echo "   1. Your domain DNS is pointed to this server IP"
+        echo "   2. Port 80 is not blocked by firewall"
+        echo "   3. The domain is correct"
+        echo ""
+        echo -e "${YELLOW}🔄 Restoring nginx...${NC}"
+        docker-compose -f deployment/docker-compose.vps.yml start nginx
+        exit 1
+    }
 
-# Create renewal hook
-cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'EOF'
+# Start nginx again
+echo -e "${YELLOW}🔄 Starting nginx with SSL...${NC}"
+docker-compose -f deployment/docker-compose.vps.yml start nginx
+
+# Setup auto-renewal
+echo -e "${YELLOW}⏰ Setting up auto-renewal...${NC}"
+
+# Create renewal hook script
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'HOOK'
 #!/bin/bash
-systemctl reload nginx
-EOF
+cd /opt/workgrid
+/usr/local/bin/docker-compose -f deployment/docker-compose.vps.yml exec -T nginx nginx -s reload
+HOOK
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
-# Test renewal
-certbot renew --dry-run
+# Add cron job for renewal
+(crontab -l 2>/dev/null | grep -v "certbot renew"; echo "0 3 * * * /usr/bin/certbot renew --quiet --deploy-hook '/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh'") | crontab -
 
-echo -e "${GREEN}Auto-renewal configured${NC}"
+# Update environment file to use HTTPS
+echo -e "${YELLOW}📝 Updating environment to use HTTPS...${NC}"
+sed -i "s|FRONTEND_URL=.*|FRONTEND_URL=https://$DOMAIN|g" "$APP_DIR/.env"
 
-# ============================================
-# Summary
-# ============================================
+# Update frontend environment
+if [ -f "$APP_DIR/app/.env.production" ]; then
+    sed -i "s|VITE_API_URL=.*|VITE_API_URL=https://$DOMAIN/api|g" "$APP_DIR/app/.env.production"
+fi
+
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN} SSL Setup Complete!${NC}"
-echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}==============================${NC}"
+echo -e "${GREEN}✅ SSL Setup Complete!${NC}"
+echo -e "${GREEN}==============================${NC}"
 echo ""
-echo -e "${BLUE}Your Discord Clone is now accessible at:${NC}"
-echo -e "  🔒 ${GREEN}https://$DOMAIN${NC}"
+echo -e "🌐 ${GREEN}Your app is now available at:${NC}"
+echo -e "   ${GREEN}https://$DOMAIN${NC}"
 echo ""
-echo -e "${YELLOW}SSL Certificate Details:${NC}"
-certbot certificates | grep -A 5 "Certificate Name: $DOMAIN"
+echo "📋 Details:"
+echo "   Domain: $DOMAIN"
+echo "   SSL Certificate: /etc/letsencrypt/live/$DOMAIN/"
+echo "   Auto-renewal: Enabled (daily check at 3 AM)"
+echo "   Nginx Config: $NGINX_CONF"
 echo ""
-echo -e "${YELLOW}Auto-renewal:${NC}"
-echo -e "  Certificates will auto-renew 30 days before expiry"
-echo -e "  Run ${BLUE}certbot renew --dry-run${NC} to test renewal"
+echo "🔧 Useful commands:"
+echo "   Test SSL:       curl -I https://$DOMAIN"
+echo "   Check cert:     certbot certificates"
+echo "   Renew manual:   certbot renew --dry-run"
+echo "   View logs:      tail -f /var/log/letsencrypt/letsencrypt.log"
 echo ""
-echo -e "${GREEN}Setup complete! 🎉${NC}"
+echo -e "${YELLOW}⚠️  Note: If you need to add www subdomain, run:${NC}"
+echo -e "   ${YELLOW}certbot certonly --expand -d $DOMAIN -d www.$DOMAIN${NC}"
+echo ""
