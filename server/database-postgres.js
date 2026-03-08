@@ -248,6 +248,14 @@ const userDB = {
     return bcrypt.compare(password, hashedPassword);
   },
 
+  async needsPasswordChange(userId) {
+    const result = await queryOne(
+      'SELECT force_password_change FROM users WHERE id = $1',
+      [userId]
+    );
+    return result?.force_password_change === true;
+  },
+
   async resetAllStatus() {
     await query("UPDATE users SET status = 'offline'");
     return { success: true };
