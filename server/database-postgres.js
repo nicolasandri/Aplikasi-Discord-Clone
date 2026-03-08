@@ -246,6 +246,11 @@ const userDB = {
 
   async verifyPassword(password, hashedPassword) {
     return bcrypt.compare(password, hashedPassword);
+  },
+
+  async resetAllStatus() {
+    await query("UPDATE users SET status = 'offline'");
+    return { success: true };
   }
 };
 
@@ -1134,11 +1139,6 @@ const dmDB = {
       return { success: true };
     });
   },
-
-  async resetAllStatus() {
-    await query("UPDATE users SET status = 'offline'");
-    return { success: true };
-  }
 };
 
 // ============================================
