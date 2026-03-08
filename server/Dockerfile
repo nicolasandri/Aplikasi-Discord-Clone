@@ -5,7 +5,7 @@
 # ============================================
 
 # Stage 1: Dependencies
-FROM node:18-alpine AS dependencies
+FROM node:20-alpine AS dependencies
 
 WORKDIR /app
 
@@ -16,10 +16,13 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Clean install - remove old lock file if exists
+RUN rm -f package-lock.json && \
+    npm install --production && \
+    npm cache clean --force
 
 # Stage 2: Production
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
