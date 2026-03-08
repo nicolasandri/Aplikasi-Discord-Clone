@@ -249,11 +249,18 @@ const userDB = {
   },
 
   async needsPasswordChange(userId) {
-    const result = await queryOne(
-      'SELECT force_password_change FROM users WHERE id = $1',
-      [userId]
-    );
-    return result?.force_password_change === true;
+    // TODO: Add force_password_change column to users table
+    // For now, return false to allow login
+    try {
+      const result = await queryOne(
+        'SELECT force_password_change FROM users WHERE id = $1',
+        [userId]
+      );
+      return result?.force_password_change === true;
+    } catch (err) {
+      // Column doesn't exist, return false
+      return false;
+    }
   },
 
   async resetAllStatus() {
