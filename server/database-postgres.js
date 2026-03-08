@@ -381,6 +381,10 @@ const categoryDB = {
     );
   },
 
+  async getCategories(serverId) {
+    return await this.getByServer(serverId);
+  },
+
   async getById(categoryId) {
     return await queryOne(
       'SELECT * FROM categories WHERE id = $1',
