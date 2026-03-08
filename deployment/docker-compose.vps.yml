@@ -74,7 +74,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=/api
-        - VITE_SOCKET_URL=https://workgrid.homeku.net
+        - VITE_SOCKET_URL=wss://workgrid.homeku.net
     container_name: workgrid-frontend
     restart: always
     depends_on:
