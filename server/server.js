@@ -35,27 +35,32 @@ async function formatMentionsForNotification(content, serverId = null) {
   let formatted = content;
   
   // Replace user mentions: <@userId> -> @username
-  const userMentionRegex = /<@([a-fA-F0-9-]+)>/g;
+  // Note: This regex should NOT match <@everyone> or <@here>
+  const userMentionRegex = /<@([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})>/gi;
   let match;
+  let loopCount = 0;
   while ((match = userMentionRegex.exec(content)) !== null) {
+    loopCount++;
     const userId = match[1];
-    console.log('📱 Found user mention:', match[0], '-> ID:', userId);
+    console.log(`📱 [${loopCount}] Found user mention:`, match[0], '-> ID:', userId);
     try {
       const user = await userDB.findById(userId);
       if (user) {
-        console.log('📱 Found user:', user.display_name || user.username);
-        formatted = formatted.replace(match[0], `@${user.display_name || user.username}`);
+        console.log(`📱 [${loopCount}] Found user:`, user.display_name || user.username);
+        formatted = formatted.replaceAll(match[0], `@${user.display_name || user.username}`);
       } else {
-        console.log('📱 User not found for ID:', userId);
-        formatted = formatted.replace(match[0], '@Unknown User');
+        console.log(`📱 [${loopCount}] User NOT found for ID:`, userId);
+        formatted = formatted.replaceAll(match[0], '@Unknown User');
       }
     } catch (err) {
-      console.error('📱 Error finding user:', err);
-      formatted = formatted.replace(match[0], '@Unknown User');
+      console.error(`📱 [${loopCount}] Error finding user:`, err);
+      formatted = formatted.replaceAll(match[0], '@Unknown User');
     }
+    // Prevent infinite loop
+    if (loopCount > 50) break;
   }
   
-  console.log('📱 formatMentionsForNotification output:', formatted);
+  console.log('📱 After user mentions, formatted:', formatted);
   
   // Replace role mentions: <@&roleId> -> @roleName (if serverId provided)
   if (serverId) {
@@ -87,7 +92,10 @@ async function formatMentionsForNotification(content, serverId = null) {
 
 // Helper function to send mention notifications
 async function sendMentionNotifications(content, senderId, serverId, channelId, channelName, senderName) {
-  if (!content || !pushService.isConfigured()) return;
+  console.log('📱 sendMentionNotifications called - content:', content?.substring(0, 50), 'isConfigured:', pushService.isConfigured());
+  if (!content) return;
+  // Always process mentions even if push not configured (for testing)
+  // if (!pushService.isConfigured()) return;
   
   console.log('📱 Checking for mentions in message...');
   
@@ -217,10 +225,12 @@ async function sendMentionNotifications(content, senderId, serverId, channelId, 
 
 // Send channel message notification to offline members
 async function sendChannelMessageNotifications(content, senderId, serverId, channelId, channelName, senderName) {
-  if (!pushService.isConfigured()) {
-    console.log('📱 Push service not configured, skipping channel notifications');
-    return;
-  }
+  console.log('📱 sendChannelMessageNotifications called - isConfigured:', pushService.isConfigured());
+  // Always process even if push not configured (for testing)
+  // if (!pushService.isConfigured()) {
+  //   console.log('📱 Push service not configured, skipping channel notifications');
+  //   return;
+  // }
   
   // Get server members
   const members = await serverDB.getMembers(serverId);
@@ -2978,6 +2988,7 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     
     // Send mention notifications (async, don't block response)
     const sender = await userDB.findById(userId);
+    console.log('📱 Sending notifications - content:', content, 'sender:', sender.display_name || sender.username);
     sendMentionNotifications(
       content,
       req.userId,
