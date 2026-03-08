@@ -1472,7 +1472,6 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     console.log(`[ChannelFilter] User roles from member_roles:`, userRoles.map(r => r.name));
     
     // Also get role from server_members.role_id (legacy/custom role assignment)
-    const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
     const memberRole = isPostgres
       ? await dbGet(
           'SELECT role_id FROM server_members WHERE user_id = $1 AND server_id = $2',
