@@ -263,6 +263,14 @@ const userDB = {
     }
   },
 
+  async updateLastLogin(userId, ipAddress) {
+    await query(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP, last_login_ip = $1 WHERE id = $2',
+      [ipAddress, userId]
+    );
+    return true;
+  },
+
   async resetAllStatus() {
     await query("UPDATE users SET status = 'offline'");
     return { success: true };
