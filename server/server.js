@@ -1350,13 +1350,21 @@ app.get('/api/servers/:serverId/categories', authenticateToken, async (req, res)
     const hasLegacyRole = ['admin', 'owner', 'moderator'].includes(member?.role);
     
     // Get custom roles
-    const userRoles = await dbAll(
-      `SELECT sr.id, sr.name 
-       FROM member_roles mr
-       JOIN server_roles sr ON mr.role_id = sr.id
-       WHERE mr.user_id = ? AND mr.server_id = ?`,
-      [userId, serverId]
-    );
+    const userRoles = isPostgres
+      ? await dbAll(
+          `SELECT sr.id, sr.name
+           FROM member_roles mr
+           JOIN server_roles sr ON mr.role_id = sr.id
+           WHERE mr.user_id = $1 AND mr.server_id = $2`,
+          [userId, serverId]
+        )
+      : await dbAll(
+          `SELECT sr.id, sr.name
+           FROM member_roles mr
+           JOIN server_roles sr ON mr.role_id = sr.id
+           WHERE mr.user_id = ? AND mr.server_id = ?`,
+          [userId, serverId]
+        );
     
     const roleIds = [
       ...userRoles.map(r => r.id),
@@ -1476,13 +1484,21 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     }
     
     // Get custom roles assigned to user (from member_roles table)
-    const userRoles = await dbAll(
-      `SELECT sr.id, sr.name 
-       FROM member_roles mr
-       JOIN server_roles sr ON mr.role_id = sr.id
-       WHERE mr.user_id = ? AND mr.server_id = ?`,
-      [userId, serverId]
-    );
+    const userRoles = isPostgres
+      ? await dbAll(
+          `SELECT sr.id, sr.name
+           FROM member_roles mr
+           JOIN server_roles sr ON mr.role_id = sr.id
+           WHERE mr.user_id = $1 AND mr.server_id = $2`,
+          [userId, serverId]
+        )
+      : await dbAll(
+          `SELECT sr.id, sr.name
+           FROM member_roles mr
+           JOIN server_roles sr ON mr.role_id = sr.id
+           WHERE mr.user_id = ? AND mr.server_id = ?`,
+          [userId, serverId]
+        );
     console.log(`[ChannelFilter] User roles from member_roles:`, userRoles.map(r => r.name));
     
     // Also get role from server_members.role_id (legacy/custom role assignment)
@@ -1506,10 +1522,17 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     console.log(`[ChannelFilter] Unique role IDs:`, uniqueRoleIds);
     
     // Get role details to check for admin/owner permissions
-    const roleDetails = await dbAll(
-      `SELECT id, name, permissions FROM server_roles WHERE id IN (${uniqueRoleIds.map(() => '?').join(',')})`,
-      uniqueRoleIds
-    );
+    const roleDetails = uniqueRoleIds.length > 0
+      ? isPostgres
+        ? await dbAll(
+            `SELECT id, name, permissions FROM server_roles WHERE id = ANY($1)`,
+            [uniqueRoleIds]
+          )
+        : await dbAll(
+            `SELECT id, name, permissions FROM server_roles WHERE id IN (${uniqueRoleIds.map(() => '?').join(',')})`,
+            uniqueRoleIds
+          )
+      : [];
     
     // Check if any role has ADMINISTRATOR permission (bit 10 = 1024)
     const hasAdminRole = roleDetails.some(r => {
@@ -2985,20 +3008,34 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     
     // Check if user has role-based access to this channel
     const server = await serverDB.getById(channel.server_id);
+    const isPostgres2 = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
     if (server && server.owner_id !== userId) {
       // Get user's custom roles (from both member_roles and server_members)
-      const userRoles = await dbAll(
-        `SELECT sr.id 
-         FROM member_roles mr
-         JOIN server_roles sr ON mr.role_id = sr.id
-         WHERE mr.user_id = ? AND mr.server_id = ?`,
-        [userId, channel.server_id]
-      );
-      
-      const member = await dbGet(
-        `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
-        [userId, channel.server_id]
-      );
+      const userRoles = isPostgres2
+        ? await dbAll(
+            `SELECT sr.id
+             FROM member_roles mr
+             JOIN server_roles sr ON mr.role_id = sr.id
+             WHERE mr.user_id = $1 AND mr.server_id = $2`,
+            [userId, channel.server_id]
+          )
+        : await dbAll(
+            `SELECT sr.id
+             FROM member_roles mr
+             JOIN server_roles sr ON mr.role_id = sr.id
+             WHERE mr.user_id = ? AND mr.server_id = ?`,
+            [userId, channel.server_id]
+          );
+
+      const member = isPostgres2
+        ? await dbGet(
+            `SELECT role_id FROM server_members WHERE user_id = $1 AND server_id = $2`,
+            [userId, channel.server_id]
+          )
+        : await dbGet(
+            `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
+            [userId, channel.server_id]
+          );
       
       const roleIds = [
         ...userRoles.map(r => r.id),
@@ -3091,20 +3128,34 @@ app.get('/api/channels/:channelId/messages', authenticateToken, async (req, res)
     
     // Check if user has role-based access to this channel
     const server = await serverDB.getById(channel.server_id);
+    const isPostgres3 = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
     if (server && server.owner_id !== userId) {
       // Get user's custom roles
-      const userRoles = await dbAll(
-        `SELECT sr.id 
-         FROM member_roles mr
-         JOIN server_roles sr ON mr.role_id = sr.id
-         WHERE mr.user_id = ? AND mr.server_id = ?`,
-        [userId, channel.server_id]
-      );
-      
-      const memberRole = await dbGet(
-        `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
-        [userId, channel.server_id]
-      );
+      const userRoles = isPostgres3
+        ? await dbAll(
+            `SELECT sr.id
+             FROM member_roles mr
+             JOIN server_roles sr ON mr.role_id = sr.id
+             WHERE mr.user_id = $1 AND mr.server_id = $2`,
+            [userId, channel.server_id]
+          )
+        : await dbAll(
+            `SELECT sr.id
+             FROM member_roles mr
+             JOIN server_roles sr ON mr.role_id = sr.id
+             WHERE mr.user_id = ? AND mr.server_id = ?`,
+            [userId, channel.server_id]
+          );
+
+      const memberRole = isPostgres3
+        ? await dbGet(
+            `SELECT role_id FROM server_members WHERE user_id = $1 AND server_id = $2`,
+            [userId, channel.server_id]
+          )
+        : await dbGet(
+            `SELECT role_id FROM server_members WHERE user_id = ? AND server_id = ?`,
+            [userId, channel.server_id]
+          );
       
       const roleIds = [
         ...userRoles.map(r => r.id),

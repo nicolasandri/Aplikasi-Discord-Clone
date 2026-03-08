@@ -350,11 +350,43 @@ const serverDB = {
 
   async getCategories(serverId) {
     return await queryMany(
-      `SELECT * FROM categories 
-       WHERE server_id = $1 
+      `SELECT * FROM categories
+       WHERE server_id = $1
        ORDER BY position`,
       [serverId]
     );
+  },
+
+  async getMember(serverId, userId) {
+    return await queryOne(
+      'SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2',
+      [serverId, userId]
+    );
+  },
+
+  async transferOwnership(serverId, oldOwnerId, newOwnerId) {
+    return await withTransaction(async (client) => {
+      await client.query('UPDATE servers SET owner_id = $1 WHERE id = $2', [newOwnerId, serverId]);
+      await client.query(`UPDATE server_members SET role = 'admin' WHERE server_id = $1 AND user_id = $2`, [serverId, oldOwnerId]);
+      await client.query(`UPDATE server_members SET role = 'owner' WHERE server_id = $1 AND user_id = $2`, [serverId, newOwnerId]);
+      return true;
+    });
+  },
+
+  async delete(serverId) {
+    return await withTransaction(async (client) => {
+      await client.query('DELETE FROM reactions WHERE message_id IN (SELECT id FROM messages WHERE channel_id IN (SELECT id FROM channels WHERE server_id = $1))', [serverId]);
+      await client.query('DELETE FROM messages WHERE channel_id IN (SELECT id FROM channels WHERE server_id = $1)', [serverId]);
+      await client.query('DELETE FROM channels WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM categories WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM server_members WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM server_roles WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM invites WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM bans WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM audit_logs WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM servers WHERE id = $1', [serverId]);
+      return { success: true };
+    });
   }
 };
 
@@ -643,6 +675,117 @@ const messageDB = {
       [id]
     );
     return { success: result.rowCount > 0 };
+  },
+
+  async pin(messageId, userId) {
+    await query(
+      `UPDATE messages SET is_pinned = true, pinned_at = CURRENT_TIMESTAMP, pinned_by = $1 WHERE id = $2`,
+      [userId, messageId]
+    );
+    return await this.getById(messageId);
+  },
+
+  async unpin(messageId) {
+    await query(
+      `UPDATE messages SET is_pinned = false, pinned_at = NULL, pinned_by = NULL WHERE id = $1`,
+      [messageId]
+    );
+    return await this.getById(messageId);
+  },
+
+  async getPinnedByChannel(channelId) {
+    const rows = await queryMany(
+      `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+              p.username as pinned_by_username
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       LEFT JOIN users p ON m.pinned_by = p.id
+       WHERE m.channel_id = $1 AND m.is_pinned = true
+       ORDER BY m.pinned_at DESC`,
+      [channelId]
+    );
+    return rows.map(row => {
+      let attachments = [];
+      if (row.attachments) {
+        try { attachments = typeof row.attachments === 'string' ? JSON.parse(row.attachments) : row.attachments; } catch(e) {}
+      }
+      return {
+        ...row,
+        attachments,
+        user: { id: row.user_id, username: row.username, displayName: row.display_name, avatar: row.avatar },
+        pinnedBy: row.pinned_by_username,
+        channelId: row.channel_id,
+        userId: row.user_id,
+        timestamp: row.created_at,
+      };
+    });
+  },
+
+  async updateReadStatus(userId, channelId, messageId) {
+    await query(
+      `INSERT INTO channel_read_status (id, user_id, channel_id, last_read_message_id, last_read_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id, channel_id)
+       DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id, last_read_at = CURRENT_TIMESTAMP`,
+      [uuidv4(), userId, channelId, messageId]
+    );
+    return true;
+  },
+
+  async getReadStatus(userId, channelId) {
+    const row = await queryOne(
+      `SELECT last_read_message_id, last_read_at FROM channel_read_status WHERE user_id = $1 AND channel_id = $2`,
+      [userId, channelId]
+    );
+    return row || null;
+  },
+
+  async searchMessages(options) {
+    const { serverId = null, channelId = null, userId = null, query: q = '', dateFrom = null, dateTo = null, hasAttachments = null, limit = 50, offset = 0 } = options;
+    let conditions = [];
+    let params = [];
+    let i = 1;
+    if (serverId) { conditions.push(`c.server_id = $${i++}`); params.push(serverId); }
+    if (channelId) { conditions.push(`m.channel_id = $${i++}`); params.push(channelId); }
+    if (userId) { conditions.push(`m.user_id = $${i++}`); params.push(userId); }
+    if (q) { conditions.push(`m.content ILIKE $${i++}`); params.push(`%${q}%`); }
+    if (dateFrom) { conditions.push(`m.created_at >= $${i++}`); params.push(dateFrom); }
+    if (dateTo) { conditions.push(`m.created_at <= $${i++}`); params.push(dateTo); }
+    if (hasAttachments === true) { conditions.push(`m.attachments != '[]' AND m.attachments IS NOT NULL`); }
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    params.push(limit, offset);
+    const rows = await queryMany(
+      `SELECT m.id, m.content, m.created_at, m.channel_id, c.name as channel_name, c.server_id,
+              u.id as user_id, u.username, u.display_name, u.avatar, m.attachments
+       FROM messages m
+       JOIN channels c ON m.channel_id = c.id
+       JOIN users u ON m.user_id = u.id
+       ${where}
+       ORDER BY m.created_at DESC
+       LIMIT $${i} OFFSET $${i+1}`,
+      params
+    );
+    return rows.map(r => ({ ...r, attachments: r.attachments ? (typeof r.attachments === 'string' ? JSON.parse(r.attachments) : r.attachments) : [] }));
+  },
+
+  async getSearchResultCount(options) {
+    const { serverId = null, channelId = null, userId = null, query: q = '', dateFrom = null, dateTo = null, hasAttachments = null } = options;
+    let conditions = [];
+    let params = [];
+    let i = 1;
+    if (serverId) { conditions.push(`c.server_id = $${i++}`); params.push(serverId); }
+    if (channelId) { conditions.push(`m.channel_id = $${i++}`); params.push(channelId); }
+    if (userId) { conditions.push(`m.user_id = $${i++}`); params.push(userId); }
+    if (q) { conditions.push(`m.content ILIKE $${i++}`); params.push(`%${q}%`); }
+    if (dateFrom) { conditions.push(`m.created_at >= $${i++}`); params.push(dateFrom); }
+    if (dateTo) { conditions.push(`m.created_at <= $${i++}`); params.push(dateTo); }
+    if (hasAttachments === true) { conditions.push(`m.attachments != '[]' AND m.attachments IS NOT NULL`); }
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const row = await queryOne(
+      `SELECT COUNT(*) as count FROM messages m JOIN channels c ON m.channel_id = c.id ${where}`,
+      params
+    );
+    return parseInt(row?.count || 0);
   },
 
   formatMessage(row) {
