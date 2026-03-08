@@ -267,7 +267,16 @@ async function sendChannelMessageNotifications(content, senderId, serverId, chan
 }
 
 // Database selection: SQLite or PostgreSQL
+console.log('[DB] Environment USE_POSTGRES:', process.env.USE_POSTGRES);
+console.log('[DB] Environment DATABASE_URL exists:', !!process.env.DATABASE_URL);
 const usePostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+console.log('[DB] Using PostgreSQL:', usePostgres);
+
+if (!usePostgres && process.env.NODE_ENV === 'production') {
+  console.error('[DB] ERROR: Production mode requires PostgreSQL. Set USE_POSTGRES=true or DATABASE_URL');
+  process.exit(1);
+}
+
 const dbModule = usePostgres ? require('./database-postgres') : require('./database');
 
 // Security: Allowed origins for CORS
