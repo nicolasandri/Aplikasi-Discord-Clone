@@ -17,23 +17,33 @@ echo "=============================="
 cd "$DEPLOY_DIR"
 echo "[1/5] Direktori: $DEPLOY_DIR"
 
-# 2. Pull perubahan terbaru dari GitHub
-echo "[2/5] Pull dari GitHub..."
+# 2. Stash perubahan lokal VPS (env, nginx config, dll)
+echo "[2/5] Menyimpan config lokal VPS..."
+git stash
+echo "✓ Config lokal tersimpan"
+
+# 3. Pull perubahan terbaru dari GitHub
+echo "[3/5] Pull dari GitHub..."
 git pull origin main
 echo "✓ Code terbaru berhasil diambil"
 
-# 3. Rebuild image frontend saja (yang kita ubah)
-echo "[3/5] Build ulang Docker image frontend..."
+# 4. Kembalikan config lokal VPS (tidak tertimpa GitHub)
+echo "[4/5] Mengembalikan config lokal VPS..."
+git stash pop || echo "⚠ Tidak ada stash atau konflik minor - lanjutkan"
+
+# 5. Rebuild image frontend saja
+echo "[5/5] Build ulang Docker image frontend..."
 docker-compose -f "$COMPOSE_FILE" build --no-cache frontend
 echo "✓ Image frontend berhasil dibuild"
 
-# 4. Restart frontend container
-echo "[4/5] Restart frontend container..."
+# 6. Restart frontend container
+echo "[6/6] Restart frontend container..."
 docker-compose -f "$COMPOSE_FILE" up -d --no-deps frontend
 echo "✓ Frontend container berjalan"
 
-# 5. Cek status semua container
-echo "[5/5] Status container:"
+# 7. Cek status semua container
+echo ""
+echo "Status container:"
 docker-compose -f "$COMPOSE_FILE" ps
 
 echo ""
