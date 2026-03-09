@@ -27,23 +27,15 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-// Helper to get base URL for backend (without /api) - computed at runtime
-const getBaseUrl = (): string => {
-  if (API_URL.startsWith('http')) {
-    return API_URL.replace(/\/api\/?$/, '');
-  }
-  // For relative API_URL (e.g., '/api'), use current origin
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  return '';
-};
-
 // Helper to get full icon URL
 const getServerIconUrl = (icon: string | null): string | null => {
   if (!icon) return null;
   if (icon.startsWith('http')) return icon;
-  return `${getBaseUrl()}${icon}`;
+  // For relative URLs, use current window origin
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}${icon.startsWith('/') ? '' : '/'}${icon}`;
+  }
+  return icon;
 };
 
 interface ServerListProps {

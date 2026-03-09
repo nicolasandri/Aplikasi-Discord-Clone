@@ -1175,7 +1175,6 @@ app.post('/api/servers/:serverId/transfer-ownership', authenticateToken, async (
 // Update server (name, icon, description)
 app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
   console.log('[PUT /api/servers/:serverId] Called with serverId:', req.params.serverId);
-  console.log('[PUT /api/servers/:serverId] Request body:', req.body);
   try {
     const { serverId } = req.params;
     const { name, icon, description, banner } = req.body;
@@ -1196,7 +1195,6 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
     }
     
     const hasManagePermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
-    console.log('[PUT /api/servers/:serverId] Permission check - hasManagePermission:', hasManagePermission, 'role:', member.role);
     if (!hasManagePermission && member.role !== 'owner' && member.role !== 'admin') {
       return res.status(403).json({ error: 'Only owner or admin can update server' });
     }
@@ -1208,76 +1206,20 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
     if (description !== undefined) updates.description = description;
     if (banner !== undefined) updates.banner = banner;
     
-    console.log('[PUT /api/servers/:serverId] Updates to apply:', updates);
-    
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
     
     // Update server
-    const updateResult = await serverDB.update(serverId, updates);
-    console.log('[PUT /api/servers/:serverId] Update result:', updateResult);
+    await serverDB.update(serverId, updates);
     
     // Get updated server
     const updatedServer = await serverDB.findById(serverId);
-    console.log('[PUT /api/servers/:serverId] Updated server icon:', updatedServer?.icon);
     
     res.json(updatedServer);
   } catch (error) {
     console.error('Update server error:', error);
     res.status(500).json({ error: 'Failed to update server' });
-  }
-});
-
-// DEBUG ENDPOINT - Update server icon only (NEW)
-app.put('/api/servers/:serverId/icon', authenticateToken, async (req, res) => {
-  console.log('[PUT /api/servers/:serverId/icon] CALLED');
-  console.log('[PUT /api/servers/:serverId/icon] Params:', req.params);
-  console.log('[PUT /api/servers/:serverId/icon] Body:', req.body);
-  console.log('[PUT /api/servers/:serverId/icon] User:', req.userId);
-  
-  try {
-    const { serverId } = req.params;
-    const { icon } = req.body;
-    const userId = req.userId;
-    
-    if (!icon) {
-      return res.status(400).json({ error: 'Icon is required' });
-    }
-    
-    // Check if server exists
-    const server = await serverDB.findById(serverId);
-    if (!server) {
-      return res.status(404).json({ error: 'Server not found' });
-    }
-    
-    // Check permission
-    const members = await serverDB.getMembers(serverId);
-    const member = members.find(m => m.id === userId);
-    
-    if (!member) {
-      return res.status(403).json({ error: 'Not a member' });
-    }
-    
-    const hasManagePermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
-    console.log('[PUT /api/servers/:serverId/icon] Permission:', hasManagePermission, 'Role:', member.role);
-    
-    if (!hasManagePermission && member.role !== 'owner' && member.role !== 'admin') {
-      return res.status(403).json({ error: 'No permission' });
-    }
-    
-    // Update icon only
-    console.log('[PUT /api/servers/:serverId/icon] Updating icon to:', icon);
-    await serverDB.update(serverId, { icon });
-    
-    // Get updated server
-    const updatedServer = await serverDB.findById(serverId);
-    console.log('[PUT /api/servers/:serverId/icon] SUCCESS - New icon:', updatedServer?.icon);
-    
-    res.json(updatedServer);
-  } catch (error) {
-    console.error('[PUT /api/servers/:serverId/icon] ERROR:', error);
-    res.status(500).json({ error: 'Failed to update icon' });
   }
 });
 

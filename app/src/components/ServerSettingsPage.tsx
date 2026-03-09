@@ -26,28 +26,15 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-// Helper to get base URL for backend (without /api) - computed at runtime
-const getBaseUrl = (): string => {
-  // ALWAYS use current window location for base URL
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  // Fallback for SSR/build time
-  if (API_URL.startsWith('http')) {
-    return API_URL.replace(/\/api\/?$/, '');
-  }
-  return '';
-};
-
 // Helper to convert relative URL to absolute URL
 const getFullImageUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  // Ensure url starts with /
-  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
-  const fullUrl = `${getBaseUrl()}${normalizedUrl}`;
-  console.log('[getFullImageUrl] Input:', url, 'Output:', fullUrl);
-  return fullUrl;
+  // For relative URLs, use current window origin
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+  return url;
 };
 
 const BANNER_COLORS = [
@@ -143,9 +130,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      console.log('[handleSave] Saving server with icon state:', serverIcon);
-      console.log('[handleSave] API_URL:', API_URL);
-      console.log('[handleSave] BASE_URL:', getBaseUrl());
+      console.log('[handleSave] Saving server with icon:', serverIcon);
       const res = await fetch(`${API_URL}/servers/${server.id}`, {
         method: 'PUT',
         headers: {
@@ -158,9 +143,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
       if (res.ok) {
         const updatedServer = await res.json();
         console.log('[handleSave] Server updated successfully:', updatedServer);
-        console.log('[handleSave] Server icon from response:', updatedServer.icon);
-        console.log('[handleSave] Server icon from state:', serverIcon);
-        onUpdateServer?.(server.id, { name: serverName, icon: updatedServer.icon || serverIcon, banner: bannerColor });
+        onUpdateServer?.(server.id, { name: serverName, icon: serverIcon, banner: bannerColor });
         alert('Server berhasil diperbarui!');
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -382,15 +365,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
                       <div className="w-20 h-20 rounded-2xl bg-[#1e1f22] flex items-center justify-center overflow-hidden border-4 border-[#2b2d31]">
                         {serverIcon ? (
-                          <img 
-                            src={getFullImageUrl(serverIcon)} 
-                            alt={serverName} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error('[ServerSettingsPage] Image load error:', e.currentTarget.src);
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
+                          <img src={getFullImageUrl(serverIcon)} alt={serverName} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-3xl font-bold text-white">{serverName.charAt(0).toUpperCase()}</span>
                         )}
