@@ -55,6 +55,7 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@workgrid.app}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://workgrid.homeku.net,http://workgrid.homeku.net}
     volumes:
       - ../server/uploads:/app/uploads
     depends_on:
