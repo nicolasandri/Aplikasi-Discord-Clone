@@ -153,6 +153,67 @@ async function initDatabase() {
       // Ignore
     }
     
+    // Create server_roles table
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS server_roles (
+          id TEXT PRIMARY KEY,
+          server_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          color TEXT DEFAULT '#99aab5',
+          permissions INTEGER DEFAULT 0,
+          position INTEGER DEFAULT 0,
+          is_default BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ server_roles table OK');
+    } catch (e) {
+      console.log('⚠️ server_roles table:', e.message);
+    }
+    
+    // Create indexes for server_roles
+    try {
+      await query(`CREATE INDEX IF NOT EXISTS idx_server_roles_server ON server_roles(server_id)`);
+    } catch (e) {
+      // Ignore
+    }
+    
+    // Create role_channel_access table
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS role_channel_access (
+          id TEXT PRIMARY KEY,
+          role_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL,
+          is_allowed BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(role_id, channel_id)
+        )
+      `);
+      console.log('✅ role_channel_access table OK');
+    } catch (e) {
+      console.log('⚠️ role_channel_access table:', e.message);
+    }
+    
+    // Create user_server_access table
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS user_server_access (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          server_id TEXT NOT NULL,
+          access_level TEXT DEFAULT 'read',
+          granted_by TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, server_id)
+        )
+      `);
+      console.log('✅ user_server_access table OK');
+    } catch (e) {
+      console.log('⚠️ user_server_access table:', e.message);
+    }
+    
     console.log('✅ PostgreSQL database initialized');
   } catch (error) {
     console.error('❌ Failed to initialize PostgreSQL:', error);
