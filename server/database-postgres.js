@@ -399,7 +399,7 @@ const userDB = {
 
   async findById(id) {
     return await queryOne(
-      'SELECT id, username, email, avatar, status, token_version, created_at FROM users WHERE id = $1',
+      'SELECT id, username, email, avatar, status, token_version, created_at, is_master_admin, display_name FROM users WHERE id = $1',
       [id]
     );
   },
