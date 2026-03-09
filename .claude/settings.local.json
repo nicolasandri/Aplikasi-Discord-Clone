@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"from [''\"\"]@/\")",
+      "Bash(git -C \"/c/Users/PC/Downloads/PROJECT TEAMCHAT/Aplikasi Discord Clone\" ls-files)"
+    ]
+  }
+}
