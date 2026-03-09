@@ -2145,6 +2145,183 @@ const roleDB = {
 };
 
 // ============================================
+// MASTER ADMIN DATABASE
+// ============================================
+
+const masterAdminDB = {
+  async getAllUsers(limit = 100, offset = 0) {
+    const rows = await queryMany(
+      `SELECT u.id, u.username, u.email, u.password, u.avatar, u.status, u.display_name,
+              u.is_master_admin, u.created_at, u.joined_via_group_code,
+              (SELECT COUNT(*) FROM server_members sm WHERE sm.user_id = u.id) as server_count,
+              (SELECT COUNT(*) FROM messages m WHERE m.user_id = u.id) as message_count
+       FROM users u ORDER BY u.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    return rows.map(row => ({
+      id: row.id, username: row.username, email: row.email, password: row.password,
+      avatar: row.avatar, status: row.status, displayName: row.display_name,
+      isMasterAdmin: row.is_master_admin === true,
+      isActive: true,
+      createdAt: row.created_at, joinedViaGroupCode: row.joined_via_group_code,
+      serverCount: parseInt(row.server_count) || 0,
+      messageCount: parseInt(row.message_count) || 0
+    }));
+  },
+
+  async getAllServers(limit = 100, offset = 0) {
+    const rows = await queryMany(
+      `SELECT s.id, s.name, s.icon, s.owner_id, s.created_at,
+              COALESCE(u.username, 'Unknown') as owner_username,
+              (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id) as member_count,
+              (SELECT COUNT(*) FROM channels c WHERE c.server_id = s.id) as channel_count,
+              (SELECT COUNT(*) FROM messages m JOIN channels ch ON m.channel_id = ch.id WHERE ch.server_id = s.id) as message_count
+       FROM servers s LEFT JOIN users u ON s.owner_id = u.id
+       ORDER BY s.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    return rows.map(row => ({
+      id: row.id, name: row.name, icon: row.icon, ownerId: row.owner_id,
+      ownerUsername: row.owner_username, createdAt: row.created_at,
+      memberCount: parseInt(row.member_count) || 0,
+      channelCount: parseInt(row.channel_count) || 0,
+      messageCount: parseInt(row.message_count) || 0
+    }));
+  },
+
+  async getAllMessages(limit = 100, offset = 0, serverId = null, channelId = null) {
+    const params = [];
+    const conditions = [];
+    if (serverId) { params.push(serverId); conditions.push(`c.server_id = $${params.length}`); }
+    if (channelId) { params.push(channelId); conditions.push(`m.channel_id = $${params.length}`); }
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    params.push(limit, offset);
+    const rows = await queryMany(
+      `SELECT m.id, m.channel_id, m.user_id, m.content, m.reply_to_id,
+              m.attachments, m.is_pinned, m.pinned_at, m.pinned_by,
+              m.forwarded_from, m.created_at, m.edited_at,
+              u.username, u.display_name, u.avatar,
+              c.name as channel_name, c.server_id,
+              s.name as server_name
+       FROM messages m JOIN users u ON m.user_id = u.id
+       JOIN channels c ON m.channel_id = c.id JOIN servers s ON c.server_id = s.id
+       ${where} ORDER BY m.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+    return rows.map(row => ({
+      id: row.id, channelId: row.channel_id, channelName: row.channel_name,
+      serverId: row.server_id, serverName: row.server_name, userId: row.user_id,
+      username: row.username, displayName: row.display_name, avatar: row.avatar,
+      content: row.content, replyToId: row.reply_to_id,
+      attachments: row.attachments ? (typeof row.attachments === 'string' ? JSON.parse(row.attachments) : row.attachments) : null,
+      isPinned: row.is_pinned === true, pinnedAt: row.pinned_at, pinnedBy: row.pinned_by,
+      forwardedFrom: row.forwarded_from ? (typeof row.forwarded_from === 'string' ? JSON.parse(row.forwarded_from) : row.forwarded_from) : null,
+      createdAt: row.created_at, editedAt: row.edited_at
+    }));
+  },
+
+  async getChannelMessages(channelId, limit = 100, offset = 0) {
+    return this.getAllMessages(limit, offset, null, channelId);
+  },
+
+  async getAllDMMessages(limit = 100, offset = 0) {
+    const rows = await queryMany(
+      `SELECT dm.id, dm.channel_id, dm.sender_id, dm.content, dm.attachments,
+              dm.is_read, dm.created_at, dm.edited_at,
+              u.username, u.display_name, u.avatar,
+              dmc.name as channel_name, dmc.type as channel_type
+       FROM dm_messages dm JOIN users u ON dm.sender_id = u.id
+       JOIN dm_channels dmc ON dm.channel_id = dmc.id
+       ORDER BY dm.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    const result = await Promise.all(rows.map(async (row) => {
+      const members = await queryMany(
+        `SELECT u.id, u.username, u.display_name, u.avatar FROM dm_channel_members dcm
+         JOIN users u ON dcm.user_id = u.id WHERE dcm.channel_id = $1`,
+        [row.channel_id]
+      );
+      const recipient = members.find(m => m.id !== row.sender_id);
+      return {
+        id: row.id, channelId: row.channel_id, channelName: row.channel_name,
+        channelType: row.channel_type, senderId: row.sender_id,
+        senderUsername: row.username, senderDisplayName: row.display_name || row.username,
+        senderAvatar: row.avatar,
+        recipientId: recipient?.id || null, recipientUsername: recipient?.username || 'Unknown',
+        recipientDisplayName: recipient?.display_name || recipient?.username || 'Unknown',
+        recipientAvatar: recipient?.avatar || null,
+        content: row.content,
+        attachments: row.attachments ? (typeof row.attachments === 'string' ? JSON.parse(row.attachments) : row.attachments) : null,
+        isRead: row.is_read === true, createdAt: row.created_at, editedAt: row.edited_at,
+        participants: members
+      };
+    }));
+    return result;
+  },
+
+  async getStatistics() {
+    const row = await queryOne(
+      `SELECT
+        (SELECT COUNT(*) FROM users) as total_users,
+        (SELECT COUNT(*) FROM servers) as total_servers,
+        (SELECT COUNT(*) FROM channels) as total_channels,
+        (SELECT COUNT(*) FROM messages) as total_messages,
+        (SELECT COUNT(*) FROM dm_messages) as total_dm_messages,
+        (SELECT COUNT(*) FROM server_members) as total_memberships,
+        (SELECT COUNT(*) FROM friendships WHERE status = 'accepted') as total_friendships,
+        (SELECT COUNT(*) FROM users WHERE status = 'online') as online_users`
+    );
+    return {
+      total_users: parseInt(row.total_users) || 0,
+      total_servers: parseInt(row.total_servers) || 0,
+      total_channels: parseInt(row.total_channels) || 0,
+      total_messages: parseInt(row.total_messages) || 0,
+      total_dm_messages: parseInt(row.total_dm_messages) || 0,
+      total_memberships: parseInt(row.total_memberships) || 0,
+      total_friendships: parseInt(row.total_friendships) || 0,
+      online_users: parseInt(row.online_users) || 0
+    };
+  },
+
+  async setMasterAdmin(userId, isMasterAdmin = true) {
+    const result = await query(
+      'UPDATE users SET is_master_admin = $1 WHERE id = $2',
+      [isMasterAdmin, userId]
+    );
+    return { success: result.rowCount > 0 };
+  },
+
+  async deleteUser(userId) {
+    return withTransaction(async (client) => {
+      await client.query('DELETE FROM messages WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM dm_messages WHERE sender_id = $1', [userId]);
+      await client.query('DELETE FROM server_members WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM member_roles WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM friendships WHERE user_id = $1 OR friend_id = $1', [userId]);
+      await client.query('DELETE FROM dm_channel_members WHERE user_id = $1', [userId]);
+      const result = await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      return { success: result.rowCount > 0 };
+    });
+  },
+
+  async deleteServer(serverId) {
+    return withTransaction(async (client) => {
+      await client.query('DELETE FROM reactions WHERE message_id IN (SELECT id FROM messages WHERE channel_id IN (SELECT id FROM channels WHERE server_id = $1))', [serverId]);
+      await client.query('DELETE FROM messages WHERE channel_id IN (SELECT id FROM channels WHERE server_id = $1)', [serverId]);
+      await client.query('DELETE FROM channels WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM categories WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM server_members WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM member_roles WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM server_roles WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM invites WHERE server_id = $1', [serverId]);
+      await client.query('DELETE FROM bans WHERE server_id = $1', [serverId]);
+      const result = await client.query('DELETE FROM servers WHERE id = $1', [serverId]);
+      return { success: result.rowCount > 0 };
+    });
+  }
+};
+
+// ============================================
 // SQLITE COMPATIBILITY HELPERS
 // ============================================
 
@@ -2200,7 +2377,18 @@ module.exports = {
   auditLogDB,
   sessionDB,
   roleDB,
+  masterAdminDB,
   Permissions,
   RolePermissions,
-  RoleHierarchy
+  RoleHierarchy,
+  async adminResetPassword(userId, newPassword) {
+    const bcrypt = require('bcryptjs');
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await query('UPDATE users SET password = $1 WHERE id = $2', [hashed, userId]);
+    return { success: true };
+  },
+  async toggleUserActive(userId, isActive) {
+    await query('UPDATE users SET is_active = $1 WHERE id = $2', [isActive, userId]);
+    return { success: true };
+  }
 };
