@@ -2012,15 +2012,25 @@ app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, asyn
     }
     
     // Get all channels for this server with access info for the role
-    const channels = await dbAll(
-      `SELECT c.id, c.name, c.type, c.category_id,
-              CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
-       FROM channels c
-       LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
-       WHERE c.server_id = ?
-       ORDER BY c.position`,
-      [roleId, serverId]
-    );
+    const channels = isPostgres
+      ? await dbAll(
+          `SELECT c.id, c.name, c.type, c.category_id,
+                  CASE WHEN rca.is_allowed IS NULL THEN true ELSE rca.is_allowed END as is_allowed
+           FROM channels c
+           LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = $1
+           WHERE c.server_id = $2
+           ORDER BY c.position`,
+          [roleId, serverId]
+        )
+      : await dbAll(
+          `SELECT c.id, c.name, c.type, c.category_id,
+                  CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
+           FROM channels c
+           LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
+           WHERE c.server_id = ?
+           ORDER BY c.position`,
+          [roleId, serverId]
+        );
     
     res.json({ channels });
   } catch (error) {
@@ -4689,7 +4699,10 @@ app.post('/api/setup-master-admin', async (req, res) => {
     }
     
     // Cek apakah sudah ada master admin
-    const existingMasterAdmin = await dbGet('SELECT id FROM users WHERE is_master_admin = 1 LIMIT 1');
+    const existingMasterAdmin = await dbGet(isPostgres
+      ? 'SELECT id FROM users WHERE is_master_admin = true LIMIT 1'
+      : 'SELECT id FROM users WHERE is_master_admin = 1 LIMIT 1'
+    );
     if (existingMasterAdmin) {
       return res.status(400).json({ error: 'Master admin already exists' });
     }
@@ -4717,7 +4730,10 @@ app.post('/api/setup-master-admin', async (req, res) => {
 // Check if master admin exists
 app.get('/api/master-admin-status', async (req, res) => {
   try {
-    const masterAdmin = await dbGet('SELECT COUNT(*) as count FROM users WHERE is_master_admin = 1');
+    const masterAdmin = await dbGet(isPostgres
+      ? 'SELECT COUNT(*) as count FROM users WHERE is_master_admin = true'
+      : 'SELECT COUNT(*) as count FROM users WHERE is_master_admin = 1'
+    );
     res.json({ 
       hasMasterAdmin: masterAdmin.count > 0,
       count: masterAdmin.count 
