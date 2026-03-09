@@ -214,6 +214,36 @@ async function initDatabase() {
       console.log('⚠️ user_server_access table:', e.message);
     }
     
+    // Add missing columns to messages table
+    try {
+      await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false`);
+      await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP`);
+      await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS pinned_by TEXT`);
+      await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP`);
+      await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS forwarded_from TEXT`);
+      console.log('✅ messages columns OK');
+    } catch (e) {
+      console.log('⚠️ messages columns:', e.message);
+    }
+    
+    // Add missing columns to users table
+    try {
+      await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_master_admin BOOLEAN DEFAULT false`);
+      await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT`);
+      await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS joined_via_group_code TEXT`);
+      console.log('✅ users columns OK');
+    } catch (e) {
+      console.log('⚠️ users columns:', e.message);
+    }
+    
+    // Add missing columns to invites table
+    try {
+      await query(`ALTER TABLE invites ADD COLUMN IF NOT EXISTS role_id TEXT`);
+      console.log('✅ invites columns OK');
+    } catch (e) {
+      console.log('⚠️ invites columns:', e.message);
+    }
+    
     console.log('✅ PostgreSQL database initialized');
   } catch (error) {
     console.error('❌ Failed to initialize PostgreSQL:', error);
