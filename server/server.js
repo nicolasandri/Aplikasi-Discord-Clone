@@ -3319,6 +3319,44 @@ app.get('/api/channels/:channelId/messages', authenticateToken, async (req, res)
   }
 });
 
+// Update channel (rename)
+app.put('/api/channels/:channelId', authenticateToken, async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const { name } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nama channel wajib diisi' });
+    }
+    
+    // Get channel to verify
+    const channel = await channelDB.getById(channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    // Check permission
+    const hasPermission = await permissionDB.hasPermission(req.userId, channel.server_id, Permissions.MANAGE_CHANNELS);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to edit channels' });
+    }
+    
+    // Update channel name
+    await channelDB.update(channelId, { name: name.trim() });
+    
+    // Get updated channel
+    const updatedChannel = await channelDB.getById(channelId);
+    
+    // Emit socket event
+    io.to(channel.server_id).emit('channel_updated', { serverId: channel.server_id, channel: updatedChannel });
+    
+    res.json(updatedChannel);
+  } catch (error) {
+    console.error('Update channel error:', error);
+    res.status(500).json({ error: 'Failed to update channel' });
+  }
+});
+
 // Delete channel
 app.delete('/api/channels/:channelId', authenticateToken, async (req, res) => {
   try {
