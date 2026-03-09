@@ -13,9 +13,9 @@ function log(...args: any[]) {
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const SOCKET_URL = isElectron 
-  ? 'http://localhost:3001' 
-  : (import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001');
+const SOCKET_URL = isElectron
+  ? 'http://localhost:3001'
+  : (import.meta.env.VITE_SOCKET_URL || window.location.origin);
 
 interface UseSocketReturn {
   socket: Socket | null;
