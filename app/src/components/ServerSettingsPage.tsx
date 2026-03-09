@@ -28,12 +28,13 @@ const API_URL = isElectron
 
 // Helper to get base URL for backend (without /api) - computed at runtime
 const getBaseUrl = (): string => {
-  if (API_URL.startsWith('http')) {
-    return API_URL.replace(/\/api\/?$/, '');
-  }
-  // For relative API_URL (e.g., '/api'), use current origin
+  // ALWAYS use current window location for base URL
   if (typeof window !== 'undefined') {
     return window.location.origin;
+  }
+  // Fallback for SSR/build time
+  if (API_URL.startsWith('http')) {
+    return API_URL.replace(/\/api\/?$/, '');
   }
   return '';
 };
@@ -42,10 +43,11 @@ const getBaseUrl = (): string => {
 const getFullImageUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/uploads/')) {
-    return `${getBaseUrl()}${url}`;
-  }
-  return url;
+  // Ensure url starts with /
+  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  const fullUrl = `${getBaseUrl()}${normalizedUrl}`;
+  console.log('[getFullImageUrl] Input:', url, 'Output:', fullUrl);
+  return fullUrl;
 };
 
 const BANNER_COLORS = [
@@ -380,7 +382,15 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
                       <div className="w-20 h-20 rounded-2xl bg-[#1e1f22] flex items-center justify-center overflow-hidden border-4 border-[#2b2d31]">
                         {serverIcon ? (
-                          <img src={getFullImageUrl(serverIcon)} alt={serverName} className="w-full h-full object-cover" />
+                          <img 
+                            src={getFullImageUrl(serverIcon)} 
+                            alt={serverName} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('[ServerSettingsPage] Image load error:', e.currentTarget.src);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
                         ) : (
                           <span className="text-3xl font-bold text-white">{serverName.charAt(0).toUpperCase()}</span>
                         )}
