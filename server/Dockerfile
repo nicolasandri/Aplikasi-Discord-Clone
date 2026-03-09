@@ -39,8 +39,8 @@ COPY --from=dependencies /app/node_modules ./node_modules
 # Copy application code
 COPY --chown=nodejs:nodejs . .
 
-# Create uploads directory dengan proper permissions
-RUN mkdir -p uploads && chmod 777 uploads
+# Create uploads directory dengan proper permissions (as root first)
+RUN mkdir -p uploads && chmod 777 uploads && chown -R nodejs:nodejs uploads
 
 # Switch ke non-root user
 USER nodejs

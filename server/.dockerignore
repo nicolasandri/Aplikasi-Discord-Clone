@@ -28,8 +28,7 @@ workgrid.db.backup*
 *.db
 
 # Uploaded files (will be mounted as volume)
-uploads/*
-!uploads/.gitkeep
+uploads/
 
 # Backup files
 backups/
