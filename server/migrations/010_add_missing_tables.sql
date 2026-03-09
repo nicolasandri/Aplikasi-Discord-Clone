@@ -137,3 +137,48 @@ BEGIN
         ALTER TABLE invites ADD COLUMN role_id TEXT;
     END IF;
 END $$;
+
+-- Add description to servers
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='servers' AND column_name='description') THEN
+        ALTER TABLE servers ADD COLUMN description TEXT;
+    END IF;
+END $$;
+
+-- Add banner to servers
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='servers' AND column_name='banner') THEN
+        ALTER TABLE servers ADD COLUMN banner TEXT;
+    END IF;
+END $$;
+
+-- Add updated_at to servers
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='servers' AND column_name='updated_at') THEN
+        ALTER TABLE servers ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    END IF;
+END $$;
+
+-- Add attachments to messages
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='messages' AND column_name='attachments') THEN
+        ALTER TABLE messages ADD COLUMN attachments TEXT DEFAULT '[]';
+    END IF;
+END $$;
+
+-- Add reply_to_id to messages
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='messages' AND column_name='reply_to_id') THEN
+        ALTER TABLE messages ADD COLUMN reply_to_id TEXT;
+    END IF;
+END $$;
