@@ -1229,6 +1229,58 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
   }
 });
 
+// DEBUG ENDPOINT - Update server icon only (NEW)
+app.put('/api/servers/:serverId/icon', authenticateToken, async (req, res) => {
+  console.log('[PUT /api/servers/:serverId/icon] CALLED');
+  console.log('[PUT /api/servers/:serverId/icon] Params:', req.params);
+  console.log('[PUT /api/servers/:serverId/icon] Body:', req.body);
+  console.log('[PUT /api/servers/:serverId/icon] User:', req.userId);
+  
+  try {
+    const { serverId } = req.params;
+    const { icon } = req.body;
+    const userId = req.userId;
+    
+    if (!icon) {
+      return res.status(400).json({ error: 'Icon is required' });
+    }
+    
+    // Check if server exists
+    const server = await serverDB.findById(serverId);
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+    
+    // Check permission
+    const members = await serverDB.getMembers(serverId);
+    const member = members.find(m => m.id === userId);
+    
+    if (!member) {
+      return res.status(403).json({ error: 'Not a member' });
+    }
+    
+    const hasManagePermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
+    console.log('[PUT /api/servers/:serverId/icon] Permission:', hasManagePermission, 'Role:', member.role);
+    
+    if (!hasManagePermission && member.role !== 'owner' && member.role !== 'admin') {
+      return res.status(403).json({ error: 'No permission' });
+    }
+    
+    // Update icon only
+    console.log('[PUT /api/servers/:serverId/icon] Updating icon to:', icon);
+    await serverDB.update(serverId, { icon });
+    
+    // Get updated server
+    const updatedServer = await serverDB.findById(serverId);
+    console.log('[PUT /api/servers/:serverId/icon] SUCCESS - New icon:', updatedServer?.icon);
+    
+    res.json(updatedServer);
+  } catch (error) {
+    console.error('[PUT /api/servers/:serverId/icon] ERROR:', error);
+    res.status(500).json({ error: 'Failed to update icon' });
+  }
+});
+
 // Get user by ID (for DM profile)
 app.get('/api/users/:userId', authenticateToken, async (req, res) => {
   try {

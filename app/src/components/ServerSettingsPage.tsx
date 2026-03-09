@@ -156,7 +156,9 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
       if (res.ok) {
         const updatedServer = await res.json();
         console.log('[handleSave] Server updated successfully:', updatedServer);
-        onUpdateServer?.(server.id, { name: serverName, icon: serverIcon, banner: bannerColor });
+        console.log('[handleSave] Server icon from response:', updatedServer.icon);
+        console.log('[handleSave] Server icon from state:', serverIcon);
+        onUpdateServer?.(server.id, { name: serverName, icon: updatedServer.icon || serverIcon, banner: bannerColor });
         alert('Server berhasil diperbarui!');
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
