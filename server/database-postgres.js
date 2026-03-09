@@ -263,6 +263,24 @@ const userDB = {
   async resetAllStatus() {
     await query("UPDATE users SET status = 'offline'");
     return { success: true };
+  },
+
+  async findByGroupCode(groupCode) {
+    const rows = await queryMany(
+      'SELECT id, username, email, display_name, avatar, status FROM users WHERE joined_via_group_code = $1',
+      [groupCode]
+    );
+    return rows.map(row => ({ ...row, displayName: row.display_name }));
+  },
+
+  async getMutualServerCount(userId1, userId2) {
+    const row = await queryOne(
+      `SELECT COUNT(*) as count FROM server_members sm1
+       JOIN server_members sm2 ON sm1.server_id = sm2.server_id
+       WHERE sm1.user_id = $1 AND sm2.user_id = $2`,
+      [userId1, userId2]
+    );
+    return parseInt(row?.count || 0);
   }
 };
 
@@ -370,6 +388,49 @@ const serverDB = {
       [serverId, userId]
     );
     return row?.role || null;
+  },
+
+  async getMemberDetails(serverId, userId) {
+    const row = await queryOne(
+      `SELECT u.id, u.username, u.display_name, u.avatar, u.status, u.email, u.created_at,
+              sm.role, sm.role_id, sm.joined_at, sm.join_method,
+              COALESCE(NULLIF(sr.name, ''),
+                CASE sm.role
+                  WHEN 'owner' THEN 'Owner'
+                  WHEN 'admin' THEN 'Admin'
+                  WHEN 'moderator' THEN 'Moderator'
+                  WHEN 'custom' THEN 'Custom Role'
+                  ELSE 'Member'
+                END
+              ) as role_name,
+              COALESCE(NULLIF(sr.color, ''), CASE
+                WHEN sm.role = 'owner' THEN '#ffd700'
+                WHEN sm.role = 'admin' THEN '#ed4245'
+                WHEN sm.role = 'moderator' THEN '#43b581'
+                ELSE '#99aab5'
+              END) as role_color
+       FROM users u
+       JOIN server_members sm ON u.id = sm.user_id
+       LEFT JOIN server_roles sr ON sm.role_id = sr.id
+       WHERE sm.server_id = $1 AND u.id = $2`,
+      [serverId, userId]
+    );
+    if (!row) return null;
+    return {
+      id: row.id,
+      username: row.username,
+      displayName: row.display_name,
+      avatar: row.avatar,
+      status: row.status,
+      email: row.email,
+      createdAt: row.created_at,
+      role: row.role,
+      role_id: row.role_id,
+      role_name: row.role_name,
+      role_color: row.role_color,
+      joinedAt: row.joined_at,
+      joinMethod: row.join_method || 'Unknown'
+    };
   },
 
   async transferOwnership(serverId, oldOwnerId, newOwnerId) {
@@ -551,11 +612,24 @@ const channelDB = {
     });
   },
 
+  async getById(channelId) {
+    return await queryOne('SELECT * FROM channels WHERE id = $1', [channelId]);
+  },
+
+  async getByServerId(serverId) {
+    return await queryMany('SELECT * FROM channels WHERE server_id = $1 ORDER BY category_id, position', [serverId]);
+  },
+
+  async delete(channelId) {
+    const result = await query('DELETE FROM channels WHERE id = $1', [channelId]);
+    return { success: result.rowCount > 0 };
+  },
+
   async update(channelId, updates) {
     const fields = [];
     const values = [];
     let paramIndex = 1;
-    
+
     if (updates.name) {
       fields.push(`name = $${paramIndex++}`);
       values.push(updates.name);
@@ -568,13 +642,13 @@ const channelDB = {
       fields.push(`position = $${paramIndex++}`);
       values.push(updates.position);
     }
-    
+
     if (fields.length === 0) {
       return { success: false, error: 'No updates provided' };
     }
-    
+
     values.push(channelId);
-    
+
     const result = await query(
       `UPDATE channels SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values
@@ -842,6 +916,34 @@ const messageDB = {
       timestamp: row.created_at,
       user
     };
+  },
+
+  async getUnreadCountForAllChannels(userId, serverId) {
+    const rows = await queryMany(
+      `SELECT c.id as channel_id,
+              COUNT(m.id) as unread_count,
+              MAX(CASE WHEN m.content LIKE '%<@' || $1 || '>%' THEN 1 ELSE 0 END) as has_mention
+       FROM channels c
+       JOIN server_members sm ON c.server_id = sm.server_id
+       LEFT JOIN messages m ON m.channel_id = c.id
+         AND m.user_id != $2
+         AND m.created_at > COALESCE(
+           (SELECT last_read_at FROM channel_read_status
+            WHERE user_id = $3 AND channel_id = c.id),
+           '1970-01-01'::timestamptz
+         )
+       WHERE c.server_id = $4 AND sm.user_id = $5
+       GROUP BY c.id`,
+      [userId, userId, userId, serverId, userId]
+    );
+    const result = {};
+    rows.forEach(row => {
+      result[row.channel_id] = {
+        count: parseInt(row.unread_count) || 0,
+        hasMention: parseInt(row.has_mention) === 1
+      };
+    });
+    return result;
   }
 };
 
@@ -938,6 +1040,30 @@ const inviteDB = {
       [code]
     );
     return true;
+  },
+
+  async getByServer(serverId) {
+    const rows = await queryMany(
+      `SELECT i.*, u.username as created_by_username, u.avatar as created_by_avatar
+       FROM invites i
+       JOIN users u ON i.created_by = u.id
+       WHERE i.server_id = $1
+       ORDER BY i.created_at DESC`,
+      [serverId]
+    );
+    return rows.map(row => ({
+      id: row.id,
+      code: row.code,
+      serverId: row.server_id,
+      createdBy: row.created_by,
+      createdByUsername: row.created_by_username,
+      createdByAvatar: row.created_by_avatar,
+      uses: row.uses,
+      maxUses: row.max_uses,
+      expiresAt: row.expires_at,
+      createdAt: row.created_at,
+      roleId: row.role_id,
+    }));
   }
 };
 
@@ -1139,14 +1265,42 @@ const friendDB = {
   async getFriendshipStatus(userId, otherUserId) {
     const friendship = await this.getFriendship(userId, otherUserId);
     if (friendship) return friendship.status;
-    
+
     const reverseFriendship = await this.getFriendship(otherUserId, userId);
     if (reverseFriendship) {
       if (reverseFriendship.status === 'pending') return 'incoming_request';
       return reverseFriendship.status;
     }
-    
+
     return 'none';
+  },
+
+  async getRequestById(requestId) {
+    return await queryOne('SELECT * FROM friendships WHERE id = $1', [requestId]);
+  },
+
+  async createAutoFriendship(user1Id, user2Id) {
+    const existing = await this.getFriendship(user1Id, user2Id);
+    if (existing && existing.status === 'accepted') {
+      return { success: false, message: 'Already friends' };
+    }
+    return await withTransaction(async (client) => {
+      await client.query(
+        'DELETE FROM friendships WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
+        [user1Id, user2Id]
+      );
+      const id1 = uuidv4();
+      const id2 = uuidv4();
+      await client.query(
+        `INSERT INTO friendships (id, user_id, friend_id, status) VALUES ($1, $2, $3, 'accepted')`,
+        [id1, user1Id, user2Id]
+      );
+      await client.query(
+        `INSERT INTO friendships (id, user_id, friend_id, status) VALUES ($1, $2, $3, 'accepted')`,
+        [id2, user2Id, user1Id]
+      );
+      return { success: true, message: 'Auto-friendship created' };
+    });
   }
 };
 
@@ -1648,10 +1802,107 @@ const sessionDB = {
 };
 
 const roleDB = {
-  // Placeholder for role database functions
   async getServerRoles(serverId) {
-    // TODO: Implement
-    return [];
+    const rows = await queryMany(
+      `SELECT * FROM server_roles WHERE server_id = $1 ORDER BY position DESC, created_at ASC`,
+      [serverId]
+    );
+    return rows.map(row => ({
+      id: row.id,
+      serverId: row.server_id,
+      name: row.name,
+      color: row.color,
+      permissions: row.permissions,
+      position: row.position,
+      isDefault: row.is_default === true,
+      createdAt: row.created_at
+    }));
+  },
+
+  async getByServer(serverId) {
+    return await this.getServerRoles(serverId);
+  },
+
+  async createRole(serverId, name, color = '#99aab5', permissions = 0, position = 0) {
+    const id = uuidv4();
+    const result = await query(
+      `INSERT INTO server_roles (id, server_id, name, color, permissions, position)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [id, serverId, name, color, permissions, position]
+    );
+    return result.rows[0];
+  },
+
+  async getRoleById(roleId) {
+    return await queryOne('SELECT * FROM server_roles WHERE id = $1', [roleId]);
+  },
+
+  async updateRole(roleId, updates) {
+    const { name, color, permissions, position } = updates;
+    const result = await query(
+      `UPDATE server_roles
+       SET name = COALESCE($1, name),
+           color = COALESCE($2, color),
+           permissions = COALESCE($3, permissions),
+           position = COALESCE($4, position)
+       WHERE id = $5 RETURNING *`,
+      [name, color, permissions, position, roleId]
+    );
+    return result.rows[0];
+  },
+
+  async deleteRole(roleId) {
+    const result = await query(
+      'DELETE FROM server_roles WHERE id = $1 AND is_default = false',
+      [roleId]
+    );
+    return { deleted: result.rowCount > 0 };
+  },
+
+  async normalizeRolePositions(serverId) {
+    const roles = await queryMany(
+      `SELECT id FROM server_roles WHERE server_id = $1 AND is_default = false ORDER BY position DESC, created_at ASC`,
+      [serverId]
+    );
+    for (let i = 0; i < roles.length; i++) {
+      await query('UPDATE server_roles SET position = $1 WHERE id = $2', [roles.length - i, roles[i].id]);
+    }
+    return true;
+  },
+
+  async getMemberCount(roleId, serverId) {
+    const row = await queryOne(
+      'SELECT COUNT(*) as count FROM member_roles WHERE server_id = $1 AND role_id = $2',
+      [serverId, roleId]
+    );
+    return parseInt(row?.count || 0);
+  },
+
+  async assignRole(serverId, userId, roleId) {
+    const id = uuidv4();
+    await query(
+      `INSERT INTO member_roles (id, server_id, user_id, role_id)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (server_id, user_id, role_id) DO NOTHING`,
+      [id, serverId, userId, roleId]
+    );
+    return { success: true };
+  },
+
+  async removeMemberRole(serverId, userId, roleId) {
+    const result = await query(
+      'DELETE FROM member_roles WHERE server_id = $1 AND user_id = $2 AND role_id = $3',
+      [serverId, userId, roleId]
+    );
+    return { success: result.rowCount > 0 };
+  },
+
+  async setMemberRole(serverId, userId, role) {
+    const result = await query(
+      `UPDATE server_members SET role = $1, role_id = NULL WHERE server_id = $2 AND user_id = $3`,
+      [role, serverId, userId]
+    );
+    return { success: result.rowCount > 0 };
   }
 };
 
