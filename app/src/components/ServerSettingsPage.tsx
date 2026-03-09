@@ -26,8 +26,8 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-// Get base URL for backend (without /api)
-const BASE_URL = (() => {
+// Helper to get base URL for backend (without /api) - computed at runtime
+const getBaseUrl = (): string => {
   if (API_URL.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
@@ -36,14 +36,14 @@ const BASE_URL = (() => {
     return window.location.origin;
   }
   return '';
-})();
+};
 
 // Helper to convert relative URL to absolute URL
 const getFullImageUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   if (url.startsWith('/uploads/')) {
-    return `${BASE_URL}${url}`;
+    return `${getBaseUrl()}${url}`;
   }
   return url;
 };
@@ -143,7 +143,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
       const token = localStorage.getItem('token');
       console.log('[handleSave] Saving server with icon state:', serverIcon);
       console.log('[handleSave] API_URL:', API_URL);
-      console.log('[handleSave] BASE_URL:', BASE_URL);
+      console.log('[handleSave] BASE_URL:', getBaseUrl());
       const res = await fetch(`${API_URL}/servers/${server.id}`, {
         method: 'PUT',
         headers: {
