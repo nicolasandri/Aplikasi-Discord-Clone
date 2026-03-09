@@ -29,21 +29,14 @@ WORKDIR /app
 # Install PostgreSQL client untuk healthcheck
 RUN apk add --no-cache postgresql-client curl
 
-# Create non-root user untuk security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
 # Copy dependencies dari stage 1
 COPY --from=dependencies /app/node_modules ./node_modules
 
 # Copy application code
-COPY --chown=nodejs:nodejs . .
+COPY . .
 
-# Create uploads directory dengan proper permissions (as root first)
-RUN mkdir -p uploads && chmod 777 uploads && chown -R nodejs:nodejs uploads
-
-# Switch ke non-root user
-USER nodejs
+# Create uploads directory dengan proper permissions
+RUN mkdir -p uploads && chmod 777 uploads
 
 # Expose port
 EXPOSE 3001
