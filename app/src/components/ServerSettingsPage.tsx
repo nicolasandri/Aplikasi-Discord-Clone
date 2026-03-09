@@ -61,6 +61,8 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [transferConfirmOpen, setTransferConfirmOpen] = useState<string | null>(null);
 
+  // Only reset form when switching to a different server (not on every server prop update)
+  // This prevents uploaded icon from being overwritten by stale server state from WebSocket
   useEffect(() => {
     if (server) {
       setServerName(server.name);
@@ -68,7 +70,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
       setBannerColor(server.banner || BANNER_COLORS[0].bg);
       fetchMembers();
     }
-  }, [server]);
+  }, [server?.id]);
 
   const fetchMembers = async () => {
     if (!server) return;
