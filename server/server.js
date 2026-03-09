@@ -1175,6 +1175,7 @@ app.post('/api/servers/:serverId/transfer-ownership', authenticateToken, async (
 // Update server (name, icon, description)
 app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
   console.log('[PUT /api/servers/:serverId] Called with serverId:', req.params.serverId);
+  console.log('[PUT /api/servers/:serverId] Request body:', req.body);
   try {
     const { serverId } = req.params;
     const { name, icon, description, banner } = req.body;
@@ -1195,6 +1196,7 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
     }
     
     const hasManagePermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
+    console.log('[PUT /api/servers/:serverId] Permission check - hasManagePermission:', hasManagePermission, 'role:', member.role);
     if (!hasManagePermission && member.role !== 'owner' && member.role !== 'admin') {
       return res.status(403).json({ error: 'Only owner or admin can update server' });
     }
@@ -1206,15 +1208,19 @@ app.put('/api/servers/:serverId', authenticateToken, async (req, res) => {
     if (description !== undefined) updates.description = description;
     if (banner !== undefined) updates.banner = banner;
     
+    console.log('[PUT /api/servers/:serverId] Updates to apply:', updates);
+    
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
     
     // Update server
-    await serverDB.update(serverId, updates);
+    const updateResult = await serverDB.update(serverId, updates);
+    console.log('[PUT /api/servers/:serverId] Update result:', updateResult);
     
     // Get updated server
     const updatedServer = await serverDB.findById(serverId);
+    console.log('[PUT /api/servers/:serverId] Updated server icon:', updatedServer?.icon);
     
     res.json(updatedServer);
   } catch (error) {

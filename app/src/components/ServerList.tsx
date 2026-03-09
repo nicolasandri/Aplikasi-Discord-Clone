@@ -32,6 +32,10 @@ const BASE_URL = (() => {
   if (API_URL.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
+  // For relative API_URL (e.g., '/api'), use current origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
   return '';
 })();
 

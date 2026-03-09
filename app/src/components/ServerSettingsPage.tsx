@@ -31,6 +31,10 @@ const BASE_URL = (() => {
   if (API_URL.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
+  // For relative API_URL (e.g., '/api'), use current origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
   return '';
 })();
 
@@ -137,7 +141,9 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      console.log('[handleSave] Saving server with icon:', serverIcon);
+      console.log('[handleSave] Saving server with icon state:', serverIcon);
+      console.log('[handleSave] API_URL:', API_URL);
+      console.log('[handleSave] BASE_URL:', BASE_URL);
       const res = await fetch(`${API_URL}/servers/${server.id}`, {
         method: 'PUT',
         headers: {
