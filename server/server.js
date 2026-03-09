@@ -1467,6 +1467,89 @@ app.post('/api/servers/:serverId/categories', authenticateToken, async (req, res
   }
 });
 
+// Delete category
+app.delete('/api/categories/:categoryId', authenticateToken, async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const userId = req.userId;
+
+    // Get category info
+    const category = await categoryDB.getById(categoryId);
+    if (!category) {
+      return res.status(404).json({ error: 'Kategori tidak ditemukan' });
+    }
+
+    // Check permissions
+    const server = await serverDB.getById(category.server_id);
+    if (!server) {
+      return res.status(404).json({ error: 'Server tidak ditemukan' });
+    }
+
+    const memberRole = await serverDB.getMemberRole(category.server_id, userId);
+    if (!memberRole) {
+      return res.status(403).json({ error: 'Bukan anggota server' });
+    }
+
+    if (memberRole !== 'owner' && memberRole !== 'admin') {
+      return res.status(403).json({ error: 'Tidak ada izin untuk menghapus kategori' });
+    }
+
+    // Delete category
+    await categoryDB.delete(categoryId);
+
+    // Emit socket event
+    io.to(`server:${category.server_id}`).emit('category_deleted', { categoryId });
+
+    res.json({ success: true, message: 'Kategori berhasil dihapus' });
+  } catch (error) {
+    console.error('Delete category error:', error);
+    res.status(500).json({ error: 'Gagal menghapus kategori' });
+  }
+});
+
+// Update category (rename)
+app.put('/api/categories/:categoryId', authenticateToken, async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { name } = req.body;
+    const userId = req.userId;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nama kategori wajib diisi' });
+    }
+
+    // Get category info
+    const category = await categoryDB.getById(categoryId);
+    if (!category) {
+      return res.status(404).json({ error: 'Kategori tidak ditemukan' });
+    }
+
+    // Check permissions
+    const memberRole = await serverDB.getMemberRole(category.server_id, userId);
+    if (!memberRole) {
+      return res.status(403).json({ error: 'Bukan anggota server' });
+    }
+
+    if (memberRole !== 'owner' && memberRole !== 'admin') {
+      return res.status(403).json({ error: 'Tidak ada izin untuk mengubah kategori' });
+    }
+
+    // Update category
+    await categoryDB.update(categoryId, { name: name.trim() });
+
+    // Get updated category
+    const updatedCategory = await categoryDB.getById(categoryId);
+
+    // Emit socket event
+    io.to(`server:${category.server_id}`).emit('category_updated', { category: updatedCategory });
+
+    res.json(updatedCategory);
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({ error: 'Gagal mengubah kategori' });
+  }
+});
+
 // Get server channels
 app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) => {
   try {
