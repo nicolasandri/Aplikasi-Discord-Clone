@@ -883,9 +883,9 @@ const messageDB = {
               rm.id as reply_id, rm.content as reply_content,
               ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
        FROM messages m
-       JOIN users u ON m.user_id = u.id
-       LEFT JOIN messages rm ON m.reply_to_id = rm.id
-       LEFT JOIN users ru ON rm.user_id = ru.id
+       JOIN users u ON m.user_id::text = u.id::text
+       LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
+       LEFT JOIN users ru ON rm.user_id::text = ru.id::text
        WHERE m.id = $1`,
       [id]
     );
@@ -901,9 +901,9 @@ const messageDB = {
               rm.id as reply_id, rm.content as reply_content,
               ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
        FROM messages m
-       JOIN users u ON m.user_id = u.id
-       LEFT JOIN messages rm ON m.reply_to_id = rm.id
-       LEFT JOIN users ru ON rm.user_id = ru.id
+       JOIN users u ON m.user_id::text = u.id::text
+       LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
+       LEFT JOIN users ru ON rm.user_id::text = ru.id::text
        WHERE m.channel_id = $1
        ORDER BY m.created_at DESC
        LIMIT $2 OFFSET $3`,
@@ -982,8 +982,8 @@ const messageDB = {
       `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
               p.username as pinned_by_username
        FROM messages m
-       JOIN users u ON m.user_id = u.id
-       LEFT JOIN users p ON m.pinned_by = p.id
+       JOIN users u ON m.user_id::text = u.id::text
+       LEFT JOIN users p ON m.pinned_by::text = p.id::text
        WHERE m.channel_id = $1 AND m.is_pinned = true
        ORDER BY m.pinned_at DESC`,
       [channelId]
@@ -1042,8 +1042,8 @@ const messageDB = {
       `SELECT m.id, m.content, m.created_at, m.channel_id, c.name as channel_name, c.server_id,
               u.id as user_id, u.username, u.display_name, u.avatar, m.attachments
        FROM messages m
-       JOIN channels c ON m.channel_id = c.id
-       JOIN users u ON m.user_id = u.id
+       JOIN channels c ON m.channel_id::text = c.id::text
+       JOIN users u ON m.user_id::text = u.id::text
        ${where}
        ORDER BY m.created_at DESC
        LIMIT $${i} OFFSET $${i+1}`,
@@ -1066,7 +1066,7 @@ const messageDB = {
     if (hasAttachments === true) { conditions.push(`m.attachments != '[]' AND m.attachments IS NOT NULL`); }
     const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const row = await queryOne(
-      `SELECT COUNT(*) as count FROM messages m JOIN channels c ON m.channel_id = c.id ${where}`,
+      `SELECT COUNT(*) as count FROM messages m JOIN channels c ON m.channel_id::text = c.id::text ${where}`,
       params
     );
     return parseInt(row?.count || 0);
@@ -1126,15 +1126,15 @@ const messageDB = {
               COUNT(m.id) as unread_count,
               MAX(CASE WHEN m.content LIKE '%<@' || $1 || '>%' THEN 1 ELSE 0 END) as has_mention
        FROM channels c
-       JOIN server_members sm ON c.server_id = sm.server_id
-       LEFT JOIN messages m ON m.channel_id = c.id
-         AND m.user_id != $2
+       JOIN server_members sm ON c.server_id::text = sm.server_id::text
+       LEFT JOIN messages m ON m.channel_id::text = c.id::text
+         AND m.user_id::text != $2
          AND m.created_at > COALESCE(
            (SELECT last_read_at FROM channel_read_status
-            WHERE user_id = $3 AND channel_id = c.id),
+            WHERE user_id::text = $3 AND channel_id::text = c.id::text),
            '1970-01-01'::timestamptz
          )
-       WHERE c.server_id = $4 AND sm.user_id = $5
+       WHERE c.server_id = $4 AND sm.user_id::text = $5
        GROUP BY c.id`,
       [userId, userId, userId, serverId, userId]
     );
@@ -1182,7 +1182,7 @@ const reactionDB = {
     return await queryMany(
       `SELECT r.*, u.username, u.avatar 
        FROM reactions r
-       JOIN users u ON r.user_id = u.id
+       JOIN users u ON r.user_id::text = u.id::text
        WHERE r.message_id = $1
        ORDER BY r.created_at ASC`,
       [messageId]
@@ -1230,7 +1230,7 @@ const inviteDB = {
     return await queryOne(
       `SELECT i.*, s.name as server_name, s.icon as server_icon
        FROM invites i
-       JOIN servers s ON i.server_id = s.id
+       JOIN servers s ON i.server_id::text = s.id::text
        WHERE i.code = $1`,
       [code]
     );
@@ -1248,7 +1248,7 @@ const inviteDB = {
     const rows = await queryMany(
       `SELECT i.*, u.username as created_by_username, u.avatar as created_by_avatar
        FROM invites i
-       JOIN users u ON i.created_by = u.id
+       JOIN users u ON i.created_by::text = u.id::text
        WHERE i.server_id = $1
        ORDER BY i.created_at DESC`,
       [serverId]
@@ -1404,7 +1404,7 @@ const friendDB = {
     return await queryMany(
       `SELECT u.id, u.username, u.avatar, u.status, f.created_at as friendship_date
        FROM friendships f
-       JOIN users u ON f.friend_id = u.id
+       JOIN users u ON f.friend_id::text = u.id::text
        WHERE f.user_id = $1 AND f.status = 'accepted'
        ORDER BY u.username`,
       [userId]
@@ -1417,7 +1417,7 @@ const friendDB = {
               u.id as requester_id, u.username as requester_username, 
               u.avatar as requester_avatar, u.status as requester_status
        FROM friendships f
-       JOIN users u ON f.user_id = u.id
+       JOIN users u ON f.user_id::text = u.id::text
        WHERE f.friend_id = $1 AND f.status = 'pending'
        ORDER BY f.created_at DESC`,
       [userId]
@@ -1428,7 +1428,7 @@ const friendDB = {
               u.id as recipient_id, u.username as recipient_username, 
               u.avatar as recipient_avatar, u.status as recipient_status
        FROM friendships f
-       JOIN users u ON f.friend_id = u.id
+       JOIN users u ON f.friend_id::text = u.id::text
        WHERE f.user_id = $1 AND f.status = 'pending'
        ORDER BY f.created_at DESC`,
       [userId]
@@ -1441,7 +1441,7 @@ const friendDB = {
     return await queryMany(
       `SELECT u.id, u.username, u.avatar, f.created_at as blocked_date
        FROM friendships f
-       JOIN users u ON f.friend_id = u.id
+       JOIN users u ON f.friend_id::text = u.id::text
        WHERE f.user_id = $1 AND f.status = 'blocked'
        ORDER BY f.created_at DESC`,
       [userId]
@@ -1757,8 +1757,8 @@ const voiceDB = {
     return await queryOne(
       `SELECT vp.*, c.name as channel_name, c.server_id, s.name as server_name
        FROM voice_participants vp
-       JOIN channels c ON vp.channel_id = c.id
-       JOIN servers s ON c.server_id = s.id
+       JOIN channels c ON vp.channel_id::text = c.id::text
+       JOIN servers s ON c.server_id::text = s.id::text
        WHERE vp.user_id = $1`,
       [userId]
     );
@@ -1797,8 +1797,8 @@ const voiceDB = {
     return await queryOne(
       `SELECT c.*, sm.role as member_role, s.owner_id
        FROM channels c
-       JOIN servers s ON c.server_id = s.id
-       LEFT JOIN server_members sm ON s.id = sm.server_id AND sm.user_id = $2
+       JOIN servers s ON c.server_id::text = s.id::text
+       LEFT JOIN server_members sm ON s.id::text = sm.server_id::text AND sm.user_id::text = $2
        WHERE c.id = $1 AND c.type = 'voice'`,
       [channelId, userId]
     );
