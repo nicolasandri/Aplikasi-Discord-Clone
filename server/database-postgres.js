@@ -107,8 +107,20 @@ async function initDatabase() {
 
 const permissionDB = {
   async hasPermission(userId, serverId, permission) {
+    // First check if user is owner
+    const isOwner = await this.isServerOwner(userId, serverId);
+    if (isOwner) return true;
+    
     const role = await this.getUserRole(userId, serverId);
     if (!role) return false;
+    
+    // Get combined permissions from all custom roles
+    const combinedPerms = await this.getCombinedPermissions(userId, serverId);
+    if (combinedPerms > 0) {
+      return (combinedPerms & permission) === permission;
+    }
+    
+    // Fallback to legacy role permissions
     const rolePerms = RolePermissions[role];
     return (rolePerms & permission) === permission;
   },
@@ -119,6 +131,25 @@ const permissionDB = {
       [serverId, userId]
     );
     return result?.role || null;
+  },
+
+  // Get combined permissions from all user's roles
+  async getCombinedPermissions(userId, serverId) {
+    const result = await queryOne(
+      `SELECT COALESCE(STRING_AGG(sr.permissions::text, ','), '0') as all_perms
+       FROM member_roles mr
+       JOIN server_roles sr ON mr.role_id = sr.id
+       WHERE mr.server_id = $1 AND mr.user_id = $2`,
+      [serverId, userId]
+    );
+    
+    if (!result || !result.all_perms || result.all_perms === '0') {
+      return 0;
+    }
+    
+    // Combine all permissions with bitwise OR
+    const perms = result.all_perms.split(',').map(Number);
+    return perms.reduce((a, b) => a | b, 0);
   },
 
   async isServerOwner(userId, serverId) {
