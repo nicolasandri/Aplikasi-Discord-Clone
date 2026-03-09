@@ -4701,7 +4701,11 @@ app.post('/api/setup-master-admin', async (req, res) => {
     }
     
     // Set user sebagai master admin
-    await dbRun('UPDATE users SET is_master_admin = 1 WHERE id = ?', [user.id]);
+    await dbRun(isPostgres 
+      ? 'UPDATE users SET is_master_admin = true WHERE id = $1' 
+      : 'UPDATE users SET is_master_admin = 1 WHERE id = ?', 
+      [user.id]
+    );
     
     res.json({ success: true, message: `${email} has been set as Master Admin` });
   } catch (error) {

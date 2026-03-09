@@ -1969,18 +1969,27 @@ const roleDB = {
 // SQLITE COMPATIBILITY HELPERS
 // ============================================
 
+// Convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
+function convertPlaceholders(sql) {
+  let index = 1;
+  return sql.replace(/\?/g, () => `$${index++}`);
+}
+
 async function dbGet(sql, params = []) {
-  const result = await queryOne(sql, params);
+  const pgSql = convertPlaceholders(sql);
+  const result = await queryOne(pgSql, params);
   return result;
 }
 
 async function dbRun(sql, params = []) {
-  const result = await query(sql, params);
+  const pgSql = convertPlaceholders(sql);
+  const result = await query(pgSql, params);
   return { changes: result.rowCount, lastID: result.rows[0]?.id || null };
 }
 
 async function dbAll(sql, params = []) {
-  const result = await queryMany(sql, params);
+  const pgSql = convertPlaceholders(sql);
+  const result = await queryMany(pgSql, params);
   return result;
 }
 
