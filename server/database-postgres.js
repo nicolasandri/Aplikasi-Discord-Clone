@@ -101,6 +101,58 @@ async function initDatabase() {
       // Indexes might already exist, ignore
     }
     
+    // Create channel_read_status table
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS channel_read_status (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL,
+          last_read_message_id TEXT,
+          last_read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, channel_id)
+        )
+      `);
+      console.log('✅ channel_read_status table OK');
+    } catch (e) {
+      console.log('⚠️ channel_read_status table:', e.message);
+    }
+    
+    // Create indexes for channel_read_status
+    try {
+      await query(`CREATE INDEX IF NOT EXISTS idx_channel_read_user ON channel_read_status(user_id)`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_channel_read_channel ON channel_read_status(channel_id)`);
+    } catch (e) {
+      // Ignore
+    }
+    
+    // Create audit_logs table
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id TEXT PRIMARY KEY,
+          server_id TEXT NOT NULL,
+          user_id TEXT,
+          action TEXT NOT NULL,
+          target_id TEXT,
+          target_type TEXT,
+          details JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ audit_logs table OK');
+    } catch (e) {
+      console.log('⚠️ audit_logs table:', e.message);
+    }
+    
+    // Create indexes for audit_logs
+    try {
+      await query(`CREATE INDEX IF NOT EXISTS idx_audit_logs_server ON audit_logs(server_id)`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC)`);
+    } catch (e) {
+      // Ignore
+    }
+    
     console.log('✅ PostgreSQL database initialized');
   } catch (error) {
     console.error('❌ Failed to initialize PostgreSQL:', error);
