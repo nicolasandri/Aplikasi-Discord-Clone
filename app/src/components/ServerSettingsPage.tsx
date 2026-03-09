@@ -364,8 +364,10 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
                   >
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
                       <div className="w-20 h-20 rounded-2xl bg-[#1e1f22] flex items-center justify-center overflow-hidden border-4 border-[#2b2d31]">
-                        {serverIcon ? (
+                        {serverIcon && (serverIcon.startsWith('http') || serverIcon.startsWith('/')) ? (
                           <img src={getFullImageUrl(serverIcon)} alt={serverName} className="w-full h-full object-cover" />
+                        ) : serverIcon ? (
+                          <span className="text-3xl">{serverIcon}</span>
                         ) : (
                           <span className="text-3xl font-bold text-white">{serverName.charAt(0).toUpperCase()}</span>
                         )}

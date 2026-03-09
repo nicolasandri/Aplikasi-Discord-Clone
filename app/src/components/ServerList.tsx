@@ -27,15 +27,17 @@ const API_URL = isElectron
   ? 'http://localhost:3001/api' 
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-// Helper to get full icon URL
+// Helper to get full icon URL - only returns URL for valid image paths, not emojis/text
 const getServerIconUrl = (icon: string | null): string | null => {
   if (!icon) return null;
-  if (icon.startsWith('http')) return icon;
-  // For relative URLs, use current window origin
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}${icon.startsWith('/') ? '' : '/'}${icon}`;
+  if (icon.startsWith('http://') || icon.startsWith('https://')) return icon;
+  if (icon.startsWith('/')) {
+    return typeof window !== 'undefined'
+      ? `${window.location.origin}${icon}`
+      : icon;
   }
-  return icon;
+  // Not a valid URL (e.g. emoji or short text) - don't use as img src
+  return null;
 };
 
 interface ServerListProps {
@@ -65,6 +67,10 @@ function ServerIconButton({
 }) {
   const [imgError, setImgError] = useState(false);
   const iconUrl = getServerIconUrl(server.icon);
+  // Reset imgError when icon changes so new icon can try to load
+  useEffect(() => {
+    setImgError(false);
+  }, [server.icon]);
   const initial = server.name.charAt(0).toUpperCase();
   const hasUnread = unreadCount && unreadCount > 0;
   
