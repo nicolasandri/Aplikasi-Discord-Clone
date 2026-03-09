@@ -346,6 +346,41 @@ const permissionDB = {
     return { success: result.rowCount > 0 };
   },
 
+  async update(serverId, updates) {
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (updates.name) {
+      fields.push(`name = $${paramIndex++}`);
+      values.push(updates.name);
+    }
+    if (updates.icon !== undefined) {
+      fields.push(`icon = $${paramIndex++}`);
+      values.push(updates.icon);
+    }
+    if (updates.banner !== undefined) {
+      fields.push(`banner = $${paramIndex++}`);
+      values.push(updates.banner);
+    }
+    if (updates.description !== undefined) {
+      fields.push(`description = $${paramIndex++}`);
+      values.push(updates.description);
+    }
+    
+    if (fields.length === 0) {
+      return { success: false, error: 'No updates provided' };
+    }
+    
+    values.push(serverId);
+    
+    const result = await query(
+      `UPDATE servers SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+    return { success: result.rowCount > 0, server: result.rows[0] };
+  },
+
   async banMember(serverId, userId, reason = null) {
     return withTransaction(async (client) => {
       const id = uuidv4();
