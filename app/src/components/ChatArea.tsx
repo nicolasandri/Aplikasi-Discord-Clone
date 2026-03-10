@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Hash, Volume2, Users, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw, Keyboard, MessageCircle, Bell, AtSign, Phone, Video, X } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
-import { UserProfilePopup } from './UserProfilePopup';
+import { MemberProfilePopup } from './MemberProfilePopup';
+import type { ServerMember } from '@/types';
 import { Lightbox } from './Lightbox';
 import { MessageContent } from './MessageContent';
 import { ForwardedMessageDisplay } from './ForwardedMessageDisplay';
@@ -734,6 +735,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [selectedMemberProfile, setSelectedMemberProfile] = useState<ServerMember | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxAttachments, setLightboxAttachments] = useState<Array<{id: string, url: string, filename: string, mimetype: string, size: number}>>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -1278,15 +1280,50 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     }
   };
 
-  const handleUserClick = (userId: string) => {
-    console.log('User clicked:', userId, 'ServerId:', serverId);
-    if (serverId) {
-      setSelectedUserId(userId);
-      setIsProfileOpen(true);
-      console.log('Opening profile popup for user:', userId);
-    } else {
-      console.log('Cannot open profile: serverId is missing');
-    }
+  const handleUserClick = async (userId: string) => {
+    if (!serverId) return;
+    setSelectedUserId(userId);
+    setIsProfileOpen(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const isElectron = !!(window as any).electronAPI;
+      const apiUrl = isElectron ? 'http://localhost:3001/api' : (import.meta.env.VITE_API_URL || '/api');
+      const baseUrl = isElectron ? 'http://localhost:3001' : '';
+
+      const [userRes, roleRes] = await Promise.allSettled([
+        fetch(`${apiUrl}/users/${userId}`, { headers }),
+        fetch(`${apiUrl}/servers/${serverId}/member-role/${userId}`, { headers }),
+      ]);
+
+      let userData: any = null;
+      let roleData: any = null;
+
+      if (userRes.status === 'fulfilled' && userRes.value.ok) {
+        userData = await userRes.value.json();
+      }
+      if (roleRes.status === 'fulfilled' && roleRes.value.ok) {
+        roleData = await roleRes.value.json();
+      }
+
+      if (userData) {
+        const member: ServerMember = {
+          id: userData.id,
+          username: userData.username,
+          displayName: userData.display_name || userData.username,
+          email: userData.email || '',
+          avatar: userData.avatar,
+          status: userData.status || 'offline',
+          role: roleData?.role || userData.role || 'member',
+          role_name: roleData?.role_name,
+          role_color: roleData?.role_color,
+          joinedAt: roleData?.joinedAt || userData.created_at,
+          roles: roleData?.role_name ? [{ id: roleData.role_id || '', name: roleData.role_name, color: roleData.role_color || '#99aab5' }] : [],
+        };
+        setSelectedMemberProfile(member);
+      }
+    } catch (_) {}
   };
 
   const handleAttachmentClick = (message: Message, index: number) => {
@@ -1585,12 +1622,22 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       </div>
 
       {/* User Profile Popup */}
-      <UserProfilePopup
-        userId={selectedUserId || ''}
-        serverId={serverId || ''}
+      <MemberProfilePopup
+        member={selectedMemberProfile}
         isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        onStartDM={onStartDM}
+        onClose={() => { setIsProfileOpen(false); setSelectedMemberProfile(null); }}
+        onSendMessage={() => {
+          if (onStartDM && selectedMemberProfile) {
+            onStartDM({
+              id: selectedMemberProfile.id,
+              username: selectedMemberProfile.username,
+              avatar: selectedMemberProfile.avatar,
+              status: selectedMemberProfile.status,
+            });
+            setIsProfileOpen(false);
+          }
+        }}
+        serverId={serverId}
       />
 
       {/* Lightbox */}
