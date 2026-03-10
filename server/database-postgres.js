@@ -1982,7 +1982,7 @@ const userServerAccessDB = {
   },
   async hasServerAccess(userId, serverId) {
     const row = await dbGet(
-      'SELECT is_allowed, access_level FROM user_server_access WHERE user_id = ? AND server_id = ?',
+      'SELECT is_allowed, access_level FROM user_server_access WHERE user_id = ?::text AND server_id = ?::text',
       [userId, serverId]
     );
     if (!row) return true; // default allow if no record
@@ -1997,10 +1997,10 @@ const userServerAccessDB = {
                    ELSE TRUE END as is_allowed
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
-       LEFT JOIN user_server_access usa ON u.id = usa.user_id AND usa.server_id = ?
+       LEFT JOIN user_server_access usa ON u.id::text = usa.user_id AND sm.server_id::text = usa.server_id
        WHERE sm.server_id = ?
        ORDER BY u.username`,
-      [serverId, serverId]
+      [serverId]
     );
   },
   async deleteServerAccess(userId, serverId) {
