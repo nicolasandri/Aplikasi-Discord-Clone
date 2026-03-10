@@ -4336,8 +4336,8 @@ function getUserSocket(userId) {
 // Rate limiting for messages - store last message time per user
 const userLastMessageTime = new Map();
 const userMessageCount = new Map();
-const MESSAGE_COOLDOWN_MS = 1000; // 1 second between messages
-const MESSAGE_BURST_LIMIT = 5; // Max 5 messages per 10 seconds
+const MESSAGE_COOLDOWN_MS = 300; // 300ms between messages
+const MESSAGE_BURST_LIMIT = 20; // Max 20 messages per 10 seconds
 const MESSAGE_BURST_WINDOW_MS = 10000; // 10 seconds window
 
 // Helper function to check rate limit for a user
