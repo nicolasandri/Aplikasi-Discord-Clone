@@ -104,30 +104,35 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
 
-      // If serverId provided, fetch from server endpoint (includes role)
-      // Otherwise fetch from users endpoint (DM view, no role)
-      const endpoint = serverId
-        ? `${API_URL}/servers/${serverId}/users/${userId}`
-        : `${API_URL}/users/${userId}`;
+      // Fetch user data dulu (pasti berhasil)
+      const userRes = await fetch(`${API_URL}/users/${userId}`, { headers });
+      if (!userRes.ok) return;
+      const userData = await userRes.json();
 
-      const response = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProfile(data);
-      } else if (serverId && response.status >= 500) {
-        // Fallback ke endpoint users jika server endpoint error
-        const fallback = await fetch(`${API_URL}/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (fallback.ok) {
-          const data = await fallback.json();
-          setProfile(data);
+      // Jika di server context, fetch role secara terpisah
+      if (serverId) {
+        try {
+          const memberRes = await fetch(`${API_URL}/servers/${serverId}/member-role/${userId}`, { headers });
+          if (memberRes.ok) {
+            const memberData = await memberRes.json();
+            // Gabungkan data user + role dari server
+            setProfile({
+              ...userData,
+              role: memberData.role,
+              role_name: memberData.role_name,
+              role_color: memberData.role_color,
+              joinedAt: memberData.joinedAt || memberData.joined_at || userData.created_at,
+            });
+            return;
+          }
+        } catch (_) {
+          // Role fetch gagal, pakai data user saja
         }
       }
+
+      setProfile(userData);
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
     } finally {

@@ -1836,6 +1836,58 @@ app.get('/api/servers/:serverId/members/:userId', authenticateToken, async (req,
   }
 });
 
+// Get member role info - simple endpoint tanpa kolom opsional
+app.get('/api/servers/:serverId/member-role/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const requesterId = req.userId;
+
+    const isMember = await serverDB.isMember(serverId, requesterId);
+    if (!isMember) return res.status(403).json({ error: 'Forbidden' });
+
+    const { pool } = require('./config/database');
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT sm.role, sm.role_id, sm.joined_at,
+                COALESCE(sr.name,
+                  CASE sm.role
+                    WHEN 'owner' THEN 'Owner'
+                    WHEN 'admin' THEN 'Admin'
+                    WHEN 'moderator' THEN 'Moderator'
+                    ELSE 'Member'
+                  END
+                ) as role_name,
+                COALESCE(sr.color,
+                  CASE sm.role
+                    WHEN 'owner' THEN '#ffd700'
+                    WHEN 'admin' THEN '#ed4245'
+                    WHEN 'moderator' THEN '#43b581'
+                    ELSE '#99aab5'
+                  END
+                ) as role_color
+         FROM server_members sm
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id
+         WHERE sm.server_id = $1 AND sm.user_id = $2`,
+        [serverId, userId]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      const row = result.rows[0];
+      res.json({
+        role: row.role || 'member',
+        role_name: row.role_name,
+        role_color: row.role_color,
+        joinedAt: row.joined_at,
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[member-role]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Leave server (self-removal)
 app.post('/api/servers/:serverId/leave', authenticateToken, async (req, res) => {
   try {
