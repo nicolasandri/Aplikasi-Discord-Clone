@@ -1849,7 +1849,7 @@ app.get('/api/servers/:serverId/member-role/:userId', authenticateToken, async (
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `SELECT sm.role, sm.role_id, sm.joined_at,
+        `SELECT sm.role, sm.joined_at,
                 COALESCE(sr.name,
                   CASE sm.role
                     WHEN 'owner' THEN 'Owner'
@@ -1865,10 +1865,13 @@ app.get('/api/servers/:serverId/member-role/:userId', authenticateToken, async (
                     WHEN 'moderator' THEN '#43b581'
                     ELSE '#99aab5'
                   END
-                ) as role_color
+                ) as role_color,
+                sr.id as role_id
          FROM server_members sm
-         LEFT JOIN server_roles sr ON sm.role_id = sr.id
-         WHERE sm.server_id = $1 AND sm.user_id = $2`,
+         LEFT JOIN member_roles mr ON sm.user_id::text = mr.user_id AND sm.server_id::text = mr.server_id
+         LEFT JOIN server_roles sr ON mr.role_id = sr.id::text
+         WHERE sm.server_id = $1 AND sm.user_id = $2
+         LIMIT 1`,
         [serverId, userId]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -1877,6 +1880,7 @@ app.get('/api/servers/:serverId/member-role/:userId', authenticateToken, async (
         role: row.role || 'member',
         role_name: row.role_name,
         role_color: row.role_color,
+        role_id: row.role_id || null,
         joinedAt: row.joined_at,
       });
     } finally {
