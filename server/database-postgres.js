@@ -1645,15 +1645,17 @@ const dmDB = {
   },
 
   async getUserDMChannels(userId) {
-    // Get channels where user is a member (via dm_channel_members) or direct channels (user1_id/user2_id)
     const channels = await queryMany(
-      `SELECT DISTINCT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
+      `SELECT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
               (SELECT content FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message,
               (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
               (SELECT COUNT(*) FROM dm_messages WHERE channel_id = dc.id AND sender_id != $1 AND is_read = false) as unread_count
        FROM dm_channels dc
-       LEFT JOIN dm_channel_members dcm ON dc.id = dcm.channel_id
-       WHERE dcm.user_id = $1 OR dc.user1_id = $1 OR dc.user2_id = $1
+       WHERE dc.id IN (
+         SELECT channel_id FROM dm_channel_members WHERE user_id = $1
+         UNION
+         SELECT id FROM dm_channels WHERE user1_id = $1 OR user2_id = $1
+       )
        ORDER BY COALESCE(
          (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1),
          dc.updated_at
