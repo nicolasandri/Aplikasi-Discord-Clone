@@ -610,33 +610,62 @@ const serverDB = {
   },
 
   async getMemberDetails(serverId, userId) {
-    const row = await queryOne(
-      `SELECT u.id, u.username, COALESCE(u.display_name, u.username) as display_name,
-              u.avatar, COALESCE(u.status, 'offline') as status, u.email, u.created_at,
-              COALESCE(sm.role, 'member') as role, sm.role_id,
-              COALESCE(sm.joined_at, u.created_at) as joined_at,
-              COALESCE(sm.join_method, 'invite') as join_method,
-              COALESCE(sr.name,
+    let row = null;
+    try {
+      row = await queryOne(
+        `SELECT u.id, u.username, COALESCE(u.display_name, u.username) as display_name,
+                u.avatar, COALESCE(u.status, 'offline') as status, u.email, u.created_at,
+                COALESCE(sm.role, 'member') as role, sm.role_id,
+                COALESCE(sm.joined_at, u.created_at) as joined_at,
+                COALESCE(sm.join_method, 'invite') as join_method,
+                COALESCE(sr.name,
+                  CASE COALESCE(sm.role, 'member')
+                    WHEN 'owner' THEN 'Owner'
+                    WHEN 'admin' THEN 'Admin'
+                    WHEN 'moderator' THEN 'Moderator'
+                    WHEN 'custom' THEN 'Custom Role'
+                    ELSE 'Member'
+                  END
+                ) as role_name,
+                COALESCE(sr.color, CASE COALESCE(sm.role, 'member')
+                  WHEN 'owner' THEN '#ffd700'
+                  WHEN 'admin' THEN '#ed4245'
+                  WHEN 'moderator' THEN '#43b581'
+                  ELSE '#99aab5'
+                END) as role_color
+         FROM users u
+         JOIN server_members sm ON u.id = sm.user_id AND sm.server_id = $1
+         LEFT JOIN server_roles sr ON sm.role_id = sr.id AND sr.server_id = $1
+         WHERE u.id = $2`,
+        [serverId, userId]
+      );
+    } catch (e) {
+      // Fallback query tanpa kolom opsional jika ada kolom yang belum exist
+      console.warn('[getMemberDetails] Full query failed, trying fallback:', e.message);
+      row = await queryOne(
+        `SELECT u.id, u.username, u.username as display_name,
+                u.avatar, COALESCE(u.status, 'offline') as status, u.email, u.created_at,
+                COALESCE(sm.role, 'member') as role, sm.role_id,
+                u.created_at as joined_at,
+                'invite' as join_method,
                 CASE COALESCE(sm.role, 'member')
                   WHEN 'owner' THEN 'Owner'
                   WHEN 'admin' THEN 'Admin'
                   WHEN 'moderator' THEN 'Moderator'
-                  WHEN 'custom' THEN 'Custom Role'
                   ELSE 'Member'
-                END
-              ) as role_name,
-              COALESCE(sr.color, CASE COALESCE(sm.role, 'member')
-                WHEN 'owner' THEN '#ffd700'
-                WHEN 'admin' THEN '#ed4245'
-                WHEN 'moderator' THEN '#43b581'
-                ELSE '#99aab5'
-              END) as role_color
-       FROM users u
-       JOIN server_members sm ON u.id = sm.user_id AND sm.server_id = $1
-       LEFT JOIN server_roles sr ON sm.role_id = sr.id AND sr.server_id = $1
-       WHERE u.id = $2`,
-      [serverId, userId]
-    );
+                END as role_name,
+                CASE COALESCE(sm.role, 'member')
+                  WHEN 'owner' THEN '#ffd700'
+                  WHEN 'admin' THEN '#ed4245'
+                  WHEN 'moderator' THEN '#43b581'
+                  ELSE '#99aab5'
+                END as role_color
+         FROM users u
+         JOIN server_members sm ON u.id = sm.user_id AND sm.server_id = $1
+         WHERE u.id = $2`,
+        [serverId, userId]
+      );
+    }
     if (!row) return null;
     return {
       id: row.id,
