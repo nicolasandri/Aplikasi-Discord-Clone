@@ -8,6 +8,7 @@ import { InvitePage } from '@/pages/InvitePage';
 import { MasterAdminDashboard } from '@/components/MasterAdminDashboard';
 import { ForceChangePassword } from '@/components/ForceChangePassword';
 import { Toaster } from '@/components/ui/sonner';
+import { LandingPage } from '@/landing/LandingPage';
 import './App.css';
 import { useState, useEffect } from 'react';
 
@@ -78,6 +79,17 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+// Root route: LandingPage for guests, ChatLayout for authenticated users
+function RootRoute() {
+  const { isAuthenticated } = useAuth();
+  const { needsPasswordChange, checking } = useForcePasswordChange();
+
+  if (checking) return null;
+  if (needsPasswordChange) return <Navigate to="/force-change-password" replace />;
+  if (!isAuthenticated) return <LandingPage />;
+  return <ChatLayout />;
+}
+
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
@@ -126,13 +138,9 @@ function App() {
                   <ForceChangePasswordWrapper />
                 } 
               />
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <ChatLayout />
-                  </ProtectedRoute>
-                } 
+              <Route
+                path="/"
+                element={<RootRoute />}
               />
               <Route 
                 path="/friends" 
