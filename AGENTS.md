@@ -2,30 +2,31 @@
 
 ## Project Overview
 
-**WorkGrid** (also known as ChatCord) is a real-time team collaboration platform inspired by Discord, supporting multi-platform deployment: web, mobile (Android via Capacitor), and desktop (Electron). The application is built with React + TypeScript on the frontend and Node.js + Express on the backend.
-
-**UI Language:** Bahasa Indonesia for user-facing text.
+**WorkGrid** (also known as ChatCord) is a real-time team collaboration platform inspired by Discord, built as a multi-platform application supporting web, mobile (Android via Capacitor), and desktop (Electron). The UI language is **Bahasa Indonesia**.
 
 ### Key Features
-- JWT Authentication (7-day expiration)
+- JWT Authentication (7-day expiration) with token versioning for force logout
 - Server and channel management (text & voice channels)
 - Real-time messaging with Socket.IO
-- File sharing (max 10MB)
+- File sharing (max 10MB with MIME type filtering)
 - Message reactions, replies, edit/delete messages
 - Pin messages (requires MANAGE_MESSAGES permission)
-- Direct Messages (DM) between users (1-on-1 and group)
-- Voice channels with WebRTC
-- Custom roles with Discord-like permission system
-- Friend system with friend requests, block user
+- Forward messages between channels
+- Direct Messages (DM) between users (1-on-1 and group DM support)
+- Voice channels with WebRTC using SimplePeer
+- Custom roles with Discord-like permission bitfield system
+- Friend system with friend requests and block user functionality
 - Push notifications with VAPID
 - Typing indicators
-- Message search
+- Message search with result count
 - Audit logging for servers
-- Server invites with invite codes
+- Server invites with configurable expiration and max uses
 - Transfer server ownership
 - Mention system (@user, @role, @everyone, @here)
+- Link embeds with preview
 - Responsive UI for mobile, tablet, and desktop
 - Auto-update for desktop Electron app
+- Master admin dashboard for system administration
 
 ---
 
@@ -38,15 +39,20 @@
 | Vite | 7.2.4 | Build tool and dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
-| shadcn/ui | - | UI component library (53+ components) |
+| shadcn/ui | New York | UI component library (53 components) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
 | Simple-Peer | 9.11.1 | WebRTC for voice chat |
 | Zod | 4.3.5 | Schema validation |
 | React Hook Form | 7.70.0 | Form handling |
-| TipTap | 3.20.0 | Rich text editor |
+| TipTap | 3.20.0 | Rich text editor with mention support |
 | Recharts | 2.15.4 | Data visualization |
+| Framer Motion | 12.35.2 | Animations |
+| date-fns | 4.1.0 | Date formatting |
+| emoji-mart | 5.6.0 | Emoji picker |
+| gif-picker-react | 1.5.0 | GIF selection |
+| @dnd-kit | Various | Drag and drop for categories/channels |
 | Capacitor | 8.1.0 | Mobile (Android) builds |
 | Electron | 40.6.0 | Desktop application |
 | electron-updater | 6.8.3 | Auto-update mechanism |
@@ -54,7 +60,7 @@
 ### Backend (`/server`)
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Node.js | 18+ | Runtime |
+| Node.js | 20+ | Runtime |
 | Express | 4.18.2 | Web framework |
 | Socket.IO | 4.7.2 | Real-time WebSocket |
 | PostgreSQL | 15+ | Primary database (production) |
@@ -87,8 +93,8 @@
 /
 ├── app/                          # Frontend React application
 │   ├── src/
-│   │   ├── components/           # React components
-│   │   │   ├── ui/              # shadcn/ui components (53+)
+│   │   ├── components/           # React components (54 files)
+│   │   │   ├── ui/              # shadcn/ui components (53 files)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display area
 │   │   │   ├── ChannelList.tsx  # Server channels sidebar
@@ -96,44 +102,28 @@
 │   │   │   ├── MemberList.tsx   # Server members display
 │   │   │   ├── MessageInput.tsx # Message input with rich text
 │   │   │   ├── MessageContent.tsx # Render message content
-│   │   │   ├── EmojiPicker.tsx  # Emoji selection
-│   │   │   ├── ImageViewer.tsx  # Image preview modal
-│   │   │   ├── Lightbox.tsx     # Full-screen image viewer
-│   │   │   ├── SettingsModal.tsx # User settings
 │   │   │   ├── MessageContextMenu.tsx # Right-click menu
-│   │   │   ├── UserProfilePopup.tsx # User profile popup
-│   │   │   ├── UserProfileButton.tsx # User avatar button
-│   │   │   ├── TitleBar.tsx     # Electron custom title bar
+│   │   │   ├── SettingsModal.tsx # User settings
 │   │   │   ├── Login.tsx        # Login page
 │   │   │   ├── Register.tsx     # Registration
 │   │   │   ├── DMList.tsx       # Direct message channels
 │   │   │   ├── DMChatArea.tsx   # DM chat interface
 │   │   │   ├── MobileHeader.tsx # Mobile navigation header
 │   │   │   ├── MobileBottomNav.tsx # Mobile bottom navigation
-│   │   │   ├── MobileDrawer.tsx # Mobile drawers
 │   │   │   ├── VoiceChannelPanel.tsx # Voice channel UI
-│   │   │   ├── CategoryItem.tsx # Channel category
-│   │   │   ├── CreateCategoryModal.tsx
-│   │   │   ├── RenameCategoryModal.tsx
-│   │   │   ├── InviteModal.tsx  # Server invite modal
-│   │   │   ├── SearchModal.tsx  # Global search
-│   │   │   ├── RoleManagerModal.tsx # Role management
-│   │   │   ├── ServerSettingsModal.tsx # Server settings
-│   │   │   ├── ServerAuditLog.tsx # Audit logging
-│   │   │   ├── NotificationSettings.tsx # Notification preferences
-│   │   │   ├── ServerInvites.tsx # Server invite management
+│   │   │   ├── ServerSettingsPage.tsx # Server settings page
 │   │   │   ├── ServerMembers.tsx # Server member management
 │   │   │   ├── ServerRoles.tsx  # Server roles configuration
-│   │   │   ├── ServerSettingsPage.tsx # Server settings page
-│   │   │   ├── ForwardModal.tsx # Message forwarding
-│   │   │   ├── GroupDMModal.tsx # Group DM creation
-│   │   │   ├── AddMemberToGroupModal.tsx
-│   │   │   ├── MemberProfilePanel.tsx # Member profile sidebar
-│   │   │   ├── ReactionTooltip.tsx # Reaction display
-│   │   │   ├── RichTextEditor.tsx # TipTap editor wrapper
-│   │   │   ├── EmojiStickerGIFPicker.tsx
-│   │   │   ├── GIFPicker.tsx
-│   │   │   └── UpdateButton.tsx # Electron update button
+│   │   │   ├── ServerAuditLog.tsx # Audit logging
+│   │   │   ├── SearchModal.tsx  # Global search
+│   │   │   ├── InviteModal.tsx  # Server invite modal
+│   │   │   ├── EmojiPicker.tsx  # Emoji selection
+│   │   │   ├── GIFPicker.tsx    # GIF selection
+│   │   │   ├── TitleBar.tsx     # Electron custom title bar
+│   │   │   ├── UpdateButton.tsx # Electron update button
+│   │   │   ├── MasterAdminDashboard.tsx # System admin panel
+│   │   │   ├── ForceChangePassword.tsx # Password change on first login
+│   │   │   └── ...
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/
@@ -153,8 +143,7 @@
 │   │   ├── pages/
 │   │   │   ├── InvitePage.tsx   # Invite acceptance page
 │   │   │   └── FriendsPage.tsx  # Friends management page
-│   │   ├── services/
-│   │   │   └── auth.service.ts  # Authentication service
+│   │   ├── landing/             # Landing page components
 │   │   ├── App.tsx              # Root component
 │   │   ├── main.tsx             # Entry point
 │   │   └── index.css            # Global styles (Cyberpunk theme)
@@ -171,27 +160,33 @@
 │   ├── tsconfig.json            # TypeScript config
 │   ├── tsconfig.app.json        # App TypeScript config
 │   ├── tsconfig.node.json       # Node TypeScript config
+│   ├── eslint.config.js         # ESLint configuration
 │   ├── nginx.conf               # Nginx config for Docker
 │   ├── Dockerfile               # Frontend Docker image
 │   └── package.json             # Dependencies
 │
 ├── server/                      # Backend Express server
-│   ├── server.js                # Main server file
+│   ├── server.js                # Main server file (~3000+ lines)
 │   ├── database.js              # SQLite database module
 │   ├── database-postgres.js     # PostgreSQL database module
-│   ├── config/
-│   │   ├── database.js          # PostgreSQL connection pool
-│   │   ├── push.js              # Push notification config
-│   │   └── redis.js             # Redis configuration
 │   ├── middleware/
 │   │   ├── auth.js              # JWT authentication middleware
-│   │   └── permissions.js       # RBAC middleware
+│   │   ├── permissions.js       # RBAC middleware
+│   │   └── master-admin.js      # Master admin middleware
+│   ├── routes/
+│   │   └── master-admin.js      # Master admin routes
 │   ├── services/
-│   │   └── token.service.js     # Token management service
+│   │   └── push.js              # Push notification service
 │   ├── migrations/              # Database migrations
 │   │   ├── 001_initial_schema.sql
 │   │   ├── 002_migrate_sqlite_to_postgres.js
 │   │   ├── 007_add_emoji_stickers.sql
+│   │   ├── 008_add_missing_columns.sql
+│   │   ├── 009_add_role_id_column.sql
+│   │   ├── 010_add_missing_tables.sql
+│   │   ├── 011_add_user_server_access.sql
+│   │   ├── 012_add_dm_group_support.sql
+│   │   ├── 013_add_push_subscriptions.sql
 │   │   └── setup-postgres.js
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image
@@ -204,16 +199,74 @@
 │   ├── deploy.sh                # Deploy script
 │   ├── backup.sh                # Backup script
 │   ├── restore.sh               # Restore script
-│   └── update.sh                # Update script
+│   ├── update.sh                # Update script
+│   ├── setup-master-admin.js    # Master admin setup
+│   └── ...
+│
+├── docs/                        # Documentation
+│   ├── BUG_REPORT.md            # Bug tracking
+│   └── CHANGELOG.md             # Version history
 │
 ├── docker-compose.yml           # Docker Compose (dev)
 ├── docker-compose.prod.yml      # Docker Compose (production)
 ├── .env                         # Environment variables
 ├── .env.example                 # Environment template
-└── docs/                        # Documentation
-    ├── BUG_REPORT.md
-    └── CHANGELOG.md
+└── package.json                 # Root package.json
 ```
+
+---
+
+## Configuration Files
+
+### Frontend Configuration
+
+#### `app/vite.config.ts`
+- **Port**: 5173 (strict)
+- **Proxy**: `/api` → `http://localhost:3001`
+- **Build Output**: `dist/`
+- **Path Alias**: `@/` → `./src`
+- **Source Maps**: Enabled
+- **Optimized Deps**: TipTap, tippy.js
+
+#### `app/tailwind.config.js`
+- **Dark Mode**: `class`
+- **Content**: `./index.html`, `./src/**/*.{js,ts,jsx,tsx}`
+- **CSS Variables**: HSL color system for theming
+- **Animations**: Accordion, caret-blink
+- **Plugin**: `tailwindcss-animate`
+
+#### `app/tsconfig.app.json`
+- **Target**: ES2022
+- **Module**: ESNext
+- **Strict Mode**: Enabled
+- **JSX**: react-jsx
+- **Path Alias**: `@/*` → `./src/*`
+
+#### `app/components.json` (shadcn/ui)
+- **Style**: New York
+- **Base Color**: slate
+- **CSS Variables**: Enabled
+- **Icon Library**: lucide
+
+#### `app/capacitor.config.ts`
+- **App ID**: `com.chatcord.app`
+- **App Name**: ChatCord
+- **Web Dir**: `dist`
+
+#### `app/eslint.config.js`
+- **Files**: `**/*.{ts,tsx}`
+- **Extends**: ESLint recommended, TypeScript ESLint, React Hooks, React Refresh
+- **Ignores**: `dist`
+
+### Backend Configuration
+
+#### `server/package.json`
+- **Main**: `server.js`
+- **Scripts**:
+  - `start`: `node server.js`
+  - `dev`: `nodemon server.js`
+  - `setup:postgres`: `node migrations/setup-postgres.js`
+  - `migrate`: `node migrations/002_migrate_sqlite_to_postgres.js`
 
 ---
 
@@ -429,6 +482,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | POST | `/api/auth/login` | Login user | No |
 | POST | `/api/auth/refresh` | Refresh access token | Yes |
 | POST | `/api/auth/logout` | Logout user | Yes |
+| POST | `/api/auth/force-password-change` | Force password change | Yes |
 
 #### Users
 | Method | Endpoint | Description | Auth |
@@ -438,6 +492,9 @@ VITE_SOCKET_URL=https://your-domain.com
 | PUT | `/api/users/password` | Change password | Yes |
 | POST | `/api/users/avatar` | Upload avatar | Yes |
 | GET | `/api/users/search` | Search users | Yes |
+| GET | `/api/users/leaderboard` | Get user leaderboard | Yes |
+| GET | `/api/users/:id` | Get user by ID | Yes |
+| PUT | `/api/users/:id/display-name` | Update display name | Yes (Master Admin) |
 
 #### Servers
 | Method | Endpoint | Description | Auth |
@@ -464,12 +521,16 @@ VITE_SOCKET_URL=https://your-domain.com
 |--------|----------|-------------|------|
 | DELETE | `/api/channels/:id` | Delete channel | Yes |
 | GET | `/api/channels/:id/messages` | Get messages | Yes |
-| POST | `/api/channels/:channelId/pins` | Get pinned messages | Yes |
+| GET | `/api/channels/:channelId/pins` | Get pinned messages | Yes |
+| POST | `/api/messages` | Send message | Yes |
+| PUT | `/api/messages/:id` | Edit message | Yes |
+| DELETE | `/api/messages/:id` | Delete message | Yes |
 | POST | `/api/messages/:id/reactions` | Add reaction | Yes |
 | DELETE | `/api/messages/:id/reactions` | Remove reaction | Yes |
 | POST | `/api/messages/:messageId/pin` | Pin message | Yes (Manage Messages) |
 | POST | `/api/messages/:messageId/unpin` | Unpin message | Yes (Manage Messages) |
 | GET | `/api/messages/search` | Search messages | Yes |
+| GET | `/api/messages/search/count` | Get search result count | Yes |
 
 #### Friends & DMs
 | Method | Endpoint | Description | Auth |
@@ -488,11 +549,13 @@ VITE_SOCKET_URL=https://your-domain.com
 | DELETE | `/api/dm/channels/:id` | Delete DM channel | Yes |
 | POST | `/api/dm/channels/:id/members` | Add member to group | Yes (Creator) |
 | DELETE | `/api/dm/channels/:id/members/:userId` | Remove member | Yes (Creator) |
+| PUT | `/api/dm/channels/:id` | Update group DM | Yes (Creator) |
 
 #### Files
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | POST | `/api/upload` | Upload file (10MB limit) | Yes |
+| GET | `/uploads/:filename` | Serve uploaded file | Optional |
 
 #### Permissions
 | Method | Endpoint | Description | Auth |
@@ -511,6 +574,31 @@ VITE_SOCKET_URL=https://your-domain.com
 | POST | `/api/push/test` | Test push notification | Yes |
 | GET | `/api/push/vapid-public-key` | Get VAPID public key | No |
 
+#### Invites
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/invites/:code` | Get invite info | Optional |
+| POST | `/api/invites/:code/join` | Join server via invite | Yes |
+
+#### Voice
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/channels/:channelId/join-voice` | Join voice channel | Yes |
+| POST | `/api/channels/:channelId/leave-voice` | Leave voice channel | Yes |
+| GET | `/api/channels/:channelId/voice-participants` | Get participants | Yes |
+
+#### Master Admin
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/admin/stats` | Get system stats | Master Admin |
+| GET | `/api/admin/users` | List all users | Master Admin |
+| POST | `/api/admin/users` | Create user | Master Admin |
+| PUT | `/api/admin/users/:id` | Update user | Master Admin |
+| DELETE | `/api/admin/users/:id` | Delete user | Master Admin |
+| POST | `/api/admin/users/:id/reset-password` | Reset password | Master Admin |
+| GET | `/api/admin/servers` | List all servers | Master Admin |
+| DELETE | `/api/admin/servers/:id` | Delete server | Master Admin |
+
 ### WebSocket Events
 
 #### Client → Server
@@ -519,7 +607,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | `authenticate` | `token: string` | Authenticate socket |
 | `join_channel` | `channelId: string` | Join channel room |
 | `leave_channel` | `channelId: string` | Leave channel room |
-| `send_message` | `{ channelId, content, replyTo?, attachments? }` | Send message |
+| `send_message` | `{ channelId, content, replyTo?, attachments?, forwardedFrom? }` | Send message |
 | `typing` | `{ channelId }` | Typing indicator |
 | `add_reaction` | `{ messageId, emoji }` | Add reaction |
 | `remove_reaction` | `{ messageId, emoji }` | Remove reaction |
@@ -560,22 +648,23 @@ VITE_SOCKET_URL=https://your-domain.com
 
 | Table | Description |
 |-------|-------------|
-| `users` | User accounts (id, username, email, password, avatar, status, token_version) |
-| `servers` | Discord-like servers (id, name, icon, owner_id) |
-| `server_members` | Server membership (server_id, user_id, role, role_id, joined_at) |
+| `users` | User accounts (id, username, email, password, avatar, status, token_version, is_master_admin, force_password_change) |
+| `servers` | Discord-like servers (id, name, icon, banner, owner_id) |
+| `server_members` | Server membership (server_id, user_id, role, role_id, joined_at, join_method) |
 | `categories` | Channel categories (server_id, name, position) |
 | `channels` | Text/voice channels (server_id, category_id, type, position) |
-| `messages` | Channel messages (channel_id, user_id, content, reply_to_id, is_pinned, pinned_at, pinned_by) |
+| `messages` | Channel messages (channel_id, user_id, content, reply_to_id, is_pinned, pinned_at, pinned_by, attachments, forwarded_from) |
 | `reactions` | Message reactions (message_id, user_id, emoji) |
 | `friendships` | Friend relationships (user_id, friend_id, status, created_at) |
 | `friend_requests` | Pending friend requests (sender_id, receiver_id, status) |
-| `dm_channels` | DM channels between users (type: direct/group, creator_id) |
+| `dm_channels` | DM channels between users (type: direct/group, creator_id, name) |
 | `dm_channel_members` | DM channel participants |
 | `dm_messages` | DM messages |
-| `invites` | Server invite codes (code, server_id, created_by, expires_at, max_uses) |
+| `invites` | Server invite codes (code, server_id, created_by, expires_at, max_uses, uses) |
 | `bans` | Server bans (server_id, user_id, reason, created_at) |
-| `voice_participants` | Voice channel participants |
-| `roles` | Custom server roles with permissions (server_id, name, color, permissions, position) |
+| `voice_participants` | Voice channel participants (is_muted, is_deafened, joined_at) |
+| `voice_signaling_logs` | Voice signaling logs for debugging |
+| `roles` | Custom server roles with permissions (server_id, name, color, permissions, position, is_default) |
 | `audit_logs` | Server audit logs (server_id, action, user_id, target_id, details, created_at) |
 | `push_subscriptions` | Push notification subscriptions |
 
@@ -606,7 +695,7 @@ const Permissions = {
 
 ## Testing Strategy
 
-**No test framework is currently configured.** Consider adding:
+**No automated test framework is currently configured.** Consider adding:
 - Vitest for unit testing
 - React Testing Library for component tests
 - Playwright or Cypress for E2E testing
@@ -622,6 +711,7 @@ const Permissions = {
 - [ ] Add emoji reactions
 - [ ] Reply to messages
 - [ ] Pin/unpin messages
+- [ ] Forward messages
 - [ ] Add friend dan accept request
 - [ ] Send DMs (1-on-1 dan group)
 - [ ] Create channel categories
@@ -649,6 +739,7 @@ const Permissions = {
 - **XSS Prevention:** Input sanitization untuk HTML tags
 - **Role-based Permissions:** Discord-like permission bitfield
 - **Input Validation:** express-validator
+- **Master Admin:** Special users with system-wide access
 
 ### File Upload Restrictions
 Allowed MIME types:
@@ -676,7 +767,7 @@ Allowed MIME types:
 
 ## shadcn/ui Components
 
-Project ini memiliki 53+ shadcn/ui components di `app/src/components/ui/`:
+Project ini memiliki 53 shadcn/ui components di `app/src/components/ui/`:
 
 ### Available Components
 - **Layout:** accordion, card, collapsible, resizable, scroll-area, separator, sheet, sidebar
@@ -827,4 +918,4 @@ Pada server pertama kali start, data berikut akan dibuat:
 - `AUTO_UPDATE_GUIDE.md` - Electron auto-update setup
 - `TODO.md` - Bug fix checklist dan feature status
 - `AGENTS.md` - This file
-- `server/MIGRATION_GUIDE.md` - Database migration guide
+- `MASTER_ADMIN_GUIDE.md` - Master admin operations guide
