@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Shield, User as UserIcon, Crown, Star, UserPlus, MessageCircle, UserX, Ban, Check } from 'lucide-react';
+import { X, Shield, User as UserIcon, Crown, UserPlus, MessageCircle, UserX, Ban, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast.tsx';
 
@@ -432,45 +432,27 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* User Info Header */}
             <div className="pb-3 border-b border-[#1e1f22]">
               {/* Display Name - colored by role */}
               <h2
                 className="text-xl font-bold leading-tight"
-                style={{ color: serverId && roleColor !== '#b9bbbe' ? roleColor : 'white' }}
+                style={{ color: serverId && roleColor !== '#b9bbbe' && roleColor !== '#99aab5' ? roleColor : 'white' }}
               >
                 {profile.displayName || profile.username}
               </h2>
-              
+
               {/* Username */}
-              <p className="text-[#a0a0b0] text-sm mt-1">
+              <p className="text-[#a0a0b0] text-sm mt-0.5">
                 {profile.username}
               </p>
-              
-              {/* Role Badge - Only show if in server context */}
-              {serverId && profile.role && (
-                <div className="mt-2 inline-flex">
-                  <div 
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
-                    style={{ 
-                      backgroundColor: `${roleColor}20`,
-                      borderColor: `${roleColor}40`
-                    }}
-                  >
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: roleColor }}
-                    />
-                    <span 
-                      className="text-xs font-semibold"
-                      style={{ color: roleColor }}
-                    >
-                      {roleName}
-                    </span>
-                  </div>
-                </div>
-              )}
+
+              {/* Status text */}
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${statusCfg.color}`} />
+                <span className="text-sm text-[#b5bac1]">{statusCfg.label}</span>
+              </div>
             </div>
 
             {/* Bio/About Section */}
@@ -482,25 +464,47 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
 
             {/* Member Since */}
             <div className="bg-[#111214] rounded-lg p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 flex items-center justify-center bg-[#00d4ff]/20 rounded-lg">
-                  <Star className="w-4 h-4 text-[#00d4ff]" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide">
-                    {serverId ? 'Member Since' : 'WorkGrid Member Since'}
-                  </p>
-                  <p className="text-[#dbdee1] text-sm">
-                    {(() => {
-                      const dateStr = profile.joinedAt || profile.created_at;
-                      return dateStr
-                        ? new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                        : 'Tidak diketahui';
-                    })()}
-                  </p>
+              <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide mb-1">
+                Member Since
+              </p>
+              <p className="text-[#dbdee1] text-sm">
+                {(() => {
+                  const dateStr = profile.joinedAt || profile.created_at;
+                  return dateStr
+                    ? new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                    : 'Unknown';
+                })()}
+              </p>
+            </div>
+
+            {/* Jobdesk / Role Section */}
+            {serverId && profile.role && (
+              <div className="bg-[#111214] rounded-lg p-3">
+                <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide mb-2">
+                  Jobdesk
+                </p>
+                <div className="inline-flex">
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
+                    style={{
+                      backgroundColor: `${roleColor}20`,
+                      borderColor: `${roleColor}40`
+                    }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: roleColor }}
+                    />
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: roleColor }}
+                    >
+                      {roleName}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
 
 
