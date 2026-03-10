@@ -104,20 +104,29 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       // If serverId provided, fetch from server endpoint (includes role)
       // Otherwise fetch from users endpoint (DM view, no role)
-      const endpoint = serverId 
+      const endpoint = serverId
         ? `${API_URL}/servers/${serverId}/users/${userId}`
         : `${API_URL}/users/${userId}`;
-      
+
       const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setProfile(data);
+      } else if (serverId && response.status >= 500) {
+        // Fallback ke endpoint users jika server endpoint error
+        const fallback = await fetch(`${API_URL}/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (fallback.ok) {
+          const data = await fallback.json();
+          setProfile(data);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch user profile:', error);

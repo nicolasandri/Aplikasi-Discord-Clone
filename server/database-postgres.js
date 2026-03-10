@@ -612,7 +612,7 @@ const serverDB = {
   async getMemberDetails(serverId, userId) {
     const row = await queryOne(
       `SELECT u.id, u.username, u.display_name, u.avatar, u.status, u.email, u.created_at,
-              sm.role, sm.role_id, sm.joined_at, sm.join_method,
+              sm.role, sm.role_id, sm.joined_at, COALESCE(sm.join_method, 'invite') as join_method,
               COALESCE(NULLIF(sr.name, ''),
                 CASE sm.role
                   WHEN 'owner' THEN 'Owner'

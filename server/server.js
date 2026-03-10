@@ -1792,22 +1792,23 @@ app.get('/api/servers/:serverId/users/:userId', authenticateToken, async (req, r
   try {
     const { serverId, userId } = req.params;
     const requesterId = req.userId;
-    
+
     // Check if requester is a member
     const isMember = await serverDB.isMember(serverId, requesterId);
     if (!isMember) {
       return res.status(403).json({ error: 'You are not a member of this server' });
     }
-    
+
     // Get member details
     const member = await serverDB.getMemberDetails(serverId, userId);
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
     }
-    
+
     res.json(member);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get member details' });
+    console.error('[GET /api/servers/:serverId/users/:userId] Error:', error.message);
+    res.status(500).json({ error: 'Failed to get member details', detail: error.message });
   }
 });
 
