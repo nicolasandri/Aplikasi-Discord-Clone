@@ -550,10 +550,16 @@ const serverDB = {
   async getMembers(serverId) {
     return await queryMany(
       `SELECT u.id, u.username, u.avatar, COALESCE(u.status, 'offline') as status, sm.role,
-              ARRAY_AGG(mr.role_id) FILTER (WHERE mr.role_id IS NOT NULL) as role_ids
+              ARRAY_AGG(mr.role_id) FILTER (WHERE mr.role_id IS NOT NULL) as role_ids,
+              COALESCE(
+                JSON_AGG(JSON_BUILD_OBJECT('id', sr.id, 'name', sr.name, 'color', sr.color))
+                FILTER (WHERE sr.id IS NOT NULL),
+                '[]'::json
+              ) as roles
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
        LEFT JOIN member_roles mr ON u.id::text = mr.user_id AND mr.server_id = $1
+       LEFT JOIN server_roles sr ON mr.role_id = sr.id::text
        WHERE sm.server_id::text = $1
        GROUP BY u.id, u.username, u.avatar, u.status, sm.role`,
       [serverId]
