@@ -1590,24 +1590,33 @@ const friendDB = {
 const dmDB = {
   async createDMChannel(user1Id, user2Id) {
     const [firstUser, secondUser] = [user1Id, user2Id].sort();
-    
+
     const existing = await this.getDMChannel(user1Id, user2Id);
     if (existing) return existing;
 
     const id = uuidv4();
     await query(
-      'INSERT INTO dm_channels (id, user1_id, user2_id) VALUES ($1, $2, $3)',
+      "INSERT INTO dm_channels (id, user1_id, user2_id, type, created_at, updated_at) VALUES ($1, $2, $3, 'direct', NOW(), NOW())",
       [id, firstUser, secondUser]
     );
-    
+    // Also insert into dm_channel_members for unified member lookup
+    await query(
+      'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
+      [uuidv4(), id, firstUser]
+    );
+    await query(
+      'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
+      [uuidv4(), id, secondUser]
+    );
+
     return await this.getDMChannelById(id);
   },
 
   async getDMChannel(user1Id, user2Id) {
     const [firstUser, secondUser] = [user1Id, user2Id].sort();
-    
+
     return await queryOne(
-      `SELECT dc.*, 
+      `SELECT dc.*,
               u1.username as user1_username, u1.avatar as user1_avatar, u1.status as user1_status,
               u2.username as user2_username, u2.avatar as user2_avatar, u2.status as user2_status
        FROM dm_channels dc
@@ -1618,39 +1627,48 @@ const dmDB = {
     );
   },
 
+  async getDMChannelBetweenUsers(user1Id, user2Id) {
+    return await this.getDMChannel(user1Id, user2Id);
+  },
+
   async getDMChannelById(channelId) {
-    return await queryOne(
-      `SELECT dc.*, 
-              u1.username as user1_username, u1.avatar as user1_avatar, u1.status as user1_status,
-              u2.username as user2_username, u2.avatar as user2_avatar, u2.status as user2_status
+    const channel = await queryOne(
+      `SELECT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
+              dc.user1_id, dc.user2_id
        FROM dm_channels dc
-       JOIN users u1 ON dc.user1_id = u1.id
-       JOIN users u2 ON dc.user2_id = u2.id
        WHERE dc.id = $1`,
       [channelId]
     );
+    if (!channel) return null;
+    channel.members = await this.getChannelMembers(channelId);
+    return channel;
   },
 
   async getUserDMChannels(userId) {
-    return await queryMany(
-      `SELECT dc.*, 
-              CASE WHEN dc.user1_id = $1 THEN dc.user2_id ELSE dc.user1_id END as friend_id,
-              CASE WHEN dc.user1_id = $1 THEN u2.username ELSE u1.username END as friend_username,
-              CASE WHEN dc.user1_id = $1 THEN u2.avatar ELSE u1.avatar END as friend_avatar,
-              CASE WHEN dc.user1_id = $1 THEN u2.status ELSE u1.status END as friend_status,
+    // Get channels where user is a member (via dm_channel_members) or direct channels (user1_id/user2_id)
+    const channels = await queryMany(
+      `SELECT DISTINCT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
               (SELECT content FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message,
               (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
               (SELECT COUNT(*) FROM dm_messages WHERE channel_id = dc.id AND sender_id != $1 AND is_read = false) as unread_count
        FROM dm_channels dc
-       JOIN users u1 ON dc.user1_id = u1.id
-       JOIN users u2 ON dc.user2_id = u2.id
-       WHERE dc.user1_id = $1 OR dc.user2_id = $1
+       LEFT JOIN dm_channel_members dcm ON dc.id = dcm.channel_id
+       WHERE dcm.user_id = $1 OR dc.user1_id = $1 OR dc.user2_id = $1
        ORDER BY COALESCE(
          (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1),
          dc.updated_at
        ) DESC`,
       [userId]
     );
+    const result = await Promise.all(channels.map(async (ch) => {
+      const members = await this.getChannelMembers(ch.id);
+      return {
+        ...ch,
+        members,
+        friend: ch.type === 'direct' ? (members.find(m => m.id !== userId) || members[0]) : null
+      };
+    }));
+    return result;
   },
 
   async sendDMMessage(channelId, senderId, content, attachments = null) {
@@ -1778,6 +1796,83 @@ const dmDB = {
       );
       return { success: true };
     });
+  },
+
+  async createGroupDMChannel(creatorId, userIds, name = null) {
+    const allUserIds = [creatorId, ...userIds.filter(id => id !== creatorId)];
+    const id = uuidv4();
+    const groupName = name || 'Grup Baru';
+    await query(
+      'INSERT INTO dm_channels (id, name, type, creator_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())',
+      [id, groupName, 'group', creatorId]
+    );
+    for (const userId of allUserIds) {
+      await query(
+        'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
+        [uuidv4(), id, userId]
+      );
+    }
+    return await this.getDMChannelById(id);
+  },
+
+  async getChannelMembers(channelId) {
+    const rows = await queryMany(
+      `SELECT u.id, u.username, u.display_name, u.avatar, u.status, m.joined_at
+       FROM dm_channel_members m
+       JOIN users u ON m.user_id = u.id
+       WHERE m.channel_id = $1
+       ORDER BY m.joined_at`,
+      [channelId]
+    );
+    return rows.map(row => ({ ...row, displayName: row.display_name }));
+  },
+
+  async isChannelMember(channelId, userId) {
+    const row = await queryOne(
+      'SELECT 1 FROM dm_channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+    return !!row;
+  },
+
+  async addChannelMember(channelId, userId) {
+    const result = await query(
+      'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
+      [uuidv4(), channelId, userId]
+    );
+    const member = await userDB.findById(userId);
+    return { success: result.rowCount > 0, member };
+  },
+
+  async removeChannelMember(channelId, userId) {
+    const result = await query(
+      'DELETE FROM dm_channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+    return { success: result.rowCount > 0 };
+  },
+
+  async updateGroupName(channelId, name) {
+    const result = await query(
+      "UPDATE dm_channels SET name = $1, updated_at = NOW() WHERE id = $2 AND type = 'group'",
+      [name, channelId]
+    );
+    return { success: result.rowCount > 0 };
+  },
+
+  async leaveDMChannel(channelId, userId) {
+    const result = await query(
+      'DELETE FROM dm_channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+    const remaining = await queryOne(
+      'SELECT COUNT(*) as count FROM dm_channel_members WHERE channel_id = $1',
+      [channelId]
+    );
+    if (parseInt(remaining.count) === 0) {
+      await this.deleteDMChannel(channelId);
+    }
+    return { success: result.rowCount > 0 };
   },
 };
 
