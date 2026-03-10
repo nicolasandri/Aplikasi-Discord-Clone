@@ -968,13 +968,10 @@ const messageDB = {
       `SELECT m.*, u.id as user_id, u.username, u.avatar,
               rm.id as reply_id, rm.content as reply_content,
               ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar,
-              c.server_id as server_id,
-              sr.color as role_color, sr.name as role_name
+              c.server_id as server_id
        FROM messages m
        JOIN users u ON m.user_id::text = u.id::text
-       JOIN channels c ON m.channel_id::text = c.id::text
-       LEFT JOIN server_members sm ON m.user_id::text = sm.user_id::text AND c.server_id::text = sm.server_id::text
-       LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
+       LEFT JOIN channels c ON m.channel_id::text = c.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
        WHERE m.id = $1`,
@@ -983,21 +980,42 @@ const messageDB = {
     
     if (!row) return null;
     
+    // Fetch role color if server_id exists
+    if (row.server_id && row.user_id) {
+      try {
+        const roleRow = await queryOne(
+          `SELECT sr.color, sr.name
+           FROM server_members sm
+           LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
+           WHERE sm.server_id::text = $1::text AND sm.user_id::text = $2::text`,
+          [row.server_id, row.user_id]
+        );
+        if (roleRow) {
+          row.role_color = roleRow.color;
+          row.role_name = roleRow.name;
+        }
+      } catch (e) {
+        console.error('Failed to fetch role color:', e);
+      }
+    }
+    
     return this.formatMessage(row);
   },
 
   async getByChannel(channelId, limit = 50, offset = 0) {
+    // First get channel info to get server_id
+    const channelInfo = await queryOne(
+      'SELECT server_id FROM channels WHERE id = $1',
+      [channelId]
+    );
+    const serverId = channelInfo?.server_id;
+
     const rows = await queryMany(
       `SELECT m.*, u.id as user_id, u.username, u.avatar,
               rm.id as reply_id, rm.content as reply_content,
-              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar,
-              c.server_id,
-              sr.color as role_color, sr.name as role_name
+              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
        FROM messages m
        JOIN users u ON m.user_id::text = u.id::text
-       JOIN channels c ON m.channel_id::text = c.id::text
-       LEFT JOIN server_members sm ON m.user_id::text = sm.user_id::text AND c.server_id::text = sm.server_id::text
-       LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
        WHERE m.channel_id = $1
@@ -1031,10 +1049,39 @@ const messageDB = {
       });
     }
     
+    // Get unique user IDs from messages
+    const userIds = [...new Set(rows.map(r => r.user_id))];
+    
+    // Fetch role colors for all users if serverId exists
+    const userRoleColors = {};
+    if (serverId && userIds.length > 0) {
+      try {
+        const roleRows = await queryMany(
+          `SELECT sm.user_id, sr.color, sr.name
+           FROM server_members sm
+           LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
+           WHERE sm.server_id::text = $1::text AND sm.user_id = ANY($2)`,
+          [serverId, userIds]
+        );
+        for (const r of roleRows) {
+          if (r.user_id) {
+            userRoleColors[r.user_id] = { color: r.color, name: r.name };
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch role colors:', e);
+      }
+    }
+    
     // Format messages
     const messages = rows.map(row => {
       const msg = this.formatMessage(row);
       msg.reactions = reactionsByMessage[row.id] || [];
+      // Add role color to user if available
+      if (userRoleColors[row.user_id]) {
+        msg.user.role_color = userRoleColors[row.user_id].color;
+        msg.user.role_name = userRoleColors[row.user_id].name;
+      }
       return msg;
     });
     
