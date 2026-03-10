@@ -8,10 +8,10 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'your_secure_password',
   port: parseInt(process.env.DB_PORT || '5432'),
   
-  // Connection pool settings untuk handle 110 concurrent users
-  max: 25,                    // max 25 connections in pool
-  idleTimeoutMillis: 30000,   // close idle connections after 30s
-  connectionTimeoutMillis: 2000, // timeout for new connections
+  // Connection pool settings
+  max: 20,                        // max connections in pool
+  idleTimeoutMillis: 30000,       // close idle connections after 30s
+  connectionTimeoutMillis: 10000, // timeout for new connections (10s)
   
   // SSL configuration for production
   ssl: process.env.DB_SSL === 'true' ? {
@@ -26,7 +26,6 @@ pool.on('connect', () => {
 
 pool.on('error', (err) => {
   console.error('❌ Unexpected error on idle PostgreSQL client:', err);
-  process.exit(-1);
 });
 
 // Transaction helper
