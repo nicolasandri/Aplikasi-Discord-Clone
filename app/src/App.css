@@ -11,6 +11,13 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* Landing page: allow scrolling */
+body.landing-active,
+body.landing-active #root {
+  height: auto;
+  overflow: visible;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

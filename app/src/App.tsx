@@ -100,10 +100,22 @@ const Router = isElectron ? HashRouter : BrowserRouter;
 function AppContent() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  const isLandingPage = location.pathname === '/';
+  const isLandingPage = location.pathname === '/' && !isAuthenticated;
+
+  // Toggle body class for landing page scroll
+  useEffect(() => {
+    if (isLandingPage) {
+      document.body.classList.add('landing-active');
+    } else {
+      document.body.classList.remove('landing-active');
+    }
+    return () => {
+      document.body.classList.remove('landing-active');
+    };
+  }, [isLandingPage]);
 
   // For landing page (unauthenticated), don't use the fixed h-screen wrapper
-  if (isLandingPage && !isAuthenticated) {
+  if (isLandingPage) {
     return (
       <>
         <Routes>
