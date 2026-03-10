@@ -1,4 +1,4 @@
-import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
@@ -96,79 +96,104 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 // Use HashRouter for Electron, BrowserRouter for web
 const Router = isElectron ? HashRouter : BrowserRouter;
 
-function App() {
+// Inner layout that adapts based on route
+function AppContent() {
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const isLandingPage = location.pathname === '/';
+
+  // For landing page (unauthenticated), don't use the fixed h-screen wrapper
+  if (isLandingPage && !isAuthenticated) {
+    return (
+      <>
+        <Routes>
+          <Route path="/" element={<RootRoute />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <Toaster position="top-center" />
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen">
       <TitleBar />
       <div className="flex-1 overflow-hidden">
-        <AuthProvider>
-          <Router>
-            <Routes>
-              <Route 
-                path="/login" 
+        <Routes>
+              <Route
+                path="/login"
                 element={
                   <PublicRoute>
                     <Login />
                   </PublicRoute>
-                } 
+                }
               />
-              <Route 
-                path="/register" 
+              <Route
+                path="/register"
                 element={
                   <PublicRoute>
                     <Register />
                   </PublicRoute>
-                } 
+                }
               />
-              <Route 
-                path="/invite/:code" 
-                element={<InvitePage />} 
+              <Route
+                path="/invite/:code"
+                element={<InvitePage />}
               />
-              <Route 
-                path="/admin" 
+              <Route
+                path="/admin"
                 element={
                   <ProtectedRoute>
                     <MasterAdminDashboard />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/force-change-password" 
+              <Route
+                path="/force-change-password"
                 element={
                   <ForceChangePasswordWrapper />
-                } 
+                }
               />
               <Route
                 path="/"
                 element={<RootRoute />}
               />
-              <Route 
-                path="/friends" 
+              <Route
+                path="/friends"
                 element={
                   <ProtectedRoute>
                     <ChatLayout />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/channels/:serverId/:channelId" 
+              <Route
+                path="/channels/:serverId/:channelId"
                 element={
                   <ProtectedRoute>
                     <ChatLayout />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="*" 
-                element={<Navigate to="/" replace />} 
+              <Route
+                path="*"
+                element={<Navigate to="/" replace />}
               />
-            </Routes>
-          </Router>
-        </AuthProvider>
+        </Routes>
       </div>
       <Toaster position="top-center" />
     </div>
   );
 }
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
+}
+
 
 export default App;

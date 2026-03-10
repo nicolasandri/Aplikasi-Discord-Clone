@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Zap } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { MagneticButton } from './MagneticButton';
 
 const navLinks = [
@@ -44,7 +44,7 @@ export function Navbar() {
               whileTap={{ scale: 0.95 }}
             >
               <motion.div
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center"
+                className="w-10 h-10 rounded-xl overflow-hidden"
                 whileHover={{ rotate: 10 }}
                 animate={{
                   boxShadow: [
@@ -55,7 +55,7 @@ export function Navbar() {
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <Zap className="w-6 h-6 text-[#050608]" />
+                <img src="/workgrid-logos/logo-rounded.png" alt="WorkGrid" className="w-full h-full object-cover" />
               </motion.div>
               <span className="text-xl font-bold text-white">
                 Work<span className="text-cyan-400">Grid</span>
