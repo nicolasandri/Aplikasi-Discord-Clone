@@ -109,6 +109,7 @@ export interface ServerMember extends User {
   isBot?: boolean;
   createdAt?: string;
   roles?: Array<{ id: string; name: string; color: string }>;
+  role_ids?: string[] | null;
 }
 
 export interface AuthState {
