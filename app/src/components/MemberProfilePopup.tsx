@@ -186,11 +186,11 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
               Member Since
             </h3>
             <div className="text-[#b5bac1] text-sm">
-              {member.joinedAt 
-                ? new Date(member.joinedAt).toLocaleDateString('id-ID', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+              {(member.joinedAt || (member as any).joined_at)
+                ? new Date(member.joinedAt || (member as any).joined_at).toLocaleDateString('id-ID', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                   })
                 : 'Unknown'
               }
