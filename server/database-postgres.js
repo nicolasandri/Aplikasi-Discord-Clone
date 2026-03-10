@@ -404,6 +404,14 @@ const userDB = {
     );
   },
 
+  async findByGroupCode(groupCode) {
+    const rows = await queryMany(
+      'SELECT id, username, email, display_name, avatar, status FROM users WHERE joined_via_group_code = $1',
+      [groupCode]
+    );
+    return rows.map(row => ({ ...row, displayName: row.display_name }));
+  },
+
   async updateProfile(id, updates) {
     const fields = [];
     const values = [];
@@ -1507,6 +1515,30 @@ const friendDB = {
       [userId, blockedUserId, 'blocked']
     );
     return !!result;
+  },
+
+  async createAutoFriendship(user1Id, user2Id) {
+    const existing = await this.getFriendship(user1Id, user2Id);
+    if (existing && existing.status === 'accepted') {
+      return { success: false, message: 'Already friends' };
+    }
+    // Delete any pending requests between them
+    await query(
+      'DELETE FROM friendships WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
+      [user1Id, user2Id]
+    );
+    // Create mutual friendship (both directions)
+    const id1 = uuidv4();
+    const id2 = uuidv4();
+    await query(
+      'INSERT INTO friendships (id, user_id, friend_id, status, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())',
+      [id1, user1Id, user2Id, 'accepted']
+    );
+    await query(
+      'INSERT INTO friendships (id, user_id, friend_id, status, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())',
+      [id2, user2Id, user1Id, 'accepted']
+    );
+    return { success: true };
   },
 
   async getFriendshipStatus(userId, otherUserId) {
