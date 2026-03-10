@@ -14,8 +14,13 @@ html, body, #root {
 /* Landing page: allow scrolling */
 body.landing-active,
 body.landing-active #root {
-  height: auto;
-  overflow: visible;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+html:has(body.landing-active) {
+  height: auto !important;
+  overflow: visible !important;
 }
 
 /* Custom scrollbar */
