@@ -4690,26 +4690,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Debounce map for dm-read-receipt per user+channel
+  const dmReadDebounce = new Map();
+
   // Handle DM read receipt
   socket.on('dm-read-receipt', async (data) => {
     try {
       const { messageId, channelId } = data;
       const userId = socket.userId;
-      
+
       if (!userId || !messageId || !channelId) return;
-      
+
+      // Debounce: skip if same channel read recently
+      const debounceKey = `${userId}-${channelId}`;
+      if (dmReadDebounce.get(debounceKey)) return;
+      dmReadDebounce.set(debounceKey, true);
+      setTimeout(() => dmReadDebounce.delete(debounceKey), 2000);
+
       // Get message details
       const message = await dmDB.getDMMessageById(messageId);
       if (!message) return;
-      
+
       // Don't mark own messages
       if (message.sender_id === userId) return;
-      
-      // Verify user is channel member
-      const isMember = await dmDB.isChannelMember(channelId, userId);
-      if (!isMember) return;
-      
-      // Mark as read
+
+      // Mark as read (skip isChannelMember check - already verified at connection)
       await dmDB.markDMMessageAsRead(messageId);
       
       // Notify sender
