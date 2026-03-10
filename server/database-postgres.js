@@ -611,10 +611,13 @@ const serverDB = {
 
   async getMemberDetails(serverId, userId) {
     const row = await queryOne(
-      `SELECT u.id, u.username, u.display_name, u.avatar, u.status, u.email, u.created_at,
-              sm.role, sm.role_id, sm.joined_at, COALESCE(sm.join_method, 'invite') as join_method,
-              COALESCE(NULLIF(sr.name, ''),
-                CASE sm.role
+      `SELECT u.id, u.username, COALESCE(u.display_name, u.username) as display_name,
+              u.avatar, COALESCE(u.status, 'offline') as status, u.email, u.created_at,
+              COALESCE(sm.role, 'member') as role, sm.role_id,
+              COALESCE(sm.joined_at, u.created_at) as joined_at,
+              COALESCE(sm.join_method, 'invite') as join_method,
+              COALESCE(sr.name,
+                CASE COALESCE(sm.role, 'member')
                   WHEN 'owner' THEN 'Owner'
                   WHEN 'admin' THEN 'Admin'
                   WHEN 'moderator' THEN 'Moderator'
@@ -622,16 +625,16 @@ const serverDB = {
                   ELSE 'Member'
                 END
               ) as role_name,
-              COALESCE(NULLIF(sr.color, ''), CASE
-                WHEN sm.role = 'owner' THEN '#ffd700'
-                WHEN sm.role = 'admin' THEN '#ed4245'
-                WHEN sm.role = 'moderator' THEN '#43b581'
+              COALESCE(sr.color, CASE COALESCE(sm.role, 'member')
+                WHEN 'owner' THEN '#ffd700'
+                WHEN 'admin' THEN '#ed4245'
+                WHEN 'moderator' THEN '#43b581'
                 ELSE '#99aab5'
               END) as role_color
        FROM users u
-       JOIN server_members sm ON u.id = sm.user_id
-       LEFT JOIN server_roles sr ON sm.role_id = sr.id
-       WHERE sm.server_id = $1 AND u.id = $2`,
+       JOIN server_members sm ON u.id = sm.user_id AND sm.server_id = $1
+       LEFT JOIN server_roles sr ON sm.role_id = sr.id AND sr.server_id = $1
+       WHERE u.id = $2`,
       [serverId, userId]
     );
     if (!row) return null;
@@ -648,7 +651,7 @@ const serverDB = {
       role_name: row.role_name,
       role_color: row.role_color,
       joinedAt: row.joined_at,
-      joinMethod: row.join_method || 'Unknown'
+      joinMethod: row.join_method || 'invite'
     };
   },
 

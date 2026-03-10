@@ -483,14 +483,12 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
                     {serverId ? 'Member Since' : 'WorkGrid Member Since'}
                   </p>
                   <p className="text-[#dbdee1] text-sm">
-                    {serverId 
-                      ? (profile.joinedAt 
-                          ? new Date(profile.joinedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                          : 'Unknown')
-                      : (profile.created_at 
-                          ? new Date(profile.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                          : 'Unknown')
-                    }
+                    {(() => {
+                      const dateStr = profile.joinedAt || profile.created_at;
+                      return dateStr
+                        ? new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                        : 'Tidak diketahui';
+                    })()}
                   </p>
                 </div>
               </div>
