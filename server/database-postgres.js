@@ -1204,7 +1204,8 @@ const messageDB = {
       attachments,
       editedAt: row.edited_at,
       timestamp: row.created_at,
-      user
+      user,
+      server_id: row.server_id
     };
   },
 
