@@ -430,8 +430,11 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
           <div className="space-y-4">
             {/* User Info Header */}
             <div className="pb-3 border-b border-[#1e1f22]">
-              {/* Display Name */}
-              <h2 className="text-xl font-bold text-white leading-tight">
+              {/* Display Name - colored by role */}
+              <h2
+                className="text-xl font-bold leading-tight"
+                style={{ color: serverId && roleColor !== '#b9bbbe' ? roleColor : 'white' }}
+              >
                 {profile.displayName || profile.username}
               </h2>
               
