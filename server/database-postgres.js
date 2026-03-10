@@ -981,6 +981,7 @@ const messageDB = {
     if (!row) return null;
     
     // Fetch role color if server_id exists
+    let roleColors = null;
     if (row.server_id && row.user_id) {
       try {
         const roleRow = await queryOne(
@@ -991,15 +992,16 @@ const messageDB = {
           [row.server_id, row.user_id]
         );
         if (roleRow) {
-          row.role_color = roleRow.color;
-          row.role_name = roleRow.name;
+          roleColors = {
+            [row.user_id]: { color: roleRow.color, name: roleRow.name }
+          };
         }
       } catch (e) {
         console.error('Failed to fetch role color:', e);
       }
     }
     
-    return this.formatMessage(row);
+    return this.formatMessage(row, roleColors);
   },
 
   async getByChannel(channelId, limit = 50, offset = 0) {
@@ -1073,15 +1075,10 @@ const messageDB = {
       }
     }
     
-    // Format messages
+    // Format messages with role colors
     const messages = rows.map(row => {
-      const msg = this.formatMessage(row);
+      const msg = this.formatMessage(row, userRoleColors);
       msg.reactions = reactionsByMessage[row.id] || [];
-      // Add role color to user if available
-      if (userRoleColors[row.user_id]) {
-        msg.user.role_color = userRoleColors[row.user_id].color;
-        msg.user.role_name = userRoleColors[row.user_id].name;
-      }
       return msg;
     });
     
@@ -1215,7 +1212,7 @@ const messageDB = {
     return parseInt(row?.count || 0);
   },
 
-  formatMessage(row) {
+  formatMessage(row, roleColors = null) {
     // Parse attachments
     let attachments = [];
     if (row.attachments) {
@@ -1228,13 +1225,21 @@ const messageDB = {
       }
     }
     
+    // Get role color from roleColors map if provided, otherwise from row
+    let roleColor = row.role_color;
+    let roleName = row.role_name;
+    if (roleColors && roleColors[row.user_id]) {
+      roleColor = roleColors[row.user_id].color;
+      roleName = roleColors[row.user_id].name;
+    }
+    
     // Format user object
     const user = {
       id: row.user_id,
       username: row.username,
       avatar: row.avatar,
-      role_color: row.role_color,
-      role_name: row.role_name
+      role_color: roleColor,
+      role_name: roleName
     };
     
     // Format replyTo object
