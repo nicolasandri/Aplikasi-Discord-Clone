@@ -984,17 +984,39 @@ const messageDB = {
     let roleColors = null;
     if (row.server_id && row.user_id) {
       try {
+        // Try custom roles first
         const roleRow = await queryOne(
           `SELECT sr.color, sr.name
-           FROM server_members sm
-           LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
-           WHERE sm.server_id::text = $1::text AND sm.user_id::text = $2::text`,
+           FROM member_roles mr
+           JOIN server_roles sr ON mr.role_id = sr.id
+           WHERE mr.server_id = $1 AND mr.user_id = $2
+           LIMIT 1`,
           [row.server_id, row.user_id]
         );
+        
         if (roleRow) {
           roleColors = {
             [row.user_id]: { color: roleRow.color, name: roleRow.name }
           };
+        } else {
+          // Check legacy role
+          const legacyRow = await queryOne(
+            `SELECT role FROM server_members WHERE server_id = $1 AND user_id = $2`,
+            [row.server_id, row.user_id]
+          );
+          if (legacyRow && legacyRow.role !== 'member') {
+            const legacyRoleColors = {
+              'owner': '#ffd700',
+              'admin': '#ed4245',
+              'moderator': '#43b581'
+            };
+            roleColors = {
+              [row.user_id]: { 
+                color: legacyRoleColors[legacyRow.role] || '#99aab5',
+                name: legacyRow.role.charAt(0).toUpperCase() + legacyRow.role.slice(1)
+              }
+            };
+          }
         }
       } catch (e) {
         console.error('Failed to fetch role color:', e);
@@ -1059,20 +1081,51 @@ const messageDB = {
     if (serverId && userIds.length > 0) {
       try {
         console.log('[getByChannel] Fetching role colors for server:', serverId, 'users:', userIds);
+        
+        // Get custom roles from member_roles table
         const roleRows = await queryMany(
-          `SELECT sm.user_id, sr.color, sr.name
-           FROM server_members sm
-           LEFT JOIN server_roles sr ON sm.role_id = sr.id
-           WHERE sm.server_id = $1 AND sm.user_id = ANY($2::uuid[])`,
+          `SELECT mr.user_id, sr.color, sr.name
+           FROM member_roles mr
+           JOIN server_roles sr ON mr.role_id = sr.id
+           WHERE mr.server_id = $1 AND mr.user_id = ANY($2::uuid[])`,
           [serverId, userIds]
         );
-        console.log('[getByChannel] Role rows:', roleRows);
+        console.log('[getByChannel] Role rows from member_roles:', roleRows);
+        
+        // Also check server_members.legacy role
+        const legacyRows = await queryMany(
+          `SELECT user_id, role
+           FROM server_members
+           WHERE server_id = $1 AND user_id = ANY($2::uuid[]) AND role != 'member'`,
+          [serverId, userIds]
+        );
+        console.log('[getByChannel] Legacy roles:', legacyRows);
+        
+        // Map colors for legacy roles
+        const legacyRoleColors = {
+          'owner': '#ffd700',
+          'admin': '#ed4245',
+          'moderator': '#43b581'
+        };
+        
+        // Add custom roles first
         for (const r of roleRows) {
           if (r.user_id) {
             userRoleColors[r.user_id] = { color: r.color, name: r.name };
           }
         }
-        console.log('[getByChannel] User role colors:', userRoleColors);
+        
+        // Add legacy roles if no custom role exists
+        for (const r of legacyRows) {
+          if (r.user_id && !userRoleColors[r.user_id]) {
+            userRoleColors[r.user_id] = { 
+              color: legacyRoleColors[r.role] || '#99aab5', 
+              name: r.role.charAt(0).toUpperCase() + r.role.slice(1)
+            };
+          }
+        }
+        
+        console.log('[getByChannel] Final user role colors:', userRoleColors);
       } catch (e) {
         console.error('Failed to fetch role colors:', e);
       }
