@@ -549,10 +549,13 @@ const serverDB = {
 
   async getMembers(serverId) {
     return await queryMany(
-      `SELECT u.id, u.username, u.avatar, COALESCE(u.status, 'offline') as status, sm.role 
+      `SELECT u.id, u.username, u.avatar, COALESCE(u.status, 'offline') as status, sm.role,
+              ARRAY_AGG(mr.role_id) FILTER (WHERE mr.role_id IS NOT NULL) as role_ids
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
-       WHERE sm.server_id = $1`,
+       LEFT JOIN member_roles mr ON u.id = mr.user_id AND mr.server_id = $1
+       WHERE sm.server_id = $1
+       GROUP BY u.id, u.username, u.avatar, u.status, sm.role`,
       [serverId]
     );
   },
@@ -1966,12 +1969,45 @@ const db = {
 
 const userServerAccessDB = {
   async setServerAccess(userId, serverId, isAllowed) {
-    // TODO: Implement
-    return { success: true };
+    const id = uuidv4();
+    const accessLevel = isAllowed ? 'read' : 'denied';
+    await dbRun(
+      `INSERT INTO user_server_access (id, user_id, server_id, access_level, is_allowed)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, server_id)
+       DO UPDATE SET access_level = EXCLUDED.access_level, is_allowed = EXCLUDED.is_allowed`,
+      [id, userId, serverId, accessLevel, isAllowed]
+    );
+    return { userId, serverId, isAllowed };
   },
   async hasServerAccess(userId, serverId) {
-    // Default to true for now
-    return true;
+    const row = await dbGet(
+      'SELECT is_allowed, access_level FROM user_server_access WHERE user_id = ? AND server_id = ?',
+      [userId, serverId]
+    );
+    if (!row) return true; // default allow if no record
+    if (row.is_allowed !== null && row.is_allowed !== undefined) return row.is_allowed === true;
+    return row.access_level !== 'denied';
+  },
+  async getServerMembersAccess(serverId) {
+    return dbAll(
+      `SELECT u.id, u.username, u.display_name, u.avatar,
+              CASE WHEN usa.is_allowed IS NOT NULL THEN usa.is_allowed
+                   WHEN usa.access_level = 'denied' THEN FALSE
+                   ELSE TRUE END as is_allowed
+       FROM users u
+       JOIN server_members sm ON u.id = sm.user_id
+       LEFT JOIN user_server_access usa ON u.id = usa.user_id AND usa.server_id = ?
+       WHERE sm.server_id = ?
+       ORDER BY u.username`,
+      [serverId, serverId]
+    );
+  },
+  async deleteServerAccess(userId, serverId) {
+    return dbRun(
+      'DELETE FROM user_server_access WHERE user_id = ? AND server_id = ?',
+      [userId, serverId]
+    );
   }
 };
 

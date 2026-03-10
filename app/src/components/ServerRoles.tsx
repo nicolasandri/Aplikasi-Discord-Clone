@@ -179,7 +179,9 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
   }, [activeTab, editingRole, fetchRoleChannels]);
 
   const getRoleMemberCount = (roleId: string) => {
-    return members.filter(m => m.role_id === roleId).length;
+    return members.filter(m =>
+      (m.role_ids && m.role_ids.includes(roleId)) || m.role_id === roleId
+    ).length;
   };
 
   const handleCreateRole = async () => {
@@ -385,17 +387,17 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
   );
 
   const getMembersWithRole = (roleId: string) => {
-    // Check in roles array (multiple roles support) or legacy role_id
-    return members.filter(m => 
-      (m.roles && m.roles.some((r: any) => r.id === roleId)) || 
+    return members.filter(m =>
+      (m.role_ids && m.role_ids.includes(roleId)) ||
+      (m.roles && m.roles.some((r: any) => r.id === roleId)) ||
       m.role_id === roleId
     );
   };
 
   const getMembersWithoutRole = (roleId: string) => {
-    // Member doesn't have this role if not in roles array and not legacy role_id
-    return members.filter(m => 
-      !(m.roles && m.roles.some((r: any) => r.id === roleId)) && 
+    return members.filter(m =>
+      !(m.role_ids && m.role_ids.includes(roleId)) &&
+      !(m.roles && m.roles.some((r: any) => r.id === roleId)) &&
       m.role_id !== roleId
     );
   };
