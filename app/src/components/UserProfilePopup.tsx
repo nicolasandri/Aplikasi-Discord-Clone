@@ -384,11 +384,10 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   // Handle loading
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
         <div 
-          className="absolute right-[260px] top-[80px] w-[340px] bg-[#1e1f22] rounded-lg overflow-hidden shadow-2xl p-8"
-          style={{ maxHeight: 'calc(100vh - 100px)' }}
+          className="bg-[#1e1f22] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-center">
             <div className="w-10 h-10 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
@@ -401,11 +400,10 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   // If profile is null after loading, show error
   if (!profile) {
     return (
-      <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
         <div 
-          className="absolute right-[260px] top-[80px] w-[340px] bg-[#1e1f22] rounded-lg overflow-hidden shadow-2xl p-8"
-          style={{ maxHeight: 'calc(100vh - 100px)' }}
+          className="bg-[#1e1f22] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
+          onClick={(e) => e.stopPropagation()}
         >
           <p className="text-center text-[#a0a0b0]">Gagal memuat profil</p>
         </div>
@@ -420,30 +418,26 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   const displayName = profile.displayName || profile.username;
 
   return (
-    <div className="fixed inset-0 z-50">
-      {/* Backdrop - only closes on click */}
-      <div className="absolute inset-0" onClick={onClose} />
-      
-      {/* Popup Card - positioned on the right side near member list */}
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="absolute right-[260px] top-[80px] w-[340px] bg-[#1e1f22] rounded-lg overflow-hidden shadow-2xl"
-        style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}
+        className="bg-[#1e1f22] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Banner */}
+        {/* Banner - Design seperti MemberProfilePopup */}
         <div 
-          className="h-[120px] w-full"
+          className="h-[120px] w-full relative"
           style={{ 
             background: `linear-gradient(135deg, ${bannerColor} 0%, #1e1f22 100%)` 
           }}
-        />
-        
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
         >
-          <X className="w-4 h-4" />
-        </button>
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Avatar */}
         <div className="px-4 -mt-12 relative">
