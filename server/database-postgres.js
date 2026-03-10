@@ -967,11 +967,13 @@ const messageDB = {
     const row = await queryOne(
       `SELECT m.*, u.id as user_id, u.username, u.avatar,
               rm.id as reply_id, rm.content as reply_content,
-              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
+              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar,
+              c.server_id as server_id
        FROM messages m
        JOIN users u ON m.user_id::text = u.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
+       LEFT JOIN channels c ON m.channel_id::text = c.id::text
        WHERE m.id = $1`,
       [id]
     );
