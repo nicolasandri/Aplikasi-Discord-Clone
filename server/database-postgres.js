@@ -968,12 +968,15 @@ const messageDB = {
       `SELECT m.*, u.id as user_id, u.username, u.avatar,
               rm.id as reply_id, rm.content as reply_content,
               ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar,
-              c.server_id as server_id
+              c.server_id as server_id,
+              sr.color as role_color, sr.name as role_name
        FROM messages m
        JOIN users u ON m.user_id::text = u.id::text
+       JOIN channels c ON m.channel_id::text = c.id::text
+       LEFT JOIN server_members sm ON m.user_id::text = sm.user_id::text AND c.server_id::text = sm.server_id::text
+       LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
-       LEFT JOIN channels c ON m.channel_id::text = c.id::text
        WHERE m.id = $1`,
       [id]
     );
@@ -987,9 +990,14 @@ const messageDB = {
     const rows = await queryMany(
       `SELECT m.*, u.id as user_id, u.username, u.avatar,
               rm.id as reply_id, rm.content as reply_content,
-              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
+              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar,
+              c.server_id,
+              sr.color as role_color, sr.name as role_name
        FROM messages m
        JOIN users u ON m.user_id::text = u.id::text
+       JOIN channels c ON m.channel_id::text = c.id::text
+       LEFT JOIN server_members sm ON m.user_id::text = sm.user_id::text AND c.server_id::text = sm.server_id::text
+       LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
        WHERE m.channel_id = $1
@@ -1177,7 +1185,9 @@ const messageDB = {
     const user = {
       id: row.user_id,
       username: row.username,
-      avatar: row.avatar
+      avatar: row.avatar,
+      role_color: row.role_color,
+      role_name: row.role_name
     };
     
     // Format replyTo object
