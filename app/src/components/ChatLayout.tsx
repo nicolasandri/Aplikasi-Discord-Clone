@@ -1461,6 +1461,7 @@ export function ChatLayout() {
         onOpenFriends={() => setViewMode('friends')}
         isFriendsOpen={viewMode === 'friends'}
         serverUnreadCounts={serverUnreadCounts}
+        dmUnreadCount={totalDMUnread}
       />
 
       {/* Left Sidebar */}

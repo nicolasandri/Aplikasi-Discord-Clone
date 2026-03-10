@@ -49,6 +49,7 @@ interface ServerListProps {
   isFriendsOpen?: boolean;
   isMobile?: boolean;
   serverUnreadCounts?: Record<string, { count: number; hasMention: boolean }>;
+  dmUnreadCount?: number;
 }
 
 // Separate component for server icon to handle image errors properly
@@ -156,7 +157,8 @@ export function ServerList({
   onOpenFriends,
   isFriendsOpen = false,
   isMobile = false,
-  serverUnreadCounts = {}
+  serverUnreadCounts = {},
+  dmUnreadCount = 0
 }: ServerListProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newServerName, setNewServerName] = useState('');
@@ -300,6 +302,11 @@ export function ServerList({
             <div className="font-semibold">Pesan Langsung</div>
             <div className="text-sm opacity-70">{onlineFriendCount} teman online</div>
           </div>
+          {dmUnreadCount > 0 && (
+            <Badge className="bg-[#ed4245] text-white text-xs min-w-[24px] h-6 flex items-center justify-center">
+              {dmUnreadCount > 99 ? '99+' : dmUnreadCount}
+            </Badge>
+          )}
           {pendingCount > 0 && (
             <Badge className="bg-[#ed4245] text-white text-xs min-w-[24px] h-6 flex items-center justify-center">
               {pendingCount > 9 ? '9+' : pendingCount}
@@ -418,8 +425,14 @@ export function ServerList({
                 <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
               )}
               
-              {/* Unread badge */}
-              {pendingCount > 0 && (
+              {/* Unread DM badge */}
+              {dmUnreadCount > 0 && !isFriendsOpen && (
+                <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
+                  {dmUnreadCount > 99 ? '99+' : dmUnreadCount}
+                </Badge>
+              )}
+              {/* Pending friend requests badge */}
+              {pendingCount > 0 && dmUnreadCount === 0 && (
                 <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
                   {pendingCount > 9 ? '9+' : pendingCount}
                 </Badge>
