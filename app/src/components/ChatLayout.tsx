@@ -609,7 +609,8 @@ export function ChatLayout() {
     if (!socket) return;
 
     const wrappedHandlers = {
-      dm_message_received: (data: { channelId: string; sender?: any }) => dmHandlersRef.current.handleDMMessageReceived(data),
+      dm_message_received: (data: { channelId: string; sender?: any; messageId?: string }) => dmHandlersRef.current.handleDMMessageReceived(data),
+      'new-dm-message': (data: { channelId: string; sender?: any; messageId?: string; message?: any }) => dmHandlersRef.current.handleDMMessageReceived({ channelId: data.channelId, sender: data.sender, messageId: data.message?.id }),
       dm_channel_updated: () => dmHandlersRef.current.fetchDMUnreadCount(),
       group_dm_created: (data: { channelId: string; name?: string }) => dmHandlersRef.current.handleGroupDMCreated(data),
       user_added_to_dm: (data: { channelId: string; channelName?: string }) => dmHandlersRef.current.handleUserAddedToDM(data),
