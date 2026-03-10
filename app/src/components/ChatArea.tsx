@@ -1292,19 +1292,24 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       const apiUrl = isElectron ? 'http://localhost:3001/api' : (import.meta.env.VITE_API_URL || '/api');
       const baseUrl = isElectron ? 'http://localhost:3001' : '';
 
-      const [userRes, roleRes] = await Promise.allSettled([
+      const [userRes, roleRes, memberRolesRes] = await Promise.allSettled([
         fetch(`${apiUrl}/users/${userId}`, { headers }),
         fetch(`${apiUrl}/servers/${serverId}/member-role/${userId}`, { headers }),
+        fetch(`${apiUrl}/servers/${serverId}/members/${userId}/roles`, { headers }),
       ]);
 
       let userData: any = null;
       let roleData: any = null;
+      let memberRoles: any[] = [];
 
       if (userRes.status === 'fulfilled' && userRes.value.ok) {
         userData = await userRes.value.json();
       }
       if (roleRes.status === 'fulfilled' && roleRes.value.ok) {
         roleData = await roleRes.value.json();
+      }
+      if (memberRolesRes.status === 'fulfilled' && memberRolesRes.value.ok) {
+        memberRoles = await memberRolesRes.value.json();
       }
 
       if (userData) {
@@ -1319,7 +1324,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           role_name: roleData?.role_name,
           role_color: roleData?.role_color,
           joinedAt: roleData?.joinedAt || userData.created_at,
-          roles: roleData?.role_name ? [{ id: roleData.role_id || '', name: roleData.role_name, color: roleData.role_color || '#99aab5' }] : [],
+          roles: memberRoles.length > 0 ? memberRoles : 
+                 (roleData?.role_name ? [{ id: roleData.role_id || '', name: roleData.role_name, color: roleData.role_color || '#99aab5' }] : []),
         };
         setSelectedMemberProfile(member);
       }

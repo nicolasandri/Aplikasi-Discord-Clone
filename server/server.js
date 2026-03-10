@@ -2296,6 +2296,40 @@ app.delete('/api/servers/:serverId/members/:userId/roles/:roleId', authenticateT
   }
 });
 
+// Get member's custom roles
+app.get('/api/servers/:serverId/members/:userId/roles', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const requesterId = req.userId;
+    
+    // Check if requester is a member of the server
+    const isMember = await serverDB.isMember(serverId, requesterId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    // Get member's custom roles
+    const { pool } = require('./config/database');
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT sr.id, sr.name, sr.color, sr.position
+         FROM member_roles mr
+         JOIN server_roles sr ON mr.role_id = sr.id
+         WHERE mr.server_id = $1 AND mr.user_id = $2
+         ORDER BY sr.position DESC`,
+        [serverId, userId]
+      );
+      res.json(result.rows);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Get member roles error:', error);
+    res.status(500).json({ error: 'Failed to get member roles' });
+  }
+});
+
 // ==================== MESSAGE REACTION ROUTES ====================
 
 // Add reaction to message

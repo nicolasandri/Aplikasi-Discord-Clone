@@ -32,40 +32,15 @@ interface UserProfile {
   created_at?: string;
   joinedAt?: string;
   bio?: string;
+  roles?: Array<{
+    id: string;
+    name: string;
+    color: string;
+    position: number;
+  }>;
 }
 
 type FriendshipStatus = 'none' | 'pending_outgoing' | 'pending_incoming' | 'accepted' | 'blocked';
-
-const roleConfig = {
-  owner: {
-    label: 'Owner',
-    color: 'text-[#f0b232]',
-    bgColor: 'bg-[#f0b232]/10',
-    borderColor: 'border-[#f0b232]/30',
-    icon: Crown,
-  },
-  admin: {
-    label: 'Admin',
-    color: 'text-[#ed4245]',
-    bgColor: 'bg-[#ed4245]/10',
-    borderColor: 'border-[#ed4245]/30',
-    icon: Shield,
-  },
-  moderator: {
-    label: 'Moderator',
-    color: 'text-[#43b581]',
-    bgColor: 'bg-[#43b581]/10',
-    borderColor: 'border-[#43b581]/30',
-    icon: Shield,
-  },
-  member: {
-    label: 'Member',
-    color: 'text-[#a0a0b0]',
-    bgColor: 'bg-[#00d4ff]/10',
-    borderColor: 'border-[#00d4ff]/30',
-    icon: UserIcon,
-  },
-};
 
 const statusConfig = {
   online: { color: 'bg-[#3ba55d]', label: 'Online' },
@@ -80,6 +55,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>('none');
   const [isProcessing, setIsProcessing] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
+  const [customRoles, setCustomRoles] = useState<Array<{ id: string; name: string; color: string; position: number }>>([]);
   const { toast } = useToast();
 
   // Update avatar version when profile changes
@@ -97,8 +73,26 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     if (isOpen && userId) {
       fetchUserProfile();
       fetchFriendshipStatus();
+      if (serverId) {
+        fetchCustomRoles(serverId);
+      }
     }
   }, [isOpen, userId, serverId]);
+
+  const fetchCustomRoles = async (sid: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/servers/${sid}/roles`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCustomRoles(data.filter((r: any) => !r.is_default));
+      }
+    } catch (e) {
+      console.error('Failed to fetch custom roles:', e);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -108,7 +102,10 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
 
       // Fetch user data dulu (pasti berhasil)
       const userRes = await fetch(`${API_URL}/users/${userId}`, { headers });
-      if (!userRes.ok) return;
+      if (!userRes.ok) {
+        setLoading(false);
+        return;
+      }
       const userData = await userRes.json();
 
       // Jika di server context, fetch role secara terpisah
@@ -117,6 +114,18 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
           const memberRes = await fetch(`${API_URL}/servers/${serverId}/member-role/${userId}`, { headers });
           if (memberRes.ok) {
             const memberData = await memberRes.json();
+            
+            // Fetch member's custom roles
+            try {
+              const memberRolesRes = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/roles`, { headers });
+              if (memberRolesRes.ok) {
+                const memberRoles = await memberRolesRes.json();
+                userData.roles = memberRoles;
+              }
+            } catch (_) {
+              // Ignore roles fetch error
+            }
+            
             // Gabungkan data user + role dari server
             setProfile({
               ...userData,
@@ -125,9 +134,11 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
               role_color: memberData.role_color,
               joinedAt: memberData.joinedAt || memberData.joined_at || userData.created_at,
             });
+            setLoading(false);
             return;
           }
-        } catch (_) {
+        } catch (err) {
+          console.error('Failed to fetch member role:', err);
           // Role fetch gagal, pakai data user saja
         }
       }
@@ -351,15 +362,33 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     onClose();
   };
 
+  // Get banner color based on highest role
+  const getBannerColor = () => {
+    if (profile?.roles && profile.roles.length > 0 && customRoles.length > 0) {
+      const sortedRoles = [...profile.roles].sort((a, b) => {
+        const roleA = customRoles.find(cr => cr.id === a.id);
+        const roleB = customRoles.find(cr => cr.id === b.id);
+        return (roleB?.position || 0) - (roleA?.position || 0);
+      });
+      return sortedRoles[0]?.color || profile.role_color || '#00d4ff';
+    }
+    if (profile?.role_color) return profile.role_color;
+    if (profile?.role === 'owner') return '#ffd700';
+    if (profile?.role === 'admin') return '#ed4245';
+    if (profile?.role === 'moderator') return '#43b581';
+    return '#00d4ff';
+  };
+
   if (!isOpen) return null;
 
-  // Handle loading and null profile
+  // Handle loading
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="fixed inset-0 z-50">
+        <div className="absolute inset-0" onClick={onClose} />
         <div 
-          className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
-          onClick={(e) => e.stopPropagation()}
+          className="absolute right-[260px] top-[80px] w-[340px] bg-[#1e1f22] rounded-lg overflow-hidden shadow-2xl p-8"
+          style={{ maxHeight: 'calc(100vh - 100px)' }}
         >
           <div className="flex justify-center">
             <div className="w-10 h-10 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
@@ -372,10 +401,11 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
   // If profile is null after loading, show error
   if (!profile) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="fixed inset-0 z-50">
+        <div className="absolute inset-0" onClick={onClose} />
         <div 
-          className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl p-8"
-          onClick={(e) => e.stopPropagation()}
+          className="absolute right-[260px] top-[80px] w-[340px] bg-[#1e1f22] rounded-lg overflow-hidden shadow-2xl p-8"
+          style={{ maxHeight: 'calc(100vh - 100px)' }}
         >
           <p className="text-center text-[#a0a0b0]">Gagal memuat profil</p>
         </div>
@@ -383,198 +413,228 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
     );
   }
 
-  const role = profile.role || 'member';
-  const roleName = profile.role_name || roleConfig[role as keyof typeof roleConfig]?.label || 'Member';
-  const roleColor = profile.role_color || (roleConfig[role as keyof typeof roleConfig]?.color.replace('text-', '') || '#b9bbbe');
-  const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.member;
-  const RoleIcon = config.icon;
   const isSelf = currentUserId === userId;
   const status = profile.status || 'offline';
   const statusCfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.offline;
+  const bannerColor = getBannerColor();
+  const displayName = profile.displayName || profile.username;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 z-50">
+      {/* Backdrop - only closes on click */}
+      <div className="absolute inset-0" onClick={onClose} />
+      
+      {/* Popup Card - positioned on the right side near member list */}
       <div 
-        className="bg-[#232428] rounded-lg w-[400px] max-w-[90vw] overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="absolute right-[260px] top-[80px] w-[340px] bg-[#1e1f22] rounded-lg overflow-hidden shadow-2xl"
+        style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}
       >
-        {/* Header with gradient banner */}
-        <div className="h-28 bg-gradient-to-br from-[#00d4ff] via-[#00b8db] to-[#3b45a0] relative">
-          {/* Close button */}
-          <button 
-            onClick={onClose}
-            className="absolute top-3 right-3 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        {/* Banner */}
+        <div 
+          className="h-[120px] w-full"
+          style={{ 
+            background: `linear-gradient(135deg, ${bannerColor} 0%, #1e1f22 100%)` 
+          }}
+        />
+        
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Avatar */}
+        <div className="px-4 -mt-12 relative">
+          <div className="relative inline-block">
+            <img
+              src={profile.avatar 
+                ? `${profile.avatar.startsWith('http') ? profile.avatar : `${BASE_URL}${profile.avatar}`}?v=${avatarVersion}`
+                : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}
+              alt={displayName}
+              className="w-[80px] h-[80px] rounded-full border-4 border-[#1e1f22] bg-[#1e1f22]"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`;
+              }}
+            />
+            {/* Status indicator on avatar */}
+            <div 
+              className={`absolute bottom-1 right-1 w-5 h-5 ${statusCfg.color} rounded-full border-[3px] border-[#1e1f22]`}
+            />
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="px-4 pb-4 relative">
-          {/* Avatar with status */}
-          <div className="relative -mt-14 mb-3">
-            <div className="relative inline-block">
-              <div className="w-20 h-20 rounded-full border-[6px] border-[#232428] bg-[#232428] overflow-hidden">
-                <img
-                  src={profile.avatar 
-                    ? `${profile.avatar.startsWith('http') ? profile.avatar : `${BASE_URL}${profile.avatar}`}?v=${avatarVersion}`
-                    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}
-                  alt={profile.displayName || profile.username}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`;
-                  }}
-                />
-              </div>
-              {/* Status indicator */}
-              <div className={`absolute bottom-1 right-1 w-6 h-6 ${statusCfg.color} rounded-full border-[4px] border-[#232428]`} />
+        {/* Profile Info */}
+        <div className="px-4 pb-4 pt-3">
+          {/* Username - use highest role color */}
+          <div className="mb-1">
+            <h2 
+              className="text-xl font-extrabold tracking-tight"
+              style={{ color: bannerColor }}
+            >
+              {displayName}
+            </h2>
+            <p className="text-[#b5bac1] text-sm">{profile.username}</p>
+          </div>
+
+          {/* Status */}
+          <div className="flex items-center gap-2 mt-3 mb-4">
+            <div className={`w-2 h-2 ${statusCfg.color} rounded-full`} />
+            <span className="text-[#b5bac1] text-sm">{statusCfg.label}</span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-[1px] bg-[#2b2d31] my-4" />
+
+          {/* Bio/About Section */}
+          {profile.bio && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-white uppercase tracking-wide mb-2">
+                About
+              </h3>
+              <p className="text-[#b5bac1] text-sm">{profile.bio}</p>
+            </div>
+          )}
+
+          {/* Member Since */}
+          <div className="mb-4">
+            <h3 className="text-xs font-semibold text-white uppercase tracking-wide mb-2">
+              Member Since
+            </h3>
+            <div className="text-[#b5bac1] text-sm">
+              {(profile.joinedAt || profile.created_at)
+                ? new Date(profile.joinedAt || profile.created_at!).toLocaleDateString('id-ID', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })
+                : 'Unknown'
+              }
             </div>
           </div>
 
-          <div className="space-y-3">
-            {/* User Info Header */}
-            <div className="pb-3 border-b border-[#1e1f22]">
-              {/* Display Name - colored by role */}
-              <h2
-                className="text-xl font-bold leading-tight"
-                style={{ color: serverId && roleColor !== '#b9bbbe' && roleColor !== '#99aab5' ? roleColor : 'white' }}
-              >
-                {profile.displayName || profile.username}
-              </h2>
-
-              {/* Username */}
-              <p className="text-[#a0a0b0] text-sm mt-0.5">
-                {profile.username}
-              </p>
-
-              {/* Status text */}
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <div className={`w-2.5 h-2.5 rounded-full ${statusCfg.color}`} />
-                <span className="text-sm text-[#b5bac1]">{statusCfg.label}</span>
-              </div>
-            </div>
-
-            {/* Bio/About Section */}
-            {profile.bio && (
-              <div className="bg-[#111214] rounded-lg p-3">
-                <p className="text-[#dbdee1] text-sm">{profile.bio}</p>
-              </div>
-            )}
-
-            {/* Member Since */}
-            <div className="bg-[#111214] rounded-lg p-3">
-              <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide mb-1">
-                Member Since
-              </p>
-              <p className="text-[#dbdee1] text-sm">
-                {(() => {
-                  const dateStr = profile.joinedAt || profile.created_at;
-                  return dateStr
-                    ? new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                    : 'Unknown';
-                })()}
-              </p>
-            </div>
-
-            {/* Jobdesk / Role Section */}
-            {serverId && profile.role && (
-              <div className="bg-[#111214] rounded-lg p-3">
-                <p className="text-xs text-[#b5bac1] font-semibold uppercase tracking-wide mb-2">
-                  Jobdesk
-                </p>
-                <div className="inline-flex">
-                  <div
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
-                    style={{
-                      backgroundColor: `${roleColor}20`,
-                      borderColor: `${roleColor}40`
-                    }}
-                  >
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: roleColor }}
-                    />
-                    <span
-                      className="text-xs font-semibold"
-                      style={{ color: roleColor }}
+          {/* Jobdesk / Roles */}
+          {serverId && (
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold text-white uppercase tracking-wide mb-2">
+                JOBDESK
+              </h3>
+              
+              {/* Display all roles sorted by position */}
+              {profile.roles && profile.roles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {[...profile.roles].sort((a, b) => {
+                    const roleA = customRoles.find(cr => cr.id === a.id);
+                    const roleB = customRoles.find(cr => cr.id === b.id);
+                    return (roleB?.position || 0) - (roleA?.position || 0);
+                  }).map((role) => (
+                    <div 
+                      key={role.id}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+                      style={{ 
+                        backgroundColor: `${role.color || '#99aab5'}20`,
+                        color: role.color || '#99aab5'
+                      }}
                     >
-                      {roleName}
-                    </span>
-                  </div>
+                      <div 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: role.color || '#99aab5' }}
+                      />
+                      {role.name}
+                    </div>
+                  ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                /* Fallback to single role display */
+                <div 
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+                  style={{ 
+                    backgroundColor: `${profile.role_color || '#99aab5'}20`,
+                    color: profile.role_color || '#99aab5'
+                  }}
+                >
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: profile.role_color || '#99aab5' }}
+                  />
+                  {(profile.role_name && profile.role_name.trim() !== '') ? profile.role_name : 
+                   (profile.role === 'owner' ? 'Owner' : 
+                    profile.role === 'admin' ? 'Admin' : 
+                    profile.role === 'moderator' ? 'Moderator' : 
+                    profile.role === 'custom' ? 'Custom Role' : 
+                    'Member')}
+                </div>
+              )}
+            </div>
+          )}
 
+          {/* Action Buttons */}
+          {!isSelf && (
+            <div className="flex gap-2 pt-2">
+              {/* Message Button */}
+              {(friendshipStatus === 'accepted' || friendshipStatus === 'none') && (
+                <Button
+                  onClick={handleStartDM}
+                  className="flex-1 h-10 bg-[#00d4ff] hover:bg-[#00b8db] text-white font-medium rounded-md"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Message
+                </Button>
+              )}
 
+              {/* Add Friend Button */}
+              {friendshipStatus === 'none' && (
+                <Button
+                  onClick={handleAddFriend}
+                  disabled={isProcessing}
+                  className="flex-1 h-10 bg-[#248046] hover:bg-[#1a6334] text-white font-medium rounded-md"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add Friend
+                </Button>
+              )}
 
-            {/* Action Buttons */}
-            {!isSelf && (
-              <div className="flex gap-2 pt-2">
-                {/* Message Button */}
-                {(friendshipStatus === 'accepted' || friendshipStatus === 'none') && (
+              {/* Accept/Reject Buttons */}
+              {friendshipStatus === 'pending_incoming' && (
+                <>
                   <Button
-                    onClick={handleStartDM}
-                    className="flex-1 h-10 bg-[#00d4ff] hover:bg-[#00b8db] text-white font-medium rounded-md"
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Message
-                  </Button>
-                )}
-
-                {/* Add Friend Button */}
-                {friendshipStatus === 'none' && (
-                  <Button
-                    onClick={handleAddFriend}
+                    onClick={handleAcceptRequest}
                     disabled={isProcessing}
                     className="flex-1 h-10 bg-[#248046] hover:bg-[#1a6334] text-white font-medium rounded-md"
                   >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add Friend
+                    <Check className="w-4 h-4 mr-2" />
+                    Accept
                   </Button>
-                )}
-
-                {/* Accept/Reject Buttons */}
-                {friendshipStatus === 'pending_incoming' && (
-                  <>
-                    <Button
-                      onClick={handleAcceptRequest}
-                      disabled={isProcessing}
-                      className="flex-1 h-10 bg-[#248046] hover:bg-[#1a6334] text-white font-medium rounded-md"
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Accept
-                    </Button>
-                    <Button
-                      onClick={handleRemoveFriend}
-                      disabled={isProcessing}
-                      variant="outline"
-                      className="flex-1 h-10 border-[#ed4245] text-[#ed4245] hover:bg-[#ed4245]/10 font-medium rounded-md"
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Ignore
-                    </Button>
-                  </>
-                )}
-
-                {/* Cancel Request Button */}
-                {friendshipStatus === 'pending_outgoing' && (
                   <Button
                     onClick={handleRemoveFriend}
                     disabled={isProcessing}
                     variant="outline"
-                    className="flex-1 h-10 border-[#72767d] text-[#a0a0b0] hover:bg-[#72767d]/10 font-medium rounded-md"
+                    className="flex-1 h-10 border-[#ed4245] text-[#ed4245] hover:bg-[#ed4245]/10 font-medium rounded-md"
                   >
-                    <UserX className="w-4 h-4 mr-2" />
-                    Cancel Request
+                    <X className="w-4 h-4 mr-2" />
+                    Ignore
                   </Button>
-                )}
-              </div>
-            )}
-          </div>
+                </>
+              )}
+
+              {/* Cancel Request Button */}
+              {friendshipStatus === 'pending_outgoing' && (
+                <Button
+                  onClick={handleRemoveFriend}
+                  disabled={isProcessing}
+                  variant="outline"
+                  className="flex-1 h-10 border-[#72767d] text-[#a0a0b0] hover:bg-[#72767d]/10 font-medium rounded-md"
+                >
+                  <UserX className="w-4 h-4 mr-2" />
+                  Cancel Request
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
