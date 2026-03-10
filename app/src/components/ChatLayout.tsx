@@ -589,21 +589,16 @@ export function ChatLayout() {
   useEffect(() => {
     dmHandlersRef.current.handleDMMessageReceived = (data: { channelId: string; sender?: any; messageId?: string }) => {
       fetchDMUnreadCount();
-      if (data.channelId === selectedDMChannelId) {
-        // Messages will be updated via socket event in DMChatArea
-      }
-      
+
       // Show notification for ALL online users (like Discord)
       const channel = dmChannels.find(c => c.id === data.channelId);
-      if (channel) {
-        const senderName = data.sender?.displayName || data.sender?.username || channel.friend?.displayName || channel.friend?.username || channel.name || 'Pesan Baru';
-        notify({
-          title: channel.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
-          body: 'Pesan baru',
-          icon: data.sender?.avatar || channel.friend?.avatar,
-          tag: `dm-${data.messageId || Date.now()}`, // Unique tag
-        });
-      }
+      const senderName = data.sender?.displayName || data.sender?.username || channel?.friend?.displayName || channel?.friend?.username || channel?.name || 'Pesan Baru';
+      notify({
+        title: channel?.type === 'group' ? `${senderName} di ${channel.name || 'Grup'}` : senderName,
+        body: 'Pesan baru',
+        icon: data.sender?.avatar || channel?.friend?.avatar,
+        tag: `dm-${data.messageId || Date.now()}`,
+      });
     };
     dmHandlersRef.current.fetchDMUnreadCount = fetchDMUnreadCount;
   }, [viewMode, selectedDMChannelId, dmChannels, notify, fetchDMUnreadCount]);
