@@ -553,8 +553,8 @@ const serverDB = {
               ARRAY_AGG(mr.role_id) FILTER (WHERE mr.role_id IS NOT NULL) as role_ids
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
-       LEFT JOIN member_roles mr ON u.id::text = mr.user_id::text AND mr.server_id::text = $1::text
-       WHERE sm.server_id = $1
+       LEFT JOIN member_roles mr ON u.id::text = mr.user_id AND mr.server_id = $1
+       WHERE sm.server_id::text = $1
        GROUP BY u.id, u.username, u.avatar, u.status, sm.role`,
       [serverId]
     );
