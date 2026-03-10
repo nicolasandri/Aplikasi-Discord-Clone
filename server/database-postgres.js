@@ -1058,18 +1058,21 @@ const messageDB = {
     const userRoleColors = {};
     if (serverId && userIds.length > 0) {
       try {
+        console.log('[getByChannel] Fetching role colors for server:', serverId, 'users:', userIds);
         const roleRows = await queryMany(
           `SELECT sm.user_id, sr.color, sr.name
            FROM server_members sm
-           LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text
-           WHERE sm.server_id::text = $1::text AND sm.user_id = ANY($2)`,
+           LEFT JOIN server_roles sr ON sm.role_id = sr.id
+           WHERE sm.server_id = $1 AND sm.user_id = ANY($2::uuid[])`,
           [serverId, userIds]
         );
+        console.log('[getByChannel] Role rows:', roleRows);
         for (const r of roleRows) {
           if (r.user_id) {
             userRoleColors[r.user_id] = { color: r.color, name: r.name };
           }
         }
+        console.log('[getByChannel] User role colors:', userRoleColors);
       } catch (e) {
         console.error('Failed to fetch role colors:', e);
       }
