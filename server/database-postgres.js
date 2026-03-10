@@ -2163,15 +2163,31 @@ const roleChannelAccessDB = {
 
 const subscriptionDB = {
   async create(userId, subscription) {
-    // TODO: Implement
+    const id = uuidv4();
+    const { endpoint, keys } = subscription;
+    await query(
+      `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (user_id, endpoint) DO UPDATE SET p256dh = $4, auth = $5`,
+      [id, userId, endpoint, keys.p256dh, keys.auth]
+    );
     return { success: true };
   },
+  async getByUser(userId) {
+    return await queryMany(
+      'SELECT * FROM push_subscriptions WHERE user_id = $1',
+      [userId]
+    );
+  },
   async remove(userId, endpoint) {
-    // TODO: Implement
+    await query(
+      'DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2',
+      [userId, endpoint]
+    );
     return { success: true };
   },
   async removeAllByUser(userId) {
-    // TODO: Implement
+    await query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]);
     return { success: true };
   }
 };
