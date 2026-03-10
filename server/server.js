@@ -1849,7 +1849,8 @@ app.get('/api/servers/:serverId/member-role/:userId', authenticateToken, async (
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `SELECT sm.role, sm.role_id, sm.joined_at,
+        `SELECT sm.role, sm.role_id,
+                COALESCE(sm.joined_at, u.created_at) as joined_at,
                 COALESCE(sr.name,
                   CASE sm.role
                     WHEN 'owner' THEN 'Owner'
@@ -1867,6 +1868,7 @@ app.get('/api/servers/:serverId/member-role/:userId', authenticateToken, async (
                   END
                 ) as role_color
          FROM server_members sm
+         JOIN users u ON u.id = sm.user_id
          LEFT JOIN server_roles sr ON sm.role_id = sr.id
          WHERE sm.server_id = $1 AND sm.user_id = $2`,
         [serverId, userId]
