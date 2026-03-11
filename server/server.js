@@ -282,7 +282,7 @@ const dbModule = usePostgres ? require('./database-postgres') : require('./datab
 // Security: Allowed origins for CORS
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://workgrid.homeku.net'];
 
 const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, Permissions } = dbModule;
 

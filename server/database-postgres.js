@@ -1814,7 +1814,7 @@ const dmDB = {
 
   async getDMChannelById(channelId) {
     const channel = await queryOne(
-      `SELECT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
+      `SELECT dc.id, dc.created_at, dc.updated_at,
               dc.user1_id, dc.user2_id
        FROM dm_channels dc
        WHERE dc.id = $1`,
@@ -1827,7 +1827,7 @@ const dmDB = {
 
   async getUserDMChannels(userId) {
     const channels = await queryMany(
-      `SELECT dc.id, dc.name, dc.type, dc.creator_id, dc.created_at, dc.updated_at,
+      `SELECT dc.id, dc.created_at, dc.updated_at,
               (SELECT content FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message,
               (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
               (SELECT COUNT(*) FROM dm_messages WHERE channel_id = dc.id AND sender_id != $1 AND is_read = false) as unread_count
@@ -1848,7 +1848,7 @@ const dmDB = {
       return {
         ...ch,
         members,
-        friend: ch.type === 'direct' ? (members.find(m => m.id !== userId) || members[0]) : null
+        friend: members.find(m => m.id !== userId) || members[0] || null
       };
     }));
     return result;
