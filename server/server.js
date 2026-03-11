@@ -2134,10 +2134,10 @@ app.put('/api/servers/:serverId/roles/:roleId/reorder', authenticateToken, async
 });
 
 // ============================================
-// ROLE-CHANNEL ACCESS ENDPOINTS
+// ROLE-CHANNEL ACCESS ENDPOINTS (Simplified)
 // ============================================
 
-// Get all channel access for a specific role
+// Get all channels for a role with access status
 app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, async (req, res) => {
   try {
     const { serverId, roleId } = req.params;
@@ -2149,42 +2149,23 @@ app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, asyn
       return res.status(403).json({ error: 'You do not have permission to manage roles' });
     }
     
-    // Check database type
-    const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+    // Get all channels for this server
+    const allChannels = await channelDB.getByServer(serverId);
     
-    // Get all channels for this server with access info for the role
-    let channels;
-    if (isPostgres) {
-      // Use raw query with proper UUID casting
-      const { pool } = require('./config/database');
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          `SELECT c.id::text as id, c.name, c.type, c.category_id,
-                  COALESCE(rca.is_allowed, true) as is_allowed
-           FROM channels c
-           LEFT JOIN role_channel_access rca 
-             ON c.id = rca.channel_id::uuid 
-             AND rca.role_id = $1::uuid
-           WHERE c.server_id::text = $2
-           ORDER BY c.position`,
-          [roleId, serverId]
-        );
-        channels = result.rows;
-      } finally {
-        client.release();
-      }
-    } else {
-      channels = await dbAll(
-        `SELECT c.id, c.name, c.type, c.category_id,
-                CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
-         FROM channels c
-         LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
-         WHERE c.server_id = ?
-         ORDER BY c.position`,
-        [roleId, serverId]
-      );
-    }
+    // Get access settings for this role (if any)
+    const accessList = await roleChannelAccessDB.getRoleChannelAccess(roleId);
+    
+    // Merge channel data with access status
+    const channels = allChannels.map(channel => {
+      const access = accessList.find(a => a.channel_id === channel.id);
+      return {
+        id: channel.id,
+        name: channel.name,
+        type: channel.type,
+        category_id: channel.category_id,
+        is_allowed: access ? access.is_allowed : true // Default allow
+      };
+    });
     
     res.json({ channels });
   } catch (error) {
