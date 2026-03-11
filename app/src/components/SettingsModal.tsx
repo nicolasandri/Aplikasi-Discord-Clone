@@ -503,32 +503,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   )}
                 </div>
 
-                {/* Badge Settings */}
-                <div className="mt-4">
-                  <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Badge</Label>
-                  <div className="bg-[#232438] rounded-lg p-3 mt-2 space-y-3">
-                    {BADGE_OPTIONS.map(badge => (
-                      <div key={badge.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 flex items-center justify-center">{badge.render}</div>
-                          <span className="text-white text-sm">{badge.label}</span>
-                        </div>
-                        <button
-                          onClick={() => handleToggleBadge(badge.id)}
-                          disabled={savingBadges}
-                          className={`w-10 h-5 rounded-full transition-colors relative ${
-                            userBadges.includes(badge.id) ? 'bg-[#00d4ff]' : 'bg-[#4f545c]'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
-                            userBadges.includes(badge.id) ? 'translate-x-5' : 'translate-x-0.5'
-                          }`} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 <Button
                   onClick={() => setShowChangePassword(true)}
                   className="w-full bg-[#00d4ff] hover:bg-[#00b8db] text-white mt-4"
@@ -539,7 +513,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             )}
             {activeTab === 'notifications' && <NotificationSettings />}
             {activeTab === 'appearance' && (
-              <p className="text-[#a0a0b0] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
+              <div className="space-y-4">
+                <h3 className="text-white text-lg font-bold">Badge</h3>
+                <div className="bg-[#232438] rounded-lg p-4 space-y-3">
+                  {BADGE_OPTIONS.map(badge => (
+                    <div key={badge.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center">{badge.render}</div>
+                        <span className="text-white text-sm">{badge.label}</span>
+                      </div>
+                      <button
+                        onClick={() => handleToggleBadge(badge.id)}
+                        disabled={savingBadges}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${
+                          userBadges.includes(badge.id) ? 'bg-[#00d4ff]' : 'bg-[#4f545c]'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                          userBadges.includes(badge.id) ? 'translate-x-5' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -783,32 +780,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                 </div>
 
-                {/* Badge Settings */}
-                <div>
-                  <h3 className="text-white font-bold mb-3">Badge</h3>
-                  <div className="bg-[#232438] rounded-lg p-4 space-y-3">
-                    {BADGE_OPTIONS.map(badge => (
-                      <div key={badge.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 flex items-center justify-center">{badge.render}</div>
-                          <span className="text-white text-sm">{badge.label}</span>
-                        </div>
-                        <button
-                          onClick={() => handleToggleBadge(badge.id)}
-                          disabled={savingBadges}
-                          className={`w-10 h-5 rounded-full transition-colors relative ${
-                            userBadges.includes(badge.id) ? 'bg-[#00d4ff]' : 'bg-[#4f545c]'
-                          }`}
-                        >
-                          <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
-                            userBadges.includes(badge.id) ? 'translate-x-5' : 'translate-x-0.5'
-                          }`} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 <div>
                   <h3 className="text-white font-bold mb-3">Password and Authentication</h3>
                   <Button
@@ -831,8 +802,29 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             )}
 
             {activeTab === 'appearance' && (
-              <div className="max-w-3xl">
-                <p className="text-[#a0a0b0] text-center py-12">Fitur ini sedang dalam pengembangan.</p>
+              <div className="max-w-3xl space-y-6">
+                <h3 className="text-white text-xl font-bold">Badge</h3>
+                <div className="bg-[#232438] rounded-lg p-4 space-y-3">
+                  {BADGE_OPTIONS.map(badge => (
+                    <div key={badge.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center">{badge.render}</div>
+                        <span className="text-white text-sm">{badge.label}</span>
+                      </div>
+                      <button
+                        onClick={() => handleToggleBadge(badge.id)}
+                        disabled={savingBadges}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${
+                          userBadges.includes(badge.id) ? 'bg-[#00d4ff]' : 'bg-[#4f545c]'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                          userBadges.includes(badge.id) ? 'translate-x-5' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
