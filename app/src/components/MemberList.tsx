@@ -576,6 +576,9 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
     // Only show context menu for admins, moderators, and owners
     const isStaff = currentUserRole === 'owner' || currentUserRole === 'admin' || currentUserRole === 'moderator';
     const showContextMenu = isStaff && canManage;
+    
+    // Debug logging
+    console.log('[MemberItem] currentUserRole:', currentUserRole, 'isStaff:', isStaff, 'canManage:', canManage, 'showContextMenu:', showContextMenu);
 
     // Get display name for member
     const displayName = member.displayName || member.username;
@@ -600,10 +603,16 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       }
     };
 
+    const handleContextMenu = (e: React.MouseEvent) => {
+      // Prevent default browser context menu
+      e.preventDefault();
+    };
+
     const memberContent = (
       <div 
         className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[#34373c] cursor-pointer group"
         onClick={handleMemberClick}
+        onContextMenu={handleContextMenu}
       >
         <div className="relative">
           <img
@@ -647,13 +656,9 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       </div>
     );
 
-    if (!showContextMenu) {
-      return (
-        <div key={member.id}>
-          {memberContent}
-        </div>
-      );
-    }
+    // Show context menu for all members (for testing)
+    // We'll filter actions based on permissions inside the menu
+    const showContextMenuForAll = true;
 
     return (
       <ContextMenu key={member.id}>
