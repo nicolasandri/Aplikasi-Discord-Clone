@@ -357,63 +357,63 @@ function initDatabase() {
     
     // Add display_name column if not exists (ignore error if already exists)
     db.run(`ALTER TABLE users ADD COLUMN display_name TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding display_name column:', err);
       }
     });
     
     // Add badges column (JSON array like '["vip","crown","verified"]')
     db.run(`ALTER TABLE users ADD COLUMN badges TEXT DEFAULT '[]'`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding badges column:', err);
       }
     });
 
     // Add token_version column for force logout functionality
     db.run(`ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding token_version column:', err);
       }
     });
     
     // Add is_master_admin column for Master Admin functionality
     db.run(`ALTER TABLE users ADD COLUMN is_master_admin INTEGER DEFAULT 0`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding is_master_admin column:', err);
       }
     });
 
     // Add force_password_change column for password reset functionality
     db.run(`ALTER TABLE users ADD COLUMN force_password_change INTEGER DEFAULT 0`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding force_password_change column:', err);
       }
     });
 
     // Add last_login column to track user login time
     db.run(`ALTER TABLE users ADD COLUMN last_login DATETIME`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding last_login column:', err);
       }
     });
 
     // Add last_login_ip column to track IP address
     db.run(`ALTER TABLE users ADD COLUMN last_login_ip TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding last_login_ip column:', err);
       }
     });
 
     // Add is_active column to enable/disable users
     db.run(`ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding is_active column:', err);
       }
     });
 
     // Add joined_via_group_code column to track which group code user used to register
     db.run(`ALTER TABLE users ADD COLUMN joined_via_group_code TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding joined_via_group_code column:', err);
       }
     });
@@ -554,14 +554,14 @@ function initDatabase() {
     
     // Add is_group_code column if not exists
     db.run(`ALTER TABLE invites ADD COLUMN is_group_code INTEGER DEFAULT 0`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding is_group_code column:', err);
       }
     });
     
     // Add auto_join_channels column if not exists
     db.run(`ALTER TABLE invites ADD COLUMN auto_join_channels TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
         console.error('Error adding auto_join_channels column:', err);
       }
     });
