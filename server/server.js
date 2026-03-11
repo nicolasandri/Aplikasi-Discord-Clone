@@ -2158,8 +2158,8 @@ app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, asyn
           `SELECT c.id, c.name, c.type, c.category_id,
                   CASE WHEN rca.is_allowed IS NULL THEN true ELSE rca.is_allowed END as is_allowed
            FROM channels c
-           LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = $1
-           WHERE c.server_id = $2
+           LEFT JOIN role_channel_access rca ON c.id = rca.channel_id::uuid AND rca.role_id = $1::uuid
+           WHERE c.server_id::text = $2
            ORDER BY c.position`,
           [roleId, serverId]
         )
