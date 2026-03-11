@@ -2153,25 +2153,38 @@ app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, asyn
     const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
     
     // Get all channels for this server with access info for the role
-    const channels = isPostgres
-      ? await dbAll(
-          `SELECT c.id, c.name, c.type, c.category_id,
-                  CASE WHEN rca.is_allowed IS NULL THEN true ELSE rca.is_allowed END as is_allowed
+    let channels;
+    if (isPostgres) {
+      // Use raw query with proper UUID casting
+      const { pool } = require('./config/database');
+      const client = await pool.connect();
+      try {
+        const result = await client.query(
+          `SELECT c.id::text as id, c.name, c.type, c.category_id,
+                  COALESCE(rca.is_allowed, true) as is_allowed
            FROM channels c
-           LEFT JOIN role_channel_access rca ON c.id = rca.channel_id::uuid AND rca.role_id = $1::uuid
+           LEFT JOIN role_channel_access rca 
+             ON c.id = rca.channel_id::uuid 
+             AND rca.role_id = $1::uuid
            WHERE c.server_id::text = $2
            ORDER BY c.position`,
           [roleId, serverId]
-        )
-      : await dbAll(
-          `SELECT c.id, c.name, c.type, c.category_id,
-                  CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
-           FROM channels c
-           LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
-           WHERE c.server_id = ?
-           ORDER BY c.position`,
-          [roleId, serverId]
         );
+        channels = result.rows;
+      } finally {
+        client.release();
+      }
+    } else {
+      channels = await dbAll(
+        `SELECT c.id, c.name, c.type, c.category_id,
+                CASE WHEN rca.is_allowed IS NULL THEN 1 ELSE rca.is_allowed END as is_allowed
+         FROM channels c
+         LEFT JOIN role_channel_access rca ON c.id = rca.channel_id AND rca.role_id = ?
+         WHERE c.server_id = ?
+         ORDER BY c.position`,
+        [roleId, serverId]
+      );
+    }
     
     res.json({ channels });
   } catch (error) {
