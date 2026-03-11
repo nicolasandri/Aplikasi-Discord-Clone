@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, ArrowUpDown, UserX, Crown, Bot } from 'lucide-react';
+import { Search, ArrowUpDown, Crown, Bot } from 'lucide-react';
 import type { ServerMember } from '@/types';
 
 interface DaftarNamaStaffProps {
@@ -186,10 +186,7 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
               </div>
             )}
           </div>
-          <button className="flex items-center gap-2 px-3 py-2 bg-[#2b2d31] hover:bg-[#35373c] text-[#ed4245] rounded text-sm transition-colors border border-[#1e1f22]">
-            <UserX className="w-4 h-4" />
-            Prune
-          </button>
+
         </div>
       </div>
 
