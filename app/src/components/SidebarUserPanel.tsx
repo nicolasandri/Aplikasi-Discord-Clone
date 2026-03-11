@@ -160,11 +160,13 @@ export function SidebarUserPanel({ onOpenSettings }: SidebarUserPanelProps) {
             <p className="text-[#a0a0b0] text-sm">{user.email}</p>
             
             {/* Badges */}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-medium">VIP</span>
-              <span className="text-[#faa61a]">👑</span>
-              <span className="text-[#43b581]">✓</span>
-            </div>
+            {user.badges && user.badges.length > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                {user.badges.includes('vip') && <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-medium">VIP</span>}
+                {user.badges.includes('crown') && <span className="text-[#faa61a]">👑</span>}
+                {user.badges.includes('verified') && <span className="text-[#43b581]">✓</span>}
+              </div>
+            )}
           </div>
 
           {/* Divider */}

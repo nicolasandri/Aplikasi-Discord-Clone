@@ -686,11 +686,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-white text-xl font-bold">{user?.displayName || user?.username}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>
-                        <span>👑</span>
-                        <span className="text-[#43b581]">✓</span>
-                      </div>
+                      {userBadges.length > 0 && (
+                        <div className="flex items-center gap-2 mt-1">
+                          {userBadges.includes('vip') && <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>}
+                          {userBadges.includes('crown') && <span>👑</span>}
+                          {userBadges.includes('verified') && <span className="text-[#43b581]">✓</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
 

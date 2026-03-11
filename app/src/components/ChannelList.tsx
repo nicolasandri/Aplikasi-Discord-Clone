@@ -819,7 +819,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-white font-bold text-sm truncate">{user?.displayName || user?.username}</h3>
-                  <span className="px-1.5 py-0.5 bg-[#00d4ff] text-white text-[10px] rounded">VIP</span>
+                  {user?.badges?.includes('vip') && <span className="px-1.5 py-0.5 bg-[#00d4ff] text-white text-[10px] rounded">VIP</span>}
                 </div>
                 <p className="text-[#a0a0b0] text-xs truncate">{user?.email}</p>
                 <div className="flex items-center gap-1 mt-0.5">
