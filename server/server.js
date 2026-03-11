@@ -2404,6 +2404,14 @@ app.delete('/api/messages/:messageId/reactions', authenticateToken, async (req, 
       return res.status(404).json({ error: 'Message not found' });
     }
     
+    // BUG-010 FIX: Verify user owns the reaction before removing
+    const userReactions = await reactionDB.getByMessageAndUser(messageId, userId);
+    const hasReaction = userReactions.some(r => r.emoji === emoji);
+    
+    if (!hasReaction) {
+      return res.status(403).json({ error: 'You can only remove your own reactions' });
+    }
+    
     // Remove reaction
     await reactionDB.remove(messageId, userId, emoji);
     
@@ -4426,6 +4434,35 @@ const MESSAGE_COOLDOWN_MS = 300; // 300ms between messages
 const MESSAGE_BURST_LIMIT = 20; // Max 20 messages per 10 seconds
 const MESSAGE_BURST_WINDOW_MS = 10000; // 10 seconds window
 
+// BUG-003 FIX: Rate limiting for socket events (typing, join_channel, etc.)
+const userSocketEventTimestamps = new Map(); // userId -> { eventType: lastTimestamp }
+const SOCKET_EVENT_COOLDOWN_MS = {
+  typing: 2000,      // 2 seconds between typing events
+  dm_typing: 2000,   // 2 seconds between DM typing events
+  join_channel: 500, // 500ms between join channel attempts
+  edit_message: 1000 // 1 second between edit attempts
+};
+
+// Helper function to check rate limit for socket events
+function checkSocketEventRateLimit(userId, eventType) {
+  const now = Date.now();
+  const cooldownMs = SOCKET_EVENT_COOLDOWN_MS[eventType] || 1000;
+  
+  if (!userSocketEventTimestamps.has(userId)) {
+    userSocketEventTimestamps.set(userId, {});
+  }
+  
+  const userEvents = userSocketEventTimestamps.get(userId);
+  const lastTime = userEvents[eventType] || 0;
+  
+  if (now - lastTime < cooldownMs) {
+    return { allowed: false, retryAfter: cooldownMs - (now - lastTime) };
+  }
+  
+  userEvents[eventType] = now;
+  return { allowed: true };
+}
+
 // Helper function to check rate limit for a user
 function checkMessageRateLimit(userId) {
   const now = Date.now();
@@ -4545,6 +4582,13 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // BUG-003 FIX: Rate limit edit_message events
+      const rateLimit = checkSocketEventRateLimit(userId, 'edit_message');
+      if (!rateLimit.allowed) {
+        socket.emit('error', { message: 'Please wait before editing again' });
+        return;
+      }
+
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
         socket.emit('error', { message: 'Invalid content' });
         return;
@@ -4634,10 +4678,49 @@ io.on('connection', (socket) => {
   });
 
   // Handle join channel
-  socket.on('join_channel', (channelId) => {
-    if (!socket.userId) return;
-    socket.join(channelId);
-    console.log('📥 Server: User joined channel room:', socket.userId, 'Channel:', channelId);
+  socket.on('join_channel', async (channelId) => {
+    if (!socket.userId) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+    
+    // BUG-003 FIX: Rate limit join_channel events
+    const rateLimit = checkSocketEventRateLimit(socket.userId, 'join_channel');
+    if (!rateLimit.allowed) {
+      socket.emit('error', { message: 'Please wait before joining another channel' });
+      return;
+    }
+    
+    try {
+      // Verify channel exists
+      const channel = await channelDB.getById(channelId);
+      if (!channel) {
+        socket.emit('error', { message: 'Channel not found' });
+        return;
+      }
+      
+      // BUG-004 FIX: Verify user is a member of the server
+      const members = await serverDB.getMembers(channel.server_id);
+      const isMember = members.some(m => m.id === socket.userId);
+      
+      if (!isMember) {
+        socket.emit('error', { message: 'Access denied - not a server member' });
+        return;
+      }
+      
+      // Check if user has access to this server (per-user server access control)
+      const hasAccess = await userServerAccessDB.hasServerAccess(socket.userId, channel.server_id);
+      if (!hasAccess) {
+        socket.emit('error', { message: 'Akses ke server ini ditolak oleh admin' });
+        return;
+      }
+      
+      socket.join(channelId);
+      console.log('📥 Server: User joined channel room:', socket.userId, 'Channel:', channelId);
+    } catch (error) {
+      console.error('Join channel error:', error);
+      socket.emit('error', { message: 'Failed to join channel' });
+    }
   });
 
   // Handle leave channel
@@ -4692,7 +4775,14 @@ io.on('connection', (socket) => {
         socket.emit('message_error', { error: 'Akses ke server ini ditolak oleh admin' });
         return;
       }
-      
+
+      // Check SEND_MESSAGES permission
+      const canSend = await permissionDB.hasPermission(socket.userId, channel.server_id, Permissions.SEND_MESSAGES);
+      if (!canSend) {
+        socket.emit('message_error', { error: 'Kamu tidak memiliki izin untuk mengirim pesan di server ini' });
+        return;
+      }
+
       // Create message
       const message = await messageDB.create(channelId, socket.userId, content, replyToId, attachments);
       
@@ -4828,6 +4918,12 @@ io.on('connection', (socket) => {
       if (!userId || !channelId) {
         console.log('❌ Missing userId or channelId');
         return;
+      }
+      
+      // BUG-003 FIX: Rate limit typing events
+      const rateLimit = checkSocketEventRateLimit(userId, 'dm_typing');
+      if (!rateLimit.allowed) {
+        return; // Silently ignore rate-limited typing events
       }
       
       // Verify user is channel member

@@ -50,14 +50,14 @@ const DEFAULT_COLORS = [
 
 const PERMISSIONS = [
   { id: 'VIEW_CHANNEL', name: 'View Channels', bit: 0, description: 'Allows members to view channels by default (excluding private channels).' },
-  { id: 'MANAGE_CHANNELS', name: 'Manage Channels', bit: 1, description: 'Allows members to create, edit, or delete channels.' },
-  { id: 'MANAGE_ROLES', name: 'Manage Jobdesk', bit: 2, description: 'Allows members to create, edit, and delete roles.' },
-  { id: 'KICK_MEMBERS', name: 'Kick Members', bit: 3, description: 'Allows members to kick members.' },
-  { id: 'BAN_MEMBERS', name: 'Ban Members', bit: 4, description: 'Allows members to ban members.' },
-  { id: 'MANAGE_MESSAGES', name: 'Manage Messages', bit: 5, description: 'Allows members to delete messages by other members.' },
-  { id: 'SEND_MESSAGES', name: 'Send Messages', bit: 6, description: 'Allows members to send messages in text channels.' },
-  { id: 'CONNECT', name: 'Connect', bit: 7, description: 'Allows members to connect to voice channels.' },
-  { id: 'SPEAK', name: 'Speak', bit: 8, description: 'Allows members to speak in voice channels.' },
+  { id: 'SEND_MESSAGES', name: 'Send Messages', bit: 1, description: 'Allows members to send messages in text channels.' },
+  { id: 'CONNECT', name: 'Connect', bit: 2, description: 'Allows members to connect to voice channels.' },
+  { id: 'SPEAK', name: 'Speak', bit: 3, description: 'Allows members to speak in voice channels.' },
+  { id: 'KICK_MEMBERS', name: 'Kick Members', bit: 4, description: 'Allows members to kick members.' },
+  { id: 'BAN_MEMBERS', name: 'Ban Members', bit: 5, description: 'Allows members to ban members.' },
+  { id: 'MANAGE_MESSAGES', name: 'Manage Messages', bit: 6, description: 'Allows members to delete messages by other members.' },
+  { id: 'MANAGE_CHANNELS', name: 'Manage Channels', bit: 7, description: 'Allows members to create, edit, or delete channels.' },
+  { id: 'MANAGE_ROLES', name: 'Manage Jobdesk', bit: 8, description: 'Allows members to create, edit, and delete roles.' },
 ];
 
 export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
