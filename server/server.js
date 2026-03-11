@@ -2149,6 +2149,9 @@ app.get('/api/servers/:serverId/roles/:roleId/channels', authenticateToken, asyn
       return res.status(403).json({ error: 'You do not have permission to manage roles' });
     }
     
+    // Check database type
+    const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+    
     // Get all channels for this server with access info for the role
     const channels = isPostgres
       ? await dbAll(
