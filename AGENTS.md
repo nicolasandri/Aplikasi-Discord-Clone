@@ -2,64 +2,64 @@
 
 ## Project Overview
 
-**WorkGrid** (also known as ChatCord) is a real-time team collaboration platform inspired by Discord, built as a multi-platform application supporting web, mobile (Android via Capacitor), and desktop (Electron). The UI language is **Bahasa Indonesia**.
+**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi oleh Discord. Aplikasi ini dibangun sebagai multi-platform yang mendukung web, mobile (Android via Capacitor), dan desktop (Electron). UI aplikasi menggunakan bahasa **Bahasa Indonesia**.
 
-### Key Features
-- JWT Authentication (7-day expiration) with token versioning for force logout
-- Server and channel management (text & voice channels)
-- Real-time messaging with Socket.IO
-- File sharing (max 10MB with MIME type filtering)
+### Fitur Utama
+- Autentikasi JWT (kedaluwarsa 7 hari) dengan token versioning untuk force logout
+- Manajemen server dan channel (text & voice channels)
+- Real-time messaging dengan Socket.IO
+- File sharing (max 10MB dengan MIME type filtering)
 - Message reactions, replies, edit/delete messages
-- Pin messages (requires MANAGE_MESSAGES permission)
-- Forward messages between channels
-- Direct Messages (DM) between users (1-on-1 and group DM support)
-- Voice channels with WebRTC using SimplePeer
-- Custom roles with Discord-like permission bitfield system
-- Friend system with friend requests and block user functionality
-- Push notifications with VAPID
+- Pin messages (memerlukan permission MANAGE_MESSAGES)
+- Forward messages antar channel
+- Direct Messages (DM) antar user (1-on-1 dan group DM)
+- Voice channels dengan WebRTC menggunakan SimplePeer
+- Custom roles dengan sistem permission bitfield seperti Discord
+- Friend system dengan friend requests dan block user functionality
+- Push notifications dengan VAPID
 - Typing indicators
-- Message search with result count
-- Audit logging for servers
-- Server invites with configurable expiration and max uses
+- Message search dengan result count
+- Audit logging untuk servers
+- Server invites dengan configurable expiration dan max uses
 - Transfer server ownership
 - Mention system (@user, @role, @everyone, @here)
-- Link embeds with preview
-- Responsive UI for mobile, tablet, and desktop
-- Auto-update for desktop Electron app
-- Master admin dashboard for system administration
+- Link embeds dengan preview
+- Responsive UI untuk mobile, tablet, dan desktop
+- Auto-update untuk desktop Electron app
+- Master admin dashboard untuk system administration
 
 ---
 
 ## Technology Stack
 
 ### Frontend (`/app`)
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 19.2.0 | UI framework with TypeScript |
-| Vite | 7.2.4 | Build tool and dev server |
+| Teknologi | Versi | Tujuan |
+|-----------|-------|--------|
+| React | 19.2.0 | UI framework dengan TypeScript |
+| Vite | 7.2.4 | Build tool dan dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
 | shadcn/ui | New York | UI component library (53 components) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
-| Simple-Peer | 9.11.1 | WebRTC for voice chat |
+| Simple-Peer | 9.11.1 | WebRTC untuk voice chat |
 | Zod | 4.3.5 | Schema validation |
 | React Hook Form | 7.70.0 | Form handling |
-| TipTap | 3.20.0 | Rich text editor with mention support |
+| TipTap | 3.20.0 | Rich text editor dengan mention support |
 | Recharts | 2.15.4 | Data visualization |
 | Framer Motion | 12.35.2 | Animations |
 | date-fns | 4.1.0 | Date formatting |
 | emoji-mart | 5.6.0 | Emoji picker |
 | gif-picker-react | 1.5.0 | GIF selection |
-| @dnd-kit | Various | Drag and drop for categories/channels |
+| @dnd-kit | Various | Drag and drop untuk categories/channels |
 | Capacitor | 8.1.0 | Mobile (Android) builds |
 | Electron | 40.6.0 | Desktop application |
 | electron-updater | 6.8.3 | Auto-update mechanism |
 
 ### Backend (`/server`)
-| Technology | Version | Purpose |
-|------------|---------|---------|
+| Teknologi | Versi | Tujuan |
+|-----------|-------|--------|
 | Node.js | 20+ | Runtime |
 | Express | 4.18.2 | Web framework |
 | Socket.IO | 4.7.2 | Real-time WebSocket |
@@ -74,11 +74,11 @@
 | pg | 8.13.3 | PostgreSQL driver |
 | web-push | 3.6.7 | Push notifications |
 | Redis | 5.11.0 | Session store, rate limiting |
-| cheerio | 1.2.0 | HTML parsing for link previews |
+| cheerio | 1.2.0 | HTML parsing untuk link previews |
 
 ### Infrastructure
-| Technology | Purpose |
-|------------|---------|
+| Teknologi | Tujuan |
+|-----------|--------|
 | Docker | Containerization |
 | Docker Compose | Multi-container orchestration |
 | Nginx | Reverse proxy, load balancer |
@@ -100,7 +100,7 @@
 │   │   │   ├── ChannelList.tsx  # Server channels sidebar
 │   │   │   ├── ServerList.tsx   # Server list sidebar
 │   │   │   ├── MemberList.tsx   # Server members display
-│   │   │   ├── MessageInput.tsx # Message input with rich text
+│   │   │   ├── MessageInput.tsx # Message input dengan rich text
 │   │   │   ├── MessageContent.tsx # Render message content
 │   │   │   ├── MessageContextMenu.tsx # Right-click menu
 │   │   │   ├── SettingsModal.tsx # User settings
@@ -161,7 +161,7 @@
 │   ├── tsconfig.app.json        # App TypeScript config
 │   ├── tsconfig.node.json       # Node TypeScript config
 │   ├── eslint.config.js         # ESLint configuration
-│   ├── nginx.conf               # Nginx config for Docker
+│   ├── nginx.conf               # Nginx config untuk Docker
 │   ├── Dockerfile               # Frontend Docker image
 │   └── package.json             # Dependencies
 │
@@ -231,7 +231,7 @@
 #### `app/tailwind.config.js`
 - **Dark Mode**: `class`
 - **Content**: `./index.html`, `./src/**/*.{js,ts,jsx,tsx}`
-- **CSS Variables**: HSL color system for theming
+- **CSS Variables**: HSL color system untuk theming
 - **Animations**: Accordion, caret-blink
 - **Plugin**: `tailwindcss-animate`
 
@@ -315,10 +315,10 @@ npm run lint
 # Electron development
 npm run electron:dev
 
-# Build Electron for current platform
+# Build Electron untuk current platform
 npm run electron:build
 
-# Build Electron for specific platforms
+# Build Electron untuk specific platforms
 npm run electron:build:win    # Windows
 npm run electron:build:mac    # macOS
 npm run electron:build:linux  # Linux
@@ -337,12 +337,12 @@ npm install
 # Start server (http://localhost:3001)
 npm start
 
-# Development with auto-reload (requires nodemon)
+# Development dengan auto-reload (requires nodemon)
 npm run dev
 
 # PostgreSQL setup
 npm run setup:postgres         # Setup PostgreSQL database
-npm run migrate               # Migrate data from SQLite
+npm run migrate               # Migrate data dari SQLite
 ```
 
 ### Docker Deployment
@@ -351,7 +351,7 @@ npm run migrate               # Migrate data from SQLite
 # Development
 docker-compose up --build -d
 
-# Production (with load balancing)
+# Production (dengan load balancing)
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -360,7 +360,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ```bash
 cd app
 
-# Sync web assets to Android
+# Sync web assets ke Android
 npx cap sync
 
 # Build debug APK
@@ -383,7 +383,7 @@ DB_PORT=5432
 # JWT (minimum 32 characters)
 JWT_SECRET=your-super-secret-jwt-key-min-32-characters
 
-# Frontend URL (for CORS)
+# Frontend URL (untuk CORS)
 FRONTEND_URL=http://localhost
 
 # Node Environment
@@ -399,9 +399,9 @@ VAPID_SUBJECT=mailto:admin@workgrid.app
 ```env
 PORT=3001
 JWT_SECRET=your-secret-key-here
-USE_POSTGRES=false  # Set to true for PostgreSQL
+USE_POSTGRES=false  # Set ke true untuk PostgreSQL
 
-# PostgreSQL Connection (when USE_POSTGRES=true)
+# PostgreSQL Connection (ketika USE_POSTGRES=true)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=discord_clone
@@ -441,22 +441,22 @@ VITE_SOCKET_URL=https://your-domain.com
 ### TypeScript
 - **Target:** ES2022
 - **Strict mode:** Enabled
-- **Path aliases:** Use `@/` prefix for imports
+- **Path aliases:** Gunakan `@/` prefix untuk imports
 
 ### Component Structure
-- Functional components with TypeScript interfaces
-- Props interfaces defined inline or in `types/index.ts`
-- shadcn/ui components follow: `src/components/ui/[component].tsx`
+- Functional components dengan TypeScript interfaces
+- Props interfaces didefinisikan inline atau di `types/index.ts`
+- shadcn/ui components mengikuti: `src/components/ui/[component].tsx`
 
 ### Styling
 - **Primary:** Tailwind CSS utility classes
-- **Custom:** CSS variables in `index.css` (Cyberpunk color scheme)
-- **Variants:** Use `class-variance-authority` (cva)
-- **Utility:** Use `cn()` helper from `@/lib/utils`
+- **Custom:** CSS variables di `index.css` (Cyberpunk color scheme)
+- **Variants:** Gunakan `class-variance-authority` (cva)
+- **Utility:** Gunakan `cn()` helper dari `@/lib/utils`
 
 ### Naming Conventions
 - Components: PascalCase (e.g., `ChatLayout.tsx`)
-- Hooks: camelCase with `use` prefix (e.g., `useSocket.ts`)
+- Hooks: camelCase dengan `use` prefix (e.g., `useSocket.ts`)
 - Utilities: camelCase (e.g., `utils.ts`)
 - Types/Interfaces: PascalCase (e.g., `User`, `Message`)
 
@@ -663,8 +663,8 @@ VITE_SOCKET_URL=https://your-domain.com
 | `invites` | Server invite codes (code, server_id, created_by, expires_at, max_uses, uses) |
 | `bans` | Server bans (server_id, user_id, reason, created_at) |
 | `voice_participants` | Voice channel participants (is_muted, is_deafened, joined_at) |
-| `voice_signaling_logs` | Voice signaling logs for debugging |
-| `roles` | Custom server roles with permissions (server_id, name, color, permissions, position, is_default) |
+| `voice_signaling_logs` | Voice signaling logs untuk debugging |
+| `roles` | Custom server roles dengan permissions (server_id, name, color, permissions, position, is_default) |
 | `audit_logs` | Server audit logs (server_id, action, user_id, target_id, details, created_at) |
 | `push_subscriptions` | Push notification subscriptions |
 
@@ -695,10 +695,10 @@ const Permissions = {
 
 ## Testing Strategy
 
-**No automated test framework is currently configured.** Consider adding:
-- Vitest for unit testing
-- React Testing Library for component tests
-- Playwright or Cypress for E2E testing
+**Tidak ada automated test framework yang saat ini dikonfigurasi.** Pertimbangkan untuk menambahkan:
+- Vitest untuk unit testing
+- React Testing Library untuk component tests
+- Playwright atau Cypress untuk E2E testing
 
 ### Manual Testing Checklist
 - [ ] Register dengan email valid
@@ -720,8 +720,8 @@ const Permissions = {
 - [ ] Test mobile viewport
 
 ### Test Real-time (2 Browser Test)
-1. Open http://localhost:5173 in Chrome
-2. Open http://localhost:5173 in Firefox/Chrome Incognito
+1. Open http://localhost:5173 di Chrome
+2. Open http://localhost:5173 di Firefox/Chrome Incognito
 3. Login dengan 2 akun berbeda
 4. Send messages dan verify real-time updates
 
@@ -739,7 +739,7 @@ const Permissions = {
 - **XSS Prevention:** Input sanitization untuk HTML tags
 - **Role-based Permissions:** Discord-like permission bitfield
 - **Input Validation:** express-validator
-- **Master Admin:** Special users with system-wide access
+- **Master Admin:** Special users dengan system-wide access
 
 ### File Upload Restrictions
 Allowed MIME types:
