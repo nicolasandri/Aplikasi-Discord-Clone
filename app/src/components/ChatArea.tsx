@@ -338,6 +338,7 @@ interface MessageItemProps {
   avatarVersion?: number;
   userMap?: Map<string, string>;
   serverId?: string | null;
+  memberRoleColors?: Map<string, string>;
   // Edit mode props
   isEditing?: boolean;
   editContent?: string;
@@ -348,7 +349,7 @@ interface MessageItemProps {
 }
 
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, onUnpin, pinnedMessageIds, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, onUnpin, pinnedMessageIds, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, memberRoleColors = new Map(), isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
 
   const [showActions, setShowActions] = useState(false);
   
@@ -451,7 +452,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             <button 
               onClick={() => onUserClick?.(message.userId)}
               className="font-bold hover:underline cursor-pointer text-sm bg-transparent border-none p-0"
-              style={{ color: message.user?.role_color || '#dcddde' }}
+              style={{ color: memberRoleColors.get(message.userId) || message.user?.role_color || '#dcddde' }}
             >
               {isOwnMessage 
                 ? (currentUser?.displayName || currentUser?.username || 'You')
@@ -494,7 +495,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 )}
                 <span 
                   className="font-medium"
-                  style={{ color: message.replyTo.user?.role_color || '#00d4ff' }}
+                  style={{ color: memberRoleColors.get(message.replyTo.userId || message.replyTo.user?.id || '') || message.replyTo.user?.role_color || '#00d4ff' }}
                 >
                   {message.replyTo.user?.displayName || message.replyTo.user?.username}
                 </span>
@@ -774,6 +775,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   // Read status state
   const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
   const hasScrolledToUnreadRef = useRef(false);
+  // Cache for member role colors
+  const [memberRoleColors, setMemberRoleColors] = useState<Map<string, string>>(new Map());
 
 
   // Update avatar version when currentUser avatar changes
@@ -880,6 +883,71 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       socket.off('message_deleted', handleMessageDeleted);
     };
   }, [onRefresh]);
+
+  // Function to fetch member role color from server
+  const fetchMemberRoleColor = async (userId: string) => {
+    if (!serverId || memberRoleColors.has(userId)) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // Try to get member's roles first
+      const rolesRes = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/roles`, { headers });
+      if (rolesRes.ok) {
+        const roles = await rolesRes.json();
+        if (roles && roles.length > 0) {
+          // Sort by position and get highest role color
+          const sortedRoles = [...roles].sort((a: any, b: any) => (b.position || 0) - (a.position || 0));
+          const color = sortedRoles[0]?.color || '#dcddde';
+          setMemberRoleColors(prev => new Map(prev).set(userId, color));
+          return;
+        }
+      }
+      
+      // Fallback to member role info
+      const roleRes = await fetch(`${API_URL}/servers/${serverId}/member-role/${userId}`, { headers });
+      if (roleRes.ok) {
+        const roleData = await roleRes.json();
+        const color = roleData?.role_color || '#dcddde';
+        setMemberRoleColors(prev => new Map(prev).set(userId, color));
+      }
+    } catch (err) {
+      console.error('Failed to fetch member role color:', err);
+    }
+  };
+
+  // Function to get role color for a user
+  const getRoleColor = (userId: string, defaultColor?: string) => {
+    // Check cache first
+    if (memberRoleColors.has(userId)) {
+      return memberRoleColors.get(userId)!;
+    }
+    // Return default color and trigger fetch
+    if (serverId) {
+      fetchMemberRoleColor(userId);
+    }
+    return defaultColor || '#dcddde';
+  };
+
+  // Prefetch role colors for all users in messages
+  useEffect(() => {
+    if (!serverId || messages.length === 0) return;
+    
+    // Get unique user IDs from messages
+    const userIds = new Set<string>();
+    messages.forEach(msg => {
+      if (msg.userId) userIds.add(msg.userId);
+      if (msg.replyTo?.userId) userIds.add(msg.replyTo.userId);
+    });
+    
+    // Fetch role colors for users not in cache
+    userIds.forEach(userId => {
+      if (!memberRoleColors.has(userId)) {
+        fetchMemberRoleColor(userId);
+      }
+    });
+  }, [messages, serverId]);
 
   const scrollToBottom = (behavior: 'smooth' | 'auto' = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -1588,6 +1656,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           avatarVersion={avatarVersion}
                           userMap={userMap}
                           serverId={serverId}
+                          memberRoleColors={memberRoleColors}
                           isEditing={editingMessageId === message.id}
                           editContent={editContent}
                           onEditContentChange={setEditContent}
