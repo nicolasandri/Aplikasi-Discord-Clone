@@ -362,6 +362,13 @@ function initDatabase() {
       }
     });
     
+    // Add badges column (JSON array like '["vip","crown","verified"]')
+    db.run(`ALTER TABLE users ADD COLUMN badges TEXT DEFAULT '[]'`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding badges column:', err);
+      }
+    });
+
     // Add token_version column for force logout functionality
     db.run(`ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0`, (err) => {
       if (err && !err.message.includes('duplicate column')) {
@@ -968,7 +975,11 @@ const userDB = {
       fields.push('status = ?');
       values.push(updates.status);
     }
-    
+    if (updates.badges !== undefined) {
+      fields.push('badges = ?');
+      values.push(JSON.stringify(updates.badges));
+    }
+
     if (fields.length === 0) return true;
     
     values.push(id);
@@ -3160,6 +3171,20 @@ const reactionDB = {
         [messageId, userId, emoji], (err, row) => {
         if (err) reject(err); else resolve(!!row);
       });
+    });
+  },
+
+  // BUG-010 FIX: Get reactions by message and user for ownership verification
+  async getByMessageAndUser(messageId, userId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM reactions WHERE message_id = ? AND user_id = ?',
+        [messageId, userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
     });
   }
 };

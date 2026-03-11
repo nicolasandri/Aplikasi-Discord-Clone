@@ -525,6 +525,10 @@ function authenticateToken(req, res, next) {
 
 // Helper function to format user response
 function formatUserResponse(user) {
+  let badges = [];
+  try {
+    badges = user.badges ? JSON.parse(user.badges) : [];
+  } catch { badges = []; }
   return {
     id: user.id,
     username: user.username,
@@ -533,7 +537,8 @@ function formatUserResponse(user) {
     displayName: user.display_name,
     status: user.status || 'offline',
     isMasterAdmin: user.is_master_admin === 1 || user.is_master_admin === true,
-    joinedViaGroupCode: user.joined_via_group_code || null
+    joinedViaGroupCode: user.joined_via_group_code || null,
+    badges
   };
 }
 
@@ -917,14 +922,15 @@ app.get('/api/users/me', authenticateToken, async (req, res) => {
 app.put('/api/users/profile', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const { displayName, username, avatar, status } = req.body;
-    
+    const { displayName, username, avatar, status, badges } = req.body;
+
     // Build updates object
     const updates = {};
     if (displayName !== undefined) updates.displayName = displayName;
     if (username !== undefined) updates.username = username;
     if (avatar !== undefined) updates.avatar = avatar;
     if (status !== undefined) updates.status = status;
+    if (badges !== undefined) updates.badges = badges;
     
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });

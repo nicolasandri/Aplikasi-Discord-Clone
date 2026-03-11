@@ -7,6 +7,7 @@ export interface User {
   displayName?: string;
   role_color?: string; // Optional role color for message display
   isMasterAdmin?: boolean; // Master Admin flag
+  badges?: string[]; // User badges like 'vip', 'crown', 'verified'
 }
 
 export interface Server {

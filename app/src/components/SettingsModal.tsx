@@ -48,6 +48,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [savingBadges, setSavingBadges] = useState(false);
 
   // Update displayName when user changes
   useEffect(() => {
@@ -159,6 +160,46 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setLoading(false);
     }
   };
+
+  const userBadges: string[] = user?.badges || [];
+
+  const handleToggleBadge = async (badge: string) => {
+    setSavingBadges(true);
+    try {
+      const newBadges = userBadges.includes(badge)
+        ? userBadges.filter(b => b !== badge)
+        : [...userBadges, badge];
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/users/profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ badges: newBadges }),
+      });
+
+      if (response.ok) {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        storedUser.badges = newBadges;
+        localStorage.setItem('user', JSON.stringify(storedUser));
+        if (user) {
+          updateUser({ ...user, badges: newBadges });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update badges:', err);
+    } finally {
+      setSavingBadges(false);
+    }
+  };
+
+  const BADGE_OPTIONS = [
+    { id: 'vip', label: 'VIP', render: <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span> },
+    { id: 'crown', label: 'Crown', render: <span>👑</span> },
+    { id: 'verified', label: 'Verified', render: <span className="text-[#43b581]">✓</span> },
+  ];
 
   const handleChangePassword = async () => {
     setPasswordError('');
@@ -428,9 +469,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="pt-8">
                   <h3 className="text-white text-lg font-bold">{user?.displayName || user?.username}</h3>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>
-                    <span>👑</span>
-                    <span className="text-[#43b581]">✓</span>
+                    {userBadges.includes('vip') && <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>}
+                    {userBadges.includes('crown') && <span>👑</span>}
+                    {userBadges.includes('verified') && <span className="text-[#43b581]">✓</span>}
                   </div>
                 </div>
 
@@ -462,7 +503,33 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   )}
                 </div>
 
-                <Button 
+                {/* Badge Settings */}
+                <div className="mt-4">
+                  <Label className="text-[#a0a0b0] text-xs font-bold uppercase">Badge</Label>
+                  <div className="bg-[#232438] rounded-lg p-3 mt-2 space-y-3">
+                    {BADGE_OPTIONS.map(badge => (
+                      <div key={badge.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 flex items-center justify-center">{badge.render}</div>
+                          <span className="text-white text-sm">{badge.label}</span>
+                        </div>
+                        <button
+                          onClick={() => handleToggleBadge(badge.id)}
+                          disabled={savingBadges}
+                          className={`w-10 h-5 rounded-full transition-colors relative ${
+                            userBadges.includes(badge.id) ? 'bg-[#00d4ff]' : 'bg-[#4f545c]'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                            userBadges.includes(badge.id) ? 'translate-x-5' : 'translate-x-0.5'
+                          }`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
                   onClick={() => setShowChangePassword(true)}
                   className="w-full bg-[#00d4ff] hover:bg-[#00b8db] text-white mt-4"
                 >
@@ -716,9 +783,35 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                 </div>
 
+                {/* Badge Settings */}
+                <div>
+                  <h3 className="text-white font-bold mb-3">Badge</h3>
+                  <div className="bg-[#232438] rounded-lg p-4 space-y-3">
+                    {BADGE_OPTIONS.map(badge => (
+                      <div key={badge.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 flex items-center justify-center">{badge.render}</div>
+                          <span className="text-white text-sm">{badge.label}</span>
+                        </div>
+                        <button
+                          onClick={() => handleToggleBadge(badge.id)}
+                          disabled={savingBadges}
+                          className={`w-10 h-5 rounded-full transition-colors relative ${
+                            userBadges.includes(badge.id) ? 'bg-[#00d4ff]' : 'bg-[#4f545c]'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                            userBadges.includes(badge.id) ? 'translate-x-5' : 'translate-x-0.5'
+                          }`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <h3 className="text-white font-bold mb-3">Password and Authentication</h3>
-                  <Button 
+                  <Button
                     onClick={() => setShowChangePassword(true)}
                     className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                   >
