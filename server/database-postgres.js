@@ -1777,17 +1777,8 @@ const dmDB = {
 
     const id = uuidv4();
     await query(
-      "INSERT INTO dm_channels (id, user1_id, user2_id, type, created_at, updated_at) VALUES ($1, $2, $3, 'direct', NOW(), NOW())",
+      "INSERT INTO dm_channels (id, user1_id, user2_id, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())",
       [id, firstUser, secondUser]
-    );
-    // Also insert into dm_channel_members for unified member lookup
-    await query(
-      'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
-      [uuidv4(), id, firstUser]
-    );
-    await query(
-      'INSERT INTO dm_channel_members (id, channel_id, user_id, joined_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT DO NOTHING',
-      [uuidv4(), id, secondUser]
     );
 
     return await this.getDMChannelById(id);
@@ -1832,11 +1823,7 @@ const dmDB = {
               (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
               (SELECT COUNT(*) FROM dm_messages WHERE channel_id = dc.id AND sender_id != $1 AND is_read = false) as unread_count
        FROM dm_channels dc
-       WHERE dc.id IN (
-         SELECT channel_id FROM dm_channel_members WHERE user_id = $1
-         UNION
-         SELECT id FROM dm_channels WHERE user1_id = $1 OR user2_id = $1
-       )
+       WHERE dc.user1_id = $1 OR dc.user2_id = $1
        ORDER BY COALESCE(
          (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1),
          dc.updated_at
@@ -2000,11 +1987,10 @@ const dmDB = {
 
   async getChannelMembers(channelId) {
     const rows = await queryMany(
-      `SELECT u.id, u.username, u.display_name, u.avatar, u.status, m.joined_at
-       FROM dm_channel_members m
-       JOIN users u ON m.user_id = u.id
-       WHERE m.channel_id = $1
-       ORDER BY m.joined_at`,
+      `SELECT u.id, u.username, u.display_name, u.avatar, u.status, dc.created_at as joined_at
+       FROM dm_channels dc
+       JOIN users u ON u.id = dc.user1_id OR u.id = dc.user2_id
+       WHERE dc.id = $1`,
       [channelId]
     );
     return rows.map(row => ({ ...row, displayName: row.display_name }));
@@ -2012,7 +1998,7 @@ const dmDB = {
 
   async isChannelMember(channelId, userId) {
     const row = await queryOne(
-      'SELECT 1 FROM dm_channel_members WHERE channel_id = $1 AND user_id = $2',
+      'SELECT 1 FROM dm_channels WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
       [channelId, userId]
     );
     return !!row;
