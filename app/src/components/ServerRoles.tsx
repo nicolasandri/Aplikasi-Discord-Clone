@@ -68,7 +68,11 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
   
   // Edit mode state
   const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [activeTab, setActiveTab] = useState<'display' | 'permissions' | 'links' | 'members'>('display');
+  const [activeTab, setActiveTab] = useState<'display' | 'permissions' | 'links' | 'members' | 'channels'>('display');
+  
+  // Channel access state
+  const [channels, setChannels] = useState<Array<{id: string, name: string, type: string, category_id?: string, is_allowed: boolean}>>([]);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   
   // Create role modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -114,9 +118,67 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
     }
   }, [serverId]);
 
+  // Fetch channels for a role
+  const fetchChannels = useCallback(async (roleId: string) => {
+    setIsLoadingChannels(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/servers/${serverId}/roles/${roleId}/channels`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChannels(data.channels);
+      }
+    } catch (error) {
+      console.error('Failed to fetch channels:', error);
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  }, [serverId]);
+
+  // Toggle channel access
+  const toggleChannelAccess = async (channelId: string, currentStatus: boolean) => {
+    if (!editingRole) return;
+    
+    const newStatus = !currentStatus;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/servers/${serverId}/roles/${editingRole.id}/channels/${channelId}/access`, {
+        method: 'PUT',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isAllowed: newStatus }),
+      });
+      
+      if (res.ok) {
+        // Update local state
+        setChannels(prev => prev.map(ch => 
+          ch.id === channelId ? { ...ch, is_allowed: newStatus } : ch
+        ));
+        toast.success(`Akses channel ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}`);
+      } else {
+        toast.error('Gagal mengubah akses channel');
+      }
+    } catch (error) {
+      console.error('Failed to toggle channel access:', error);
+      toast.error('Gagal mengubah akses channel');
+    }
+  };
+
   useEffect(() => {
     Promise.all([fetchRoles(), fetchMembers()]).then(() => setIsLoading(false));
   }, [fetchRoles, fetchMembers]);
+
+  // Fetch channels when tab changes to channels
+  useEffect(() => {
+    if (activeTab === 'channels' && editingRole) {
+      fetchChannels(editingRole.id);
+    }
+  }, [activeTab, editingRole, fetchChannels]);
 
 
 
@@ -442,7 +504,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
 
           {/* Tabs */}
           <div className="flex border-b border-[#1f2023]">
-            {(['display', 'permissions', 'links', 'members'] as const).map(tab => (
+            {(['display', 'permissions', 'channels', 'links', 'members'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -450,7 +512,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   activeTab === tab ? 'text-white' : 'text-[#949ba4] hover:text-white'
                 }`}
               >
-                {tab}
+                {tab === 'channels' ? 'Akses Channel' : tab}
                 {activeTab === tab && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00d4ff]" />
                 )}
@@ -541,6 +603,61 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
               </div>
             )}
 
+            {activeTab === 'channels' && (
+              <div className="max-w-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-white font-semibold">Akses Channel</h3>
+                    <p className="text-[#949ba4] text-sm">Atur akses channel untuk jobdesk {editingRole?.name}</p>
+                  </div>
+                </div>
+
+                {isLoadingChannels ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-8 h-8 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : channels.length === 0 ? (
+                  <div className="text-center py-8 text-[#949ba4]">
+                    <p>Tidak ada channel di server ini</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {channels.map(channel => (
+                      <div 
+                        key={channel.id}
+                        className="flex items-center justify-between p-3 bg-[#2b2d31] rounded-lg hover:bg-[#35373c] transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="text-[#949ba4]">
+                            {channel.type === 'voice' ? (
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-white">#{channel.name}</span>
+                        </div>
+                        <button
+                          onClick={() => toggleChannelAccess(channel.id, channel.is_allowed)}
+                          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                            channel.is_allowed
+                              ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                              : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                          }`}
+                        >
+                          {channel.is_allowed ? 'Aktif' : 'Nonaktif'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'members' && (
               <div className="max-w-2xl">
                 <div className="flex items-center justify-between mb-4">
@@ -557,7 +674,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                     className="bg-[#00d4ff] hover:bg-[#00b8db] text-white"
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Tambah Anggota
+                    Tambah Angggota
                   </Button>
                 </div>
 

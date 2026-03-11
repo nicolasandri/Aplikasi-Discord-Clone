@@ -2328,16 +2328,45 @@ const userServerAccessDB = {
 };
 
 const roleChannelAccessDB = {
+  // Get all channel access for a specific role
+  async getRoleChannelAccess(roleId) {
+    return await queryMany(
+      `SELECT channel_id, is_allowed 
+       FROM role_channel_access 
+       WHERE role_id = $1`,
+      [roleId]
+    );
+  },
+  
+  // Set channel access for a role
   async setChannelAccess(roleId, channelId, isAllowed) {
-    // TODO: Implement
+    const id = uuidv4();
+    await query(
+      `INSERT INTO role_channel_access (id, role_id, channel_id, is_allowed, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (role_id, channel_id) 
+       DO UPDATE SET is_allowed = $4, updated_at = NOW()`,
+      [id, roleId, channelId, isAllowed]
+    );
     return { success: true };
   },
+  
+  // Check if role has access to a channel
   async hasChannelAccess(roleId, channelId) {
-    // Default to true for now
-    return true;
+    const result = await queryOne(
+      `SELECT is_allowed FROM role_channel_access 
+       WHERE role_id = $1 AND channel_id = $2`,
+      [roleId, channelId]
+    );
+    // If no record exists, default to allowed
+    return result ? result.is_allowed : true;
   },
+  
+  // Bulk update channel access for a role
   async bulkUpdateChannelAccess(roleId, channelAccess) {
-    // TODO: Implement
+    for (const access of channelAccess) {
+      await this.setChannelAccess(roleId, access.channelId, access.isAllowed);
+    }
     return { success: true };
   }
 };
