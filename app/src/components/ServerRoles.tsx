@@ -903,13 +903,6 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
         <ChevronLeft className="w-5 h-5 text-[#949ba4] rotate-180" />
       </div>
 
-      {/* Warning Banner */}
-      <div className="flex items-center gap-2 p-3 bg-[#faa61a]/10 border border-[#faa61a]/20 rounded-lg mb-4">
-        <Shield className="w-5 h-5 text-[#faa61a]" />
-        <span className="text-[#faa61a] text-sm">Messaging permissions have changed</span>
-        <ChevronLeft className="w-4 h-4 text-[#faa61a] rotate-180 ml-auto" />
-      </div>
-
       {/* Search and Create */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1">
