@@ -301,6 +301,7 @@ const { checkPermission, requireServerOwner } = require('./middleware/permission
 const pushService = require('./services/push');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Security: Socket.IO CORS with strict origin checking
