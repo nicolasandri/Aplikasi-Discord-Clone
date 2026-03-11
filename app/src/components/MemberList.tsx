@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Crown, Settings } from 'lucide-react';
+import { Crown, Settings, Check } from 'lucide-react';
 import type { ServerMember } from '@/types';
 import {
   ContextMenu,
@@ -292,6 +292,59 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         variant: 'destructive',
       });
     }
+  };
+
+  // Toggle role for member (assign if not has, remove if has)
+  const handleToggleRole = async (userId: string, roleId: string, roleName: string, hasRole: boolean) => {
+    if (!serverId) return;
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (hasRole) {
+        // Remove role
+        const response = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/roles/${roleId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          toast({ title: 'Berhasil', description: `Role "${roleName}" dihapus` });
+          fetchMembers();
+        } else {
+          const error = await response.json();
+          toast({ title: 'Gagal', description: error.error || 'Gagal menghapus role', variant: 'destructive' });
+        }
+      } else {
+        // Assign role
+        const response = await fetch(`${API_URL}/servers/${serverId}/members/${userId}/custom-role`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ roleId }),
+        });
+
+        if (response.ok) {
+          toast({ title: 'Berhasil', description: `Role "${roleName}" ditambahkan` });
+          fetchMembers();
+        } else {
+          const error = await response.json();
+          toast({ title: 'Gagal', description: error.error || 'Gagal menambahkan role', variant: 'destructive' });
+        }
+      }
+    } catch (error) {
+      console.error('Toggle role error:', error);
+      toast({ title: 'Error', description: 'Terjadi kesalahan', variant: 'destructive' });
+    }
+  };
+
+  // Check if member has a specific role
+  const memberHasRole = (member: ServerMember, roleId: string): boolean => {
+    if (member.roles && member.roles.length > 0) {
+      return member.roles.some(r => r.id === roleId);
+    }
+    return member.role_id === roleId;
   };
 
   const handleKickMember = async (userId: string, username: string) => {
@@ -638,30 +691,42 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
             </ContextMenuSub>
           )}
 
-          {/* Custom Roles Submenu - Only for Owner, Admin, and Moderator */}
+          {/* Roles Submenu - Like Discord (All roles with checkmarks) - Only for Owner, Admin, and Moderator */}
           {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && customRoles.length > 0 && (
             <ContextMenuSub>
               <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
-                Jobdesk Custom ({customRoles.length})
+                Role
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="bg-[#18191c] border-[#232438]">
-                {customRoles.map((role) => (
-                  <ContextMenuItem
-                    key={role.id}
-                    className={`text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white ${
-                      member.role_id === role.id ? 'bg-[#00d4ff]/20' : ''
-                    } ${!canManage ? 'opacity-50 pointer-events-none' : ''}`}
-                    onClick={() => handleAssignCustomRole(member.id, role.id, role.name)}
-                    disabled={!canManage}
-                  >
-                    <span 
-                      className="w-2 h-2 rounded-full mr-2" 
-                      style={{ backgroundColor: role.color }}
-                    />
-                    {role.name}
-                    {member.role_id === role.id && <span className="ml-auto text-xs">✓</span>}
-                  </ContextMenuItem>
-                ))}
+              <ContextMenuSubContent className="bg-[#18191c] border-[#232438] max-h-64 overflow-y-auto">
+                {sortedRoles.map((role) => {
+                  const hasRole = memberHasRole(member, role.id);
+                  return (
+                    <ContextMenuItem
+                      key={role.id}
+                      className={`text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white ${
+                        !canManage ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                      onClick={() => handleToggleRole(member.id, role.id, role.name, hasRole)}
+                      disabled={!canManage}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: role.color }}
+                        />
+                        <span 
+                          className="truncate"
+                          style={{ color: hasRole ? role.color : undefined }}
+                        >
+                          {role.name}
+                        </span>
+                      </div>
+                      {hasRole && (
+                        <Check className="w-4 h-4 ml-2" style={{ color: role.color }} />
+                      )}
+                    </ContextMenuItem>
+                  );
+                })}
               </ContextMenuSubContent>
             </ContextMenuSub>
           )}
