@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Settings, Shield, Users, UserPlus, UserX, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck } from 'lucide-react';
+import { X, Settings, Shield, Users, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck } from 'lucide-react';
 import { ServerRoles } from './ServerRoles';
 import { DaftarNamaStaff } from './DaftarNamaStaff';
-import { ServerInvites } from './ServerInvites';
 import type { Server, ServerMember } from '@/types';
 import {
   AlertDialog,
@@ -228,8 +227,6 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     { id: 'overview' as const, label: 'Overview', icon: Settings },
     { id: 'roles' as const, label: 'Jobdesk', icon: Shield },
     { id: 'members' as const, label: 'Members', icon: Users },
-    { id: 'invites' as const, label: 'Invites', icon: UserPlus },
-    { id: 'bans' as const, label: 'Bans', icon: UserX },
   ];
 
   return (
@@ -401,17 +398,6 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
 
           {activeTab === 'members' && (
             <DaftarNamaStaff serverId={server.id} />
-          )}
-
-          {activeTab === 'invites' && (
-            <ServerInvites serverId={server?.id || ''} />
-          )}
-
-          {activeTab === 'bans' && (
-            <div className="max-w-2xl text-center py-12 text-[#949ba4]">
-              <UserX className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Fitur Bans sedang dalam pengembangan.</p>
-            </div>
           )}
         </div>
       </div>
