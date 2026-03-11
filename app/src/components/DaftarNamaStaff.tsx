@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, ArrowUpDown, UserX, MoreVertical, Crown, Bot, User } from 'lucide-react';
+import { Search, ArrowUpDown, UserX, Crown, Bot } from 'lucide-react';
 import type { ServerMember } from '@/types';
 
 interface DaftarNamaStaffProps {
@@ -236,8 +236,6 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
               </th>
               <th className="py-2 px-4 text-left">Join Method</th>
               <th className="py-2 px-4 text-left">Roles</th>
-              <th className="py-2 px-4 text-left">Signals</th>
-              <th className="py-2 px-4 w-10"></th>
             </tr>
           </thead>
           <tbody>
@@ -300,18 +298,6 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
                       Member
                     </span>
                   )}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-2">
-                    <button className="p-1.5 hover:bg-[#35373c] rounded text-[#949ba4] hover:text-white transition-colors">
-                      <User className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-                <td className="py-3 px-4">
-                  <button className="p-1.5 hover:bg-[#35373c] rounded text-[#949ba4] hover:text-white transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
                 </td>
               </tr>
             ))}
