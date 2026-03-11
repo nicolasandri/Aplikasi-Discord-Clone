@@ -558,9 +558,9 @@ const serverDB = {
   async getMembers(serverId) {
     return await queryMany(
       `SELECT u.id, u.username, u.avatar, COALESCE(u.status, 'offline') as status, sm.role,
-              u.created_at,
-              COALESCE(sm.joined_at, u.created_at) as joined_at,
-              sm.join_method,
+              u.created_at as "createdAt",
+              COALESCE(sm.joined_at, u.created_at) as "joinedAt",
+              sm.join_method as "joinMethod",
               ARRAY_AGG(mr.role_id) FILTER (WHERE mr.role_id IS NOT NULL) as role_ids,
               COALESCE(
                 JSON_AGG(JSON_BUILD_OBJECT('id', sr.id, 'name', sr.name, 'color', sr.color))
