@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Settings, Shield, Users, UserPlus, UserX, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck } from 'lucide-react';
 import { ServerRoles } from './ServerRoles';
 import { DaftarNamaStaff } from './DaftarNamaStaff';
+import { ServerInvites } from './ServerInvites';
 import type { Server, ServerMember } from '@/types';
 import {
   AlertDialog,
@@ -403,10 +404,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
           )}
 
           {activeTab === 'invites' && (
-            <div className="max-w-2xl text-center py-12 text-[#949ba4]">
-              <UserPlus className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Fitur Invites sedang dalam pengembangan.</p>
-            </div>
+            <ServerInvites serverId={server?.id || ''} />
           )}
 
           {activeTab === 'bans' && (
