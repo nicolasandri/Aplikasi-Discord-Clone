@@ -451,14 +451,10 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       };
     }
     
-    // Fallback to legacy role
+    // Fallback - show as Member
     return {
-      name: member.role === 'owner' ? 'Owner' : 
-            member.role === 'admin' ? 'Admin' :
-            member.role === 'moderator' ? 'Moderator' : 'Member',
-      color: member.role === 'owner' ? '#ffd700' : 
-             member.role === 'admin' ? '#ed4245' :
-             member.role === 'moderator' ? '#43b581' : '#99aab5',
+      name: 'Member',
+      color: '#99aab5',
       isCustom: false,
     };
   };
@@ -483,15 +479,6 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
   // Helper function to get member's role combination
   const getMemberRoleCombination = (member: ServerMember) => {
     const roles: Array<{ name: string; color: string; position: number }> = [];
-    
-    // Add owner/admin/moderator as special roles
-    if (member.role === 'owner') {
-      roles.push({ name: 'Owner', color: '#ffd700', position: 9999 });
-    } else if (member.role === 'admin') {
-      roles.push({ name: 'Admin', color: '#ed4245', position: 100 });
-    } else if (member.role === 'moderator') {
-      roles.push({ name: 'Moderator', color: '#43b581', position: 50 });
-    }
     
     // Add custom roles from roles array
     if (member.roles && member.roles.length > 0) {

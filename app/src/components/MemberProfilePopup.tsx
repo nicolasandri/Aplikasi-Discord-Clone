@@ -240,12 +240,7 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: member.role_color || '#99aab5' }}
                 />
-                {(member.role_name && member.role_name.trim() !== '') ? member.role_name : 
-                 (member.role === 'owner' ? 'Owner' : 
-                  member.role === 'admin' ? 'Admin' : 
-                  member.role === 'moderator' ? 'Moderator' : 
-                  member.role === 'custom' ? 'Custom Role' : 
-                  'Member')}
+                {(member.role_name && member.role_name.trim() !== '') ? member.role_name : 'Member'}
               </div>
             )}
           </div>
