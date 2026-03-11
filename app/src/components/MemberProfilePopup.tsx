@@ -167,6 +167,14 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
               {displayName}
             </h2>
             <p className="text-[#b5bac1] text-sm">{username}</p>
+            {/* Badges */}
+            {member.badges && member.badges.length > 0 && (
+              <div className="flex items-center gap-2 mt-1">
+                {member.badges.includes('vip') && <span className="px-2 py-0.5 bg-[#00d4ff] text-white text-xs rounded font-semibold">VIP</span>}
+                {member.badges.includes('crown') && <span>👑</span>}
+                {member.badges.includes('verified') && <span className="text-[#43b581]">✓</span>}
+              </div>
+            )}
           </div>
 
           {/* Status */}

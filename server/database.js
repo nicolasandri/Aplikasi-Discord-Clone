@@ -1444,7 +1444,7 @@ const serverDB = {
   async getMembers(serverId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.display_name, u.avatar, COALESCE(u.status, 'offline') as status, sm.role, sm.role_id,
+        `SELECT u.id, u.username, u.display_name, u.avatar, u.badges, COALESCE(u.status, 'offline') as status, sm.role, sm.role_id,
                 COALESCE(NULLIF(sr.name, ''), 
                   CASE sm.role
                     WHEN 'owner' THEN 'Owner'
@@ -1479,6 +1479,7 @@ const serverDB = {
               row.displayName = row.display_name;
               row.joinedAt = row.joined_at;
               row.createdAt = row.created_at;
+              try { row.badges = row.badges ? JSON.parse(row.badges) : []; } catch { row.badges = []; }
               
               // Parse all_roles into array
               if (row.all_roles) {
@@ -2360,7 +2361,7 @@ const messageDB = {
   async getById(id) {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar, u.badges,
                 c.server_id,
                 sm.role_id, sr.name as role_name, sr.color as role_color,
                 rm.id as reply_id, rm.content as reply_content,
@@ -2398,12 +2399,15 @@ const messageDB = {
                 }
               }
               // Format user object with displayName and role info
+              let userBadges = [];
+              try { userBadges = row.badges ? JSON.parse(row.badges) : []; } catch { userBadges = []; }
               row.user = {
                 id: row.user_id,
                 username: row.username,
                 displayName: row.display_name,
                 avatar: row.avatar,
-                role_color: row.role_color
+                role_color: row.role_color,
+                badges: userBadges
               };
               // Format replyTo object if exists
               if (row.reply_to_id) {
@@ -2448,7 +2452,7 @@ const messageDB = {
   async getByChannel(channelId, limit = 50, offset = 0) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar, u.badges,
                 c.server_id,
                 sm.role_id, sr.name as role_name, sr.color as role_color,
                 rm.id as reply_id, rm.content as reply_content,
@@ -2515,12 +2519,15 @@ const messageDB = {
               delete row.reactions_data;
               
               // Format user object with displayName and role info
+              let userBadges = [];
+              try { userBadges = row.badges ? JSON.parse(row.badges) : []; } catch { userBadges = []; }
               row.user = {
                 id: row.user_id,
                 username: row.username,
                 displayName: row.display_name,
                 avatar: row.avatar,
-                role_color: row.role_color
+                role_color: row.role_color,
+                badges: userBadges
               };
               // Format replyTo object if exists
               if (row.reply_to_id) {
@@ -2629,7 +2636,7 @@ const messageDB = {
   async getPinnedByChannel(channelId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar,
+        `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar, u.badges,
                 p.username as pinned_by_username
          FROM messages m
          JOIN users u ON m.user_id = u.id

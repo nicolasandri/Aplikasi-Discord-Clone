@@ -458,7 +458,11 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 ? (currentUser?.displayName || currentUser?.username || 'You')
                 : (message.user?.displayName || message.user?.username)}
             </button>
-            <span 
+            {/* Badges */}
+            {message.user?.badges?.includes('vip') && <span className="px-1.5 py-0.5 bg-[#00d4ff] text-white text-[10px] rounded font-semibold">VIP</span>}
+            {message.user?.badges?.includes('crown') && <span className="text-sm">👑</span>}
+            {message.user?.badges?.includes('verified') && <span className="text-[#43b581] text-sm">✓</span>}
+            <span
               className="text-[11px] text-[#6a6a7a] cursor-default hover:underline"
               title={formatTooltipTimestamp(timestamp)}
             >
