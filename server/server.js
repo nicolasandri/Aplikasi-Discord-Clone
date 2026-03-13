@@ -849,7 +849,9 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     // Check if user account is active
-    if (user.is_active === 0) {
+    // Handle both PostgreSQL (boolean) and SQLite (integer) formats
+    const isActive = user.is_active === true || user.is_active === 1 || user.is_active === undefined || user.is_active === null;
+    if (!isActive) {
       return res.status(403).json({ error: 'Akun Anda telah dinonaktifkan, Hubungi Operator untuk mengaktifkan kembali.' });
     }
     

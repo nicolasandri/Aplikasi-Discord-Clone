@@ -380,10 +380,10 @@ const userDB = {
     const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
     
     const result = await query(
-      `INSERT INTO users (username, email, password, avatar) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO users (username, email, password, avatar, is_active) 
+       VALUES ($1, $2, $3, $4, $5) 
        RETURNING id, username, email, avatar, status`,
-      [username, email, hashedPassword, avatar]
+      [username, email, hashedPassword, avatar, true]
     );
     
     return result.rows[0];
