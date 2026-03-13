@@ -39,6 +39,8 @@ services:
       dockerfile: ../server/Dockerfile
     container_name: discord_clone_backend
     restart: always
+    env_file:
+      - ../.env
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -47,13 +49,13 @@ services:
       - DB_PORT=5432
       - DB_NAME=discord_clone
       - DB_USER=discord_user
-      - DB_PASSWORD=${DB_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
+      - DB_PASSWORD=${DB_PASSWORD:-workgrid_secure_password_2024}
+      - JWT_SECRET=${JWT_SECRET:-workgrid_super_secret_jwt_key_2024}
       - REDIS_URL=redis://redis:6379
       - FRONTEND_URL=https://workgrid.homeku.net
-      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
-      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
-      - VAPID_SUBJECT=${VAPID_SUBJECT}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@workgrid.homeku.net}
     depends_on:
       - db
       - redis
