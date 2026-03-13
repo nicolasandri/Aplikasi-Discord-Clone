@@ -32,3 +32,21 @@ uploads/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Deployment archives
+*.tar.gz
+auto-deploy/*.tar.gz
+workgrid-ready-deploy.tar.gz
+
+# SSH Keys
+*.pem
+*.key
+auto-deploy/workgrid_deploy_key
+auto-deploy/workgrid_deploy_key.pub
+
+# Backup files
+backups/*.tar.gz
+backups/*.sql
+
+# Claude settings
+.claude/settings.json
