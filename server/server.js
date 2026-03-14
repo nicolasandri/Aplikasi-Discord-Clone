@@ -36,30 +36,39 @@ async function formatMentionsForNotification(content, serverId = null) {
   
   let formatted = content;
   
-  // Replace user mentions: <@userId> -> @username
-  // Note: This regex should NOT match <@everyone> or <@here>
+  // Find all user mentions: <@userId>
   const userMentionRegex = /<@([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})>/gi;
-  let match;
-  let loopCount = 0;
-  while ((match = userMentionRegex.exec(content)) !== null) {
-    loopCount++;
+  const userMatches = [...content.matchAll(userMentionRegex)];
+  
+  console.log(`📱 Found ${userMatches.length} user mentions`);
+  
+  // Process each unique mention
+  const processedIds = new Set();
+  for (const match of userMatches) {
     const userId = match[1];
-    console.log(`📱 [${loopCount}] Found user mention:`, match[0], '-> ID:', userId);
+    
+    // Skip if already processed
+    if (processedIds.has(userId)) continue;
+    processedIds.add(userId);
+    
     try {
       const user = await userDB.findById(userId);
       if (user) {
-        console.log(`📱 [${loopCount}] Found user:`, user.display_name || user.username);
-        formatted = formatted.replaceAll(match[0], `@${user.display_name || user.username}`);
+        const name = user.display_name || user.username;
+        console.log(`📱 Replacing <@${userId}> with @${name}`);
+        // Replace all occurrences of this user ID
+        const mentionRegex = new RegExp(`<@${userId}>`, 'gi');
+        formatted = formatted.replace(mentionRegex, `@${name}`);
       } else {
-        console.log(`📱 [${loopCount}] User NOT found for ID:`, userId);
-        formatted = formatted.replaceAll(match[0], '@Unknown User');
+        console.log(`📱 User not found for ID: ${userId}`);
+        const mentionRegex = new RegExp(`<@${userId}>`, 'gi');
+        formatted = formatted.replace(mentionRegex, '@Unknown User');
       }
     } catch (err) {
-      console.error(`📱 [${loopCount}] Error finding user:`, err);
-      formatted = formatted.replaceAll(match[0], '@Unknown User');
+      console.error(`📱 Error finding user ${userId}:`, err);
+      const mentionRegex = new RegExp(`<@${userId}>`, 'gi');
+      formatted = formatted.replace(mentionRegex, '@Unknown User');
     }
-    // Prevent infinite loop
-    if (loopCount > 50) break;
   }
   
   console.log('📱 After user mentions, formatted:', formatted);
@@ -67,18 +76,27 @@ async function formatMentionsForNotification(content, serverId = null) {
   // Replace role mentions: <@&roleId> -> @roleName (if serverId provided)
   if (serverId) {
     const roleMentionRegex = /<@&([a-fA-F0-9-]+)>/g;
-    while ((match = roleMentionRegex.exec(content)) !== null) {
+    const roleMatches = [...content.matchAll(roleMentionRegex)];
+    const processedRoleIds = new Set();
+    
+    for (const match of roleMatches) {
       const roleId = match[1];
+      if (processedRoleIds.has(roleId)) continue;
+      processedRoleIds.add(roleId);
+      
       try {
         const roles = await roleDB.getByServer(serverId);
         const role = roles.find(r => r.id === roleId);
         if (role) {
-          formatted = formatted.replace(match[0], `@${role.name}`);
+          const roleRegex = new RegExp(`<@&${roleId}>`, 'gi');
+          formatted = formatted.replace(roleRegex, `@${role.name}`);
         } else {
-          formatted = formatted.replace(match[0], '@Unknown Role');
+          const roleRegex = new RegExp(`<@&${roleId}>`, 'gi');
+          formatted = formatted.replace(roleRegex, '@Unknown Role');
         }
       } catch (err) {
-        formatted = formatted.replace(match[0], '@Unknown Role');
+        const roleRegex = new RegExp(`<@&${roleId}>`, 'gi');
+        formatted = formatted.replace(roleRegex, '@Unknown Role');
       }
     }
   }
@@ -226,13 +244,8 @@ async function sendMentionNotifications(content, senderId, serverId, channelId, 
 }
 
 // Send channel message notification to offline members
-async function sendChannelMessageNotifications(content, senderId, serverId, channelId, channelName, senderName) {
+async function sendChannelMessageNotifications(content, senderId, serverId, channelId, channelName, senderName, mentionedUserIds = []) {
   console.log('📱 sendChannelMessageNotifications called - isConfigured:', pushService.isConfigured());
-  // Always process even if push not configured (for testing)
-  // if (!pushService.isConfigured()) {
-  //   console.log('📱 Push service not configured, skipping channel notifications');
-  //   return;
-  // }
   
   // Get server members
   const members = await serverDB.getMembers(serverId);
@@ -245,6 +258,15 @@ async function sendChannelMessageNotifications(content, senderId, serverId, chan
     const userSocket = getUserSocket(member.id);
     if (userSocket) {
       console.log('📱 User', member.id, 'is online via socket, skipping push notification');
+      continue;
+    }
+    
+    // Check notification settings
+    const isMentioned = mentionedUserIds.includes(member.id);
+    const shouldSend = await notificationSettingsDB.shouldNotify(member.id, channelId, isMentioned);
+    
+    if (!shouldSend) {
+      console.log('📱 User', member.id, 'has disabled notifications for this channel');
       continue;
     }
     
@@ -284,7 +306,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://workgrid.homeku.net'];
 
-const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, Permissions } = dbModule;
+const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, notificationSettingsDB, permissionRequestsDB, Permissions } = dbModule;
 
 // BUG-021: Conditional Logging
 const DEBUG = process.env.NODE_ENV !== 'production';
@@ -756,6 +778,35 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
             console.log(`[Register] Granted default server access to user ${username} for server ${autoJoinServer}`);
           } catch (accessError) {
             console.error('[Register] Error granting default server access:', accessError);
+          }
+          
+          // Auto-friend dengan semua member server existing
+          try {
+            const serverMembers = await serverDB.getMembers(autoJoinServer);
+            const existingMembers = serverMembers.filter(m => m.id !== user.id);
+            for (const member of existingMembers) {
+              const isAlreadyFriend = await friendDB.getFriendship(user.id, member.id);
+              if (!isAlreadyFriend || isAlreadyFriend.status !== 'accepted') {
+                await friendDB.createAutoFriendship(user.id, member.id);
+                console.log(`[RegisterAutoFriend] ${username} berteman dengan ${member.username} via join server ${autoJoinServer}`);
+                
+                // Notify existing member via socket
+                const targetSocket = getUserSocket(member.id);
+                if (targetSocket) {
+                  targetSocket.emit('new_friend_added', {
+                    friend: {
+                      id: user.id,
+                      username: user.username,
+                      displayName: user.display_name || user.username,
+                      avatar: user.avatar,
+                      status: 'offline'
+                    }
+                  });
+                }
+              }
+            }
+          } catch (autoFriendError) {
+            console.error('[Register] Auto-friend error:', autoFriendError);
           }
           
           console.log(`[Register] User ${username} auto-joined server ${autoJoinServer} via group code ${groupCode}`);
@@ -1651,16 +1702,21 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     const uniqueRoleIds = [...new Set(roleIds)];
     console.log(`[ChannelFilter] Unique role IDs:`, uniqueRoleIds);
     
+    // Filter only valid UUIDs for querying server_roles (exclude legacy role strings like 'member', 'admin', 'owner')
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validRoleIds = uniqueRoleIds.filter(id => uuidRegex.test(id));
+    console.log(`[ChannelFilter] Valid UUID role IDs:`, validRoleIds);
+    
     // Get role details to check for admin/owner permissions
-    const roleDetails = uniqueRoleIds.length > 0
+    const roleDetails = validRoleIds.length > 0
       ? isPostgres
         ? await dbAll(
-            `SELECT id, name, permissions FROM server_roles WHERE id = ANY($1)`,
-            [uniqueRoleIds]
+            `SELECT id, name, permissions FROM server_roles WHERE id = ANY($1::uuid[])`,
+            [validRoleIds]
           )
         : await dbAll(
-            `SELECT id, name, permissions FROM server_roles WHERE id IN (${uniqueRoleIds.map(() => '?').join(',')})`,
-            uniqueRoleIds
+            `SELECT id, name, permissions FROM server_roles WHERE id IN (${validRoleIds.map(() => '?').join(',')})`,
+            validRoleIds
           )
       : [];
     
@@ -2244,6 +2300,217 @@ app.put('/api/servers/:serverId/roles/:roleId/channels/bulk', authenticateToken,
   } catch (error) {
     console.error('Bulk update role channel access error:', error);
     res.status(500).json({ error: 'Failed to update channel access' });
+  }
+});
+
+// ============================================
+// NOTIFICATION SETTINGS API
+// ============================================
+
+// Get notification settings for current user and a channel
+app.get('/api/channels/:channelId/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const userId = req.userId;
+    
+    // Check if user is member of the channel's server
+    const channel = await channelDB.getById(channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    const isMember = await serverDB.isMember(channel.server_id, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    const settings = await notificationSettingsDB.get(userId, channelId);
+    res.json(settings || { notification_level: 'all', muted_until: null });
+  } catch (error) {
+    console.error('Get notification settings error:', error);
+    res.status(500).json({ error: 'Failed to get notification settings' });
+  }
+});
+
+// Update notification settings for a channel
+app.put('/api/channels/:channelId/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const { notification_level, muted_until } = req.body;
+    const userId = req.userId;
+    
+    // Validate notification level
+    const validLevels = ['all', 'mentions', 'nothing', 'default'];
+    if (!validLevels.includes(notification_level)) {
+      return res.status(400).json({ error: 'Invalid notification level' });
+    }
+    
+    // Check if user is member of the channel's server
+    const channel = await channelDB.getById(channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    const isMember = await serverDB.isMember(channel.server_id, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    await notificationSettingsDB.set(userId, channelId, notification_level, muted_until);
+    res.json({ success: true, notification_level, muted_until });
+  } catch (error) {
+    console.error('Update notification settings error:', error);
+    res.status(500).json({ error: 'Failed to update notification settings' });
+  }
+});
+
+// Delete notification settings (revert to default)
+app.delete('/api/channels/:channelId/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const userId = req.userId;
+    
+    await notificationSettingsDB.delete(userId, channelId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete notification settings error:', error);
+    res.status(500).json({ error: 'Failed to delete notification settings' });
+  }
+});
+
+// Get all notification settings for current user
+app.get('/api/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const settings = await notificationSettingsDB.getAllForUser(userId);
+    res.json(settings);
+  } catch (error) {
+    console.error('Get all notification settings error:', error);
+    res.status(500).json({ error: 'Failed to get notification settings' });
+  }
+});
+
+// ============================================
+// PERMISSION BOT API (Bot Izin)
+// ============================================
+
+// Process permission command (IZIN)
+app.post('/api/bot/permission', authenticateToken, async (req, res) => {
+  try {
+    const { channelId, serverId, command, type } = req.body;
+    const userId = req.userId;
+    
+    if (!channelId || !serverId || !command) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const user = await userDB.findById(userId);
+    const channel = await channelDB.getById(channelId);
+    
+    // Check if user already has active permission request
+    const activeRequest = await permissionRequestsDB.getActiveForUser(userId, channelId);
+    
+    if (command.toUpperCase() === 'IZIN') {
+      // Check if already has active request
+      if (activeRequest) {
+        return res.status(400).json({ 
+          error: 'Anda sudah memiliki izin aktif',
+          activeRequest
+        });
+      }
+      
+      // Create new permission request
+      const requestType = type || 'wc';
+      const result = await permissionRequestsDB.create(userId, serverId, channelId, requestType, 5);
+      
+      // Get the created request
+      const newRequest = await permissionRequestsDB.getById(result.id);
+      
+      res.json({
+        success: true,
+        action: 'started',
+        message: '✅ IZIN DIMULAI',
+        request: newRequest,
+        embed: {
+          title: '✅ IZIN DIMULAI',
+          staff: `@${user.username}`,
+          type: requestType,
+          maxDuration: '5 menit',
+          startedAt: newRequest.started_at,
+          mode: '✅ Format benar',
+          note: 'Akhiri dengan: kembali'
+        }
+      });
+    } else if (command.toUpperCase() === 'KEMBALI' || command.toUpperCase() === 'SELESAI') {
+      // Check if has active request
+      if (!activeRequest) {
+        return res.status(400).json({ 
+          error: 'Tidak ada izin aktif yang ditemukan'
+        });
+      }
+      
+      // Complete the request
+      const result = await permissionRequestsDB.complete(activeRequest.id, command.toLowerCase());
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      // Format durations
+      const formatDuration = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}d`;
+      };
+      
+      res.json({
+        success: true,
+        action: 'completed',
+        message: '✅ IZIN SELESAI',
+        embed: {
+          title: '✅ IZIN SELESAI',
+          staff: `@${user.username}`,
+          type: activeRequest.request_type,
+          startedAt: activeRequest.started_at,
+          endedAt: new Date().toISOString(),
+          actualDuration: formatDuration(result.actualDurationSeconds),
+          penalty: result.penaltySeconds > 0 ? formatDuration(result.penaltySeconds) : '0d',
+          recordedDuration: formatDuration(result.recordedDurationSeconds),
+          endedWith: `✅ Ditutup dengan kata ${command.toLowerCase()}`
+        },
+        details: result
+      });
+    } else {
+      return res.status(400).json({ error: 'Perintah tidak dikenali. Gunakan: IZIN atau KEMBALI' });
+    }
+  } catch (error) {
+    console.error('Permission bot error:', error);
+    res.status(500).json({ error: 'Failed to process permission command' });
+  }
+});
+
+// Get active permissions for channel
+app.get('/api/channels/:channelId/permissions/active', authenticateToken, async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const requests = await permissionRequestsDB.getActiveForChannel(channelId);
+    res.json(requests);
+  } catch (error) {
+    console.error('Get active permissions error:', error);
+    res.status(500).json({ error: 'Failed to get active permissions' });
+  }
+});
+
+// Get permission history for current user
+app.get('/api/permissions/history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const limit = parseInt(req.query.limit) || 10;
+    const history = await permissionRequestsDB.getHistoryForUser(userId, limit);
+    res.json(history);
+  } catch (error) {
+    console.error('Get permission history error:', error);
+    res.status(500).json({ error: 'Failed to get permission history' });
   }
 });
 
@@ -3307,6 +3574,17 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
     // Send mention notifications (async, don't block response)
     const sender = await userDB.findById(userId);
     console.log('📱 Sending notifications - content:', content, 'sender:', sender.display_name || sender.username);
+    
+    // Parse mentioned users for notification settings
+    const userMentionRegex = /<@([a-fA-F0-9-]+)>/g;
+    let match;
+    const mentionedUserIds = [];
+    while ((match = userMentionRegex.exec(content)) !== null) {
+      if (match[1] !== userId) {
+        mentionedUserIds.push(match[1]);
+      }
+    }
+    
     sendMentionNotifications(
       content,
       req.userId,
@@ -3323,7 +3601,8 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
       channel.server_id,
       channelId,
       channel.name,
-      sender.display_name || sender.username
+      sender.display_name || sender.username,
+      mentionedUserIds
     ).catch(err => console.error('📱 Error sending channel notifications:', err));
     
     res.status(201).json(message);
@@ -3631,7 +3910,22 @@ app.post('/api/dm/channels/:channelId/messages', authenticateToken, async (req, 
   }
 });
 
-// Mark DM message as read
+// Mark DM channel as read (new system with dm_read_status)
+app.post('/api/dm/channels/:channelId/read', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { channelId } = req.params;
+    const { messageId } = req.body;
+    
+    await dbModule.updateDMReadStatus(userId, channelId, messageId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark DM read error:', error);
+    res.status(500).json({ error: 'Failed to mark DM as read' });
+  }
+});
+
+// Mark DM message as read (old system - deprecated)
 app.post('/api/dm/messages/:messageId/read', authenticateToken, async (req, res) => {
   try {
     const { messageId } = req.params;
@@ -3643,13 +3937,13 @@ app.post('/api/dm/messages/:messageId/read', authenticateToken, async (req, res)
   }
 });
 
-// Get unread DM count
+// Get unread DM count (new system with dm_read_status)
 app.get('/api/dm/unread-count', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const count = await dmDB.getUnreadDMCount(userId);
-    const perChannel = await dmDB.getUnreadCountPerChannel(userId);
-    res.json({ total: count, perChannel });
+    const perChannel = await dbModule.getDMUnreadCountsForUser(userId);
+    const total = Object.values(perChannel).reduce((sum, count) => sum + count, 0);
+    res.json({ total, perChannel });
   } catch (error) {
     console.error('Get unread count error:', error);
     res.status(500).json({ error: 'Failed to get unread count' });
@@ -3968,6 +4262,35 @@ app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
     // Add user to server
     await serverDB.addMember(invite.server_id, userId, 'member', 'Invite');
     await inviteDB.incrementUses(code);
+    
+    // Auto-friend dengan semua member server existing
+    try {
+      const existingMembers = members.filter(m => m.id !== userId);
+      for (const member of existingMembers) {
+        const isAlreadyFriend = await friendDB.getFriendship(userId, member.id);
+        if (!isAlreadyFriend || isAlreadyFriend.status !== 'accepted') {
+          await friendDB.createAutoFriendship(userId, member.id);
+          console.log(`[ServerJoinAutoFriend] User ${user.username} berteman dengan ${member.username} via join server`);
+          
+          // Notify existing member via socket
+          const targetSocket = getUserSocket(member.id);
+          if (targetSocket) {
+            targetSocket.emit('new_friend_added', {
+              friend: {
+                id: userId,
+                username: user.username,
+                displayName: user.display_name || user.username,
+                avatar: user.avatar,
+                status: user.status || 'offline'
+              }
+            });
+          }
+        }
+      }
+    } catch (autoFriendError) {
+      console.error('[ServerJoin] Auto-friend error:', autoFriendError);
+      // Don't fail the join if auto-friend fails
+    }
     
     // Get server info
     const server = await serverDB.findById(invite.server_id);

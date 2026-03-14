@@ -425,8 +425,8 @@ export function ServerList({
                 <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
               )}
               
-              {/* Unread DM badge */}
-              {dmUnreadCount > 0 && !isFriendsOpen && (
+              {/* Unread DM badge - show even when friends page is open (Discord behavior) */}
+              {dmUnreadCount > 0 && (
                 <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
                   {dmUnreadCount > 99 ? '99+' : dmUnreadCount}
                 </Badge>

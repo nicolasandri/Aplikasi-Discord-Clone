@@ -81,31 +81,48 @@
 - **Date Fixed:** 2026-02-23
 
 ### BUG-003: No Rate Limiting (Brute Force Vulnerable)
-- **Status:** Open
+- **Status:** ✅ FIXED
 - **Severity:** 🔴 Critical
 - **Component:** Backend (server.js)
 - **Location:** Global
 - **Description:** No rate limiting on login, register, or socket events. Attackers can brute force passwords or spam messages.
 - **Impact:** Security vulnerability to brute force attacks and DoS.
-- **Fix:** Install and configure `express-rate-limit`.
+- **Fix Applied:**
+  - Added `express-rate-limit` middleware for API endpoints (`authLimiter` for auth, `apiLimiter` for general API)
+  - Added `checkMessageRateLimit()` for socket message sending
+  - Added `checkSocketEventRateLimit()` helper for socket events
+  - Applied rate limiting to: `edit_message`, `join_channel`, `dm-typing` events
+  - Rate limits: typing (2s), edit (1s), join channel (500ms), messages (300ms + burst limit)
+- **Date Fixed:** 2026-03-11
 
 ### BUG-004: Socket Join Channel No Auth Check
-- **Status:** Open
+- **Status:** ✅ FIXED
 - **Severity:** 🔴 Critical
 - **Component:** Backend (server.js)
-- **Location:** Lines 1544-1547
+- **Location:** Lines ~4681
 - **Description:** `join_channel` event doesn't check if user is authenticated or authorized to join the channel.
 - **Impact:** Anyone can join any channel and receive messages.
-- **Fix:** Add authentication and channel membership verification.
+- **Fix Applied:**
+  - Added async verification in `join_channel` handler
+  - Verifies channel exists before allowing join
+  - Checks if user is member of the server using `serverDB.getMembers()`
+  - Verifies user has server access using `userServerAccessDB.hasServerAccess()`
+  - Returns error to client if verification fails
+- **Date Fixed:** 2026-03-11
 
 ### BUG-005: Socket Send Message No Channel Verification
-- **Status:** Open
+- **Status:** ✅ FIXED
 - **Severity:** 🔴 Critical
 - **Component:** Backend (server.js)
-- **Location:** Lines 1554-1597
+- **Location:** Lines ~4651
 - **Description:** Authenticated users can send messages to ANY channel, even if they're not a member.
 - **Impact:** Message spam in unauthorized channels.
-- **Fix:** Verify channel membership before allowing message send.
+- **Fix Applied:**
+  - `send_message` handler verifies channel exists using `channelDB.getById()`
+  - Checks user membership using `serverDB.getMembers()`
+  - Verifies server access using `userServerAccessDB.hasServerAccess()`
+  - Returns `message_error` with appropriate error message if denied
+- **Date Fixed:** Already fixed (pre-2026-03-11)
 
 ### BUG-006: User Status Race Condition (Multiple Tabs)
 - **Status:** ✅ FIXED
@@ -148,13 +165,17 @@
 - **Date Fixed:** 2026-02-23
 
 ### BUG-010: Socket Remove Reaction No Ownership Check
-- **Status:** Open
+- **Status:** ✅ FIXED
 - **Severity:** 🔴 Critical
 - **Component:** Backend (server.js)
-- **Location:** Lines 1639-1660
+- **Location:** Lines ~2391
 - **Description:** Users can remove other users' reactions. No ownership verification.
 - **Impact:** Users can vandalize others' reactions.
-- **Fix:** Verify reaction ownership before allowing removal.
+- **Fix Applied:**
+  - Added `reactionDB.getByMessageAndUser()` method to get user's reactions for a message
+  - Remove reaction endpoint now verifies user owns the reaction before removing
+  - Returns 403 error if user tries to remove reaction they don't own
+- **Date Fixed:** 2026-03-11
 
 ---
 

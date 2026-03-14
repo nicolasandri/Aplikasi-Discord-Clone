@@ -92,6 +92,7 @@ services:
       REDIS_URL: redis://redis:6379
       FRONTEND_URL: ${FRONTEND_URL}
       USE_POSTGRES: "true"
+      ALLOWED_ORIGINS: "http://workgrid.homeku.net,https://workgrid.homeku.net,http://167.172.72.73,http://localhost:5173"
     volumes:
       - /var/www/discord-clone/uploads:/app/uploads
     networks:

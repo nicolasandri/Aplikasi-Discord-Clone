@@ -125,6 +125,31 @@ async function initDatabase() {
     } catch (e) {
       // Ignore
     }
+
+    // Create dm_read_status table for DM unread tracking
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS dm_read_status (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          dm_channel_id TEXT NOT NULL,
+          last_read_message_id TEXT,
+          last_read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, dm_channel_id)
+        )
+      `);
+      console.log('✅ dm_read_status table OK');
+    } catch (e) {
+      console.log('⚠️ dm_read_status table:', e.message);
+    }
+
+    // Create indexes for dm_read_status
+    try {
+      await query(`CREATE INDEX IF NOT EXISTS idx_dm_read_user ON dm_read_status(user_id)`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_dm_read_channel ON dm_read_status(dm_channel_id)`);
+    } catch (e) {
+      // Ignore
+    }
     
     // Create audit_logs table
     try {
@@ -194,6 +219,50 @@ async function initDatabase() {
       console.log('✅ role_channel_access table OK');
     } catch (e) {
       console.log('⚠️ role_channel_access table:', e.message);
+    }
+    
+    // Create notification_settings table
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS notification_settings (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          user_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL,
+          notification_level VARCHAR(20) DEFAULT 'all',
+          muted_until TIMESTAMP NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, channel_id)
+        )
+      `);
+      console.log('✅ notification_settings table OK');
+    } catch (e) {
+      console.log('⚠️ notification_settings table:', e.message);
+    }
+    
+    // Create permission_requests table (for bot izin)
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS permission_requests (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          user_id TEXT NOT NULL,
+          server_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL,
+          request_type VARCHAR(50) NOT NULL, -- 'wc', 'makan', 'rokok', dll
+          status VARCHAR(20) DEFAULT 'active', -- 'active', 'completed', 'expired'
+          max_duration_minutes INTEGER DEFAULT 5,
+          started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ended_at TIMESTAMP NULL,
+          actual_duration_seconds INTEGER NULL,
+          penalty_seconds INTEGER DEFAULT 0,
+          recorded_duration_seconds INTEGER NULL,
+          ended_with_keyword VARCHAR(50) NULL, -- 'kembali', 'selesai', dll
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ permission_requests table OK');
+    } catch (e) {
+      console.log('⚠️ permission_requests table:', e.message);
     }
     
     // Create user_server_access table
@@ -375,15 +444,15 @@ const permissionDB = {
 // ============================================
 
 const userDB = {
-  async create(username, email, password) {
+  async create(username, email, password, joinedViaGroupCode = null) {
     const hashedPassword = await bcrypt.hash(password, 10);
     const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
     
     const result = await query(
-      `INSERT INTO users (username, email, password, avatar, is_active) 
+      `INSERT INTO users (username, email, password, avatar, is_active, joined_via_group_code) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING id, username, email, avatar, status`,
-      [username, email, hashedPassword, avatar, true]
+      [username, email, hashedPassword, avatar, true, joinedViaGroupCode]
     );
     
     return result.rows[0];
@@ -399,7 +468,7 @@ const userDB = {
 
   async findById(id) {
     return await queryOne(
-      'SELECT id, username, email, avatar, status, token_version, created_at, is_master_admin, display_name FROM users WHERE id = $1',
+      'SELECT id, username, email, avatar, status, token_version, created_at, is_master_admin, display_name, joined_via_group_code FROM users WHERE id = $1',
       [id]
     );
   },
@@ -570,8 +639,8 @@ const serverDB = {
               -- Get highest role name and color
               COALESCE(
                 (SELECT sr2.name FROM member_roles mr2 
-                 JOIN server_roles sr2 ON mr2.role_id = sr2.id::text
-                 WHERE mr2.user_id = u.id::text AND mr2.server_id = $1
+                 JOIN server_roles sr2 ON mr2.role_id = sr2.id
+                 WHERE mr2.user_id = u.id AND mr2.server_id = $1::uuid
                  ORDER BY sr2.position DESC LIMIT 1),
                 CASE sm.role
                   WHEN 'owner' THEN 'Owner'
@@ -582,8 +651,8 @@ const serverDB = {
               ) as role_name,
               COALESCE(
                 (SELECT sr2.color FROM member_roles mr2 
-                 JOIN server_roles sr2 ON mr2.role_id = sr2.id::text
-                 WHERE mr2.user_id = u.id::text AND mr2.server_id = $1
+                 JOIN server_roles sr2 ON mr2.role_id = sr2.id
+                 WHERE mr2.user_id = u.id AND mr2.server_id = $1::uuid
                  ORDER BY sr2.position DESC LIMIT 1),
                 CASE sm.role
                   WHEN 'owner' THEN '#ffd700'
@@ -594,9 +663,9 @@ const serverDB = {
               ) as role_color
        FROM users u
        JOIN server_members sm ON u.id = sm.user_id
-       LEFT JOIN member_roles mr ON u.id::text = mr.user_id AND mr.server_id = $1
-       LEFT JOIN server_roles sr ON mr.role_id = sr.id::text
-       WHERE sm.server_id::text = $1
+       LEFT JOIN member_roles mr ON u.id = mr.user_id AND mr.server_id = $1::uuid
+       LEFT JOIN server_roles sr ON mr.role_id = sr.id
+       WHERE sm.server_id = $1::uuid
        GROUP BY u.id, u.username, u.avatar, u.status, u.created_at, sm.role, sm.joined_at, sm.join_method`,
       [serverId]
     );
@@ -1247,6 +1316,68 @@ const messageDB = {
     return row || null;
   },
 
+  // DM Read Status functions
+  async updateDMReadStatus(userId, dmChannelId, messageId) {
+    await query(
+      `INSERT INTO dm_read_status (id, user_id, dm_channel_id, last_read_message_id, last_read_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id, dm_channel_id)
+       DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id, last_read_at = CURRENT_TIMESTAMP`,
+      [uuidv4(), userId, dmChannelId, messageId]
+    );
+    return true;
+  },
+
+  async getDMReadStatus(userId, dmChannelId) {
+    const row = await queryOne(
+      `SELECT last_read_message_id, last_read_at FROM dm_read_status WHERE user_id = $1 AND dm_channel_id = $2`,
+      [userId, dmChannelId]
+    );
+    return row || null;
+  },
+
+  async getDMUnreadCount(userId, dmChannelId) {
+    const row = await queryOne(
+      `SELECT COUNT(*) as count 
+       FROM dm_messages dm
+       WHERE dm.channel_id = $1 
+         AND dm.sender_id != $2 
+         AND dm.created_at > COALESCE(
+           (SELECT last_read_at FROM dm_read_status 
+            WHERE user_id = $3 AND dm_channel_id = $4),
+           '1970-01-01'::timestamptz
+         )`,
+      [dmChannelId, userId, userId, dmChannelId]
+    );
+    return parseInt(row?.count || 0);
+  },
+
+  async getDMUnreadCountsForUser(userId) {
+    // Get unread counts for both 1-on-1 DMs and Group DMs
+    // Simple approach: get all DM channels where user is member, then count unread
+    const rows = await queryMany(
+      `SELECT 
+        dc.id as channel_id,
+        COUNT(dm.id) FILTER (WHERE dm.sender_id::text != $1) as unread_count
+       FROM dm_channels dc
+       LEFT JOIN dm_messages dm ON dm.channel_id::uuid = dc.id::uuid 
+         AND dm.created_at > COALESCE(
+           (SELECT last_read_at FROM dm_read_status 
+            WHERE user_id::uuid = $2::uuid AND dm_channel_id::uuid = dc.id::uuid),
+           '1970-01-01'::timestamptz
+         )
+       WHERE dc.user1_id::uuid = $3::uuid OR dc.user2_id::uuid = $4::uuid
+       GROUP BY dc.id`,
+      [userId, userId, userId, userId]
+    );
+    
+    const counts = {};
+    rows.forEach(row => {
+      counts[row.channel_id] = parseInt(row.unread_count || 0);
+    });
+    return counts;
+  },
+
   async searchMessages(options) {
     const { serverId = null, channelId = null, userId = null, query: q = '', dateFrom = null, dateTo = null, hasAttachments = null, limit = 50, offset = 0 } = options;
     let conditions = [];
@@ -1636,7 +1767,7 @@ const friendDB = {
 
   async getFriends(userId) {
     return await queryMany(
-      `SELECT u.id, u.username, u.avatar, u.status, f.created_at as friendship_date
+      `SELECT u.id, u.username, COALESCE(u.display_name, u.username) as display_name, u.avatar, u.status, f.created_at as friendship_date
        FROM friendships f
        JOIN users u ON f.friend_id::text = u.id::text
        WHERE f.user_id = $1 AND f.status = 'accepted'
@@ -1649,6 +1780,7 @@ const friendDB = {
     const incoming = await queryMany(
       `SELECT f.id, f.user_id, f.friend_id, f.status, f.created_at,
               u.id as requester_id, u.username as requester_username, 
+              COALESCE(u.display_name, u.username) as requester_display_name,
               u.avatar as requester_avatar, u.status as requester_status
        FROM friendships f
        JOIN users u ON f.user_id::text = u.id::text
@@ -1660,6 +1792,7 @@ const friendDB = {
     const outgoing = await queryMany(
       `SELECT f.id, f.user_id, f.friend_id, f.status, f.created_at,
               u.id as recipient_id, u.username as recipient_username, 
+              COALESCE(u.display_name, u.username) as recipient_display_name,
               u.avatar as recipient_avatar, u.status as recipient_status
        FROM friendships f
        JOIN users u ON f.friend_id::text = u.id::text
@@ -1818,7 +1951,7 @@ const dmDB = {
 
   async getUserDMChannels(userId) {
     const channels = await queryMany(
-      `SELECT dc.id, dc.created_at, dc.updated_at,
+      `SELECT dc.id, dc.type, dc.name, dc.created_at, dc.updated_at,
               (SELECT content FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message,
               (SELECT created_at FROM dm_messages WHERE channel_id = dc.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
               (SELECT COUNT(*) FROM dm_messages WHERE channel_id = dc.id AND sender_id != $1 AND is_read = false) as unread_count
@@ -2284,7 +2417,7 @@ const userServerAccessDB = {
   },
   async hasServerAccess(userId, serverId) {
     const row = await dbGet(
-      'SELECT is_allowed, access_level FROM user_server_access WHERE user_id = ?::text AND server_id = ?::text',
+      'SELECT is_allowed, access_level FROM user_server_access WHERE user_id = $1::uuid AND server_id = $2::uuid',
       [userId, serverId]
     );
     if (!row) return true; // default allow if no record
@@ -2354,6 +2487,186 @@ const roleChannelAccessDB = {
       await this.setChannelAccess(roleId, access.channelId, access.isAllowed);
     }
     return { success: true };
+  }
+};
+
+// ============================================
+// NOTIFICATION SETTINGS DATABASE
+// ============================================
+
+const notificationSettingsDB = {
+  // Get notification setting for a user and channel
+  async get(userId, channelId) {
+    return await queryOne(
+      `SELECT notification_level, muted_until FROM notification_settings 
+       WHERE user_id::uuid = $1::uuid AND channel_id::uuid = $2::uuid`,
+      [userId, channelId]
+    );
+  },
+  
+  // Get all notification settings for a user
+  async getAllForUser(userId) {
+    return await queryMany(
+      `SELECT channel_id, notification_level, muted_until FROM notification_settings 
+       WHERE user_id::uuid = $1::uuid`,
+      [userId]
+    );
+  },
+  
+  // Set notification setting for a user and channel
+  async set(userId, channelId, notificationLevel, mutedUntil = null) {
+    const id = uuidv4();
+    await query(
+      `INSERT INTO notification_settings (id, user_id, channel_id, notification_level, muted_until, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (user_id, channel_id) 
+       DO UPDATE SET notification_level = $4, muted_until = $5, updated_at = NOW()`,
+      [id, userId, channelId, notificationLevel, mutedUntil]
+    );
+    return { success: true };
+  },
+  
+  // Delete notification setting (revert to default)
+  async delete(userId, channelId) {
+    await query(
+      'DELETE FROM notification_settings WHERE user_id::uuid = $1::uuid AND channel_id::uuid = $2::uuid',
+      [userId, channelId]
+    );
+    return { success: true };
+  },
+  
+  // Check if user should receive notification for a message
+  async shouldNotify(userId, channelId, isMentioned = false) {
+    const setting = await this.get(userId, channelId);
+    
+    // No setting means default (all messages)
+    if (!setting) return true;
+    
+    // Check if muted
+    if (setting.muted_until && new Date(setting.muted_until) > new Date()) {
+      return false;
+    }
+    
+    const level = setting.notification_level;
+    
+    switch (level) {
+      case 'nothing':
+        return false;
+      case 'mentions':
+        return isMentioned;
+      case 'all':
+      default:
+        return true;
+    }
+  }
+};
+
+// ============================================
+// PERMISSION REQUESTS DATABASE (Bot Izin)
+// ============================================
+
+const permissionRequestsDB = {
+  // Create new permission request
+  async create(userId, serverId, channelId, requestType, maxDurationMinutes = 5) {
+    const id = uuidv4();
+    await query(
+      `INSERT INTO permission_requests (id, user_id, server_id, channel_id, request_type, max_duration_minutes, status, started_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', NOW())`,
+      [id, userId, serverId, channelId, requestType, maxDurationMinutes]
+    );
+    return { success: true, id };
+  },
+  
+  // Get active permission request for user in channel
+  async getActiveForUser(userId, channelId) {
+    return await queryOne(
+      `SELECT * FROM permission_requests 
+       WHERE user_id::uuid = $1::uuid AND channel_id::uuid = $2::uuid AND status = 'active'
+       ORDER BY started_at DESC LIMIT 1`,
+      [userId, channelId]
+    );
+  },
+  
+  // Get active permission request by ID
+  async getById(requestId) {
+    return await queryOne(
+      'SELECT * FROM permission_requests WHERE id = $1',
+      [requestId]
+    );
+  },
+  
+  // Complete permission request
+  async complete(requestId, endedWithKeyword = 'kembali') {
+    const request = await this.getById(requestId);
+    if (!request) return { success: false, error: 'Request not found' };
+    
+    const startedAt = new Date(request.started_at);
+    const endedAt = new Date();
+    const actualDurationSeconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
+    const maxDurationSeconds = request.max_duration_minutes * 60;
+    
+    // Calculate penalty if exceeded max duration
+    let penaltySeconds = 0;
+    let recordedDurationSeconds = actualDurationSeconds;
+    
+    if (actualDurationSeconds > maxDurationSeconds) {
+      penaltySeconds = actualDurationSeconds - maxDurationSeconds;
+      recordedDurationSeconds = maxDurationSeconds + penaltySeconds; // Or just max_duration
+    }
+    
+    await query(
+      `UPDATE permission_requests 
+       SET status = 'completed', 
+           ended_at = NOW(), 
+           actual_duration_seconds = $1,
+           penalty_seconds = $2,
+           recorded_duration_seconds = $3,
+           ended_with_keyword = $4
+       WHERE id = $5`,
+      [actualDurationSeconds, penaltySeconds, recordedDurationSeconds, endedWithKeyword, requestId]
+    );
+    
+    return { 
+      success: true, 
+      actualDurationSeconds, 
+      penaltySeconds, 
+      recordedDurationSeconds,
+      maxDurationSeconds 
+    };
+  },
+  
+  // Get all active requests for a channel
+  async getActiveForChannel(channelId) {
+    return await queryMany(
+      `SELECT pr.*, u.username, u.display_name, u.avatar 
+       FROM permission_requests pr
+       JOIN users u ON pr.user_id::uuid = u.id::uuid
+       WHERE pr.channel_id::uuid = $1::uuid AND pr.status = 'active'
+       ORDER BY pr.started_at DESC`,
+      [channelId]
+    );
+  },
+  
+  // Get history for user
+  async getHistoryForUser(userId, limit = 10) {
+    return await queryMany(
+      `SELECT * FROM permission_requests 
+       WHERE user_id::uuid = $1::uuid
+       ORDER BY created_at DESC LIMIT $2`,
+      [userId, limit]
+    );
+  },
+  
+  // Expire old requests (cron job helper)
+  async expireOldRequests(maxAgeMinutes = 30) {
+    const result = await query(
+      `UPDATE permission_requests 
+       SET status = 'expired' 
+       WHERE status = 'active' 
+       AND started_at < NOW() - INTERVAL '${maxAgeMinutes} minutes'
+       RETURNING *`
+    );
+    return result.rows || [];
   }
 };
 
@@ -2535,7 +2848,7 @@ const masterAdminDB = {
   async getAllUsers(limit = 100, offset = 0) {
     const rows = await queryMany(
       `SELECT u.id, u.username, u.email, u.password, u.avatar, u.status, u.display_name,
-              u.is_master_admin, u.created_at, u.joined_via_group_code,
+              u.is_master_admin, u.is_active, u.created_at, u.joined_via_group_code,
               (SELECT COUNT(*) FROM server_members sm WHERE sm.user_id = u.id) as server_count,
               (SELECT COUNT(*) FROM messages m WHERE m.user_id = u.id) as message_count
        FROM users u ORDER BY u.created_at DESC LIMIT $1 OFFSET $2`,
@@ -2545,7 +2858,7 @@ const masterAdminDB = {
       id: row.id, username: row.username, email: row.email, password: row.password,
       avatar: row.avatar, status: row.status, displayName: row.display_name,
       isMasterAdmin: row.is_master_admin === true,
-      isActive: true,
+      isActive: row.is_active === true,
       createdAt: row.created_at, joinedViaGroupCode: row.joined_via_group_code,
       serverCount: parseInt(row.server_count) || 0,
       messageCount: parseInt(row.message_count) || 0
@@ -2756,6 +3069,8 @@ module.exports = {
   voiceDB,
   userServerAccessDB,
   roleChannelAccessDB,
+  notificationSettingsDB,
+  permissionRequestsDB,
   subscriptionDB,
   auditLogDB,
   sessionDB,
@@ -2773,5 +3088,10 @@ module.exports = {
   async toggleUserActive(userId, isActive) {
     await query('UPDATE users SET is_active = $1 WHERE id = $2', [isActive, userId]);
     return { success: true };
-  }
+  },
+  // DM Read Status exports
+  updateDMReadStatus: messageDB.updateDMReadStatus,
+  getDMReadStatus: messageDB.getDMReadStatus,
+  getDMUnreadCount: messageDB.getDMUnreadCount,
+  getDMUnreadCountsForUser: messageDB.getDMUnreadCountsForUser
 };

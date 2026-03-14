@@ -2,44 +2,43 @@
 
 ## Project Overview
 
-**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi oleh Discord. Aplikasi ini dibangun sebagai multi-platform yang mendukung web, mobile (Android via Capacitor), dan desktop (Electron). UI aplikasi menggunakan bahasa **Bahasa Indonesia**.
+**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi oleh Discord. Aplikasi ini dibangun sebagai multi-platform yang mendukung web, mobile (Android via Capacitor), dan desktop (Electron). UI aplikasi menggunakan bahasa **Bahasa Indonesia** dengan tema Cyberpunk Dark.
 
 ### Fitur Utama
-- Autentikasi JWT (kedaluwarsa 7 hari) dengan token versioning untuk force logout
-- Manajemen server dan channel (text & voice channels)
-- Real-time messaging dengan Socket.IO
-- File sharing (max 10MB dengan MIME type filtering)
-- Message reactions, replies, edit/delete messages
-- Pin messages (memerlukan permission MANAGE_MESSAGES)
-- Forward messages antar channel
-- Direct Messages (DM) antar user (1-on-1 dan group DM)
-- Voice channels dengan WebRTC menggunakan SimplePeer
-- Custom roles dengan sistem permission bitfield seperti Discord
-- Friend system dengan friend requests dan block user functionality
-- Push notifications dengan VAPID
-- Typing indicators
-- Message search dengan result count
-- Audit logging untuk servers
-- Server invites dengan configurable expiration dan max uses
-- Transfer server ownership
-- Mention system (@user, @role, @everyone, @here)
-- Link embeds dengan preview
-- Responsive UI untuk mobile, tablet, dan desktop
-- Auto-update untuk desktop Electron app
-- Master admin dashboard untuk system administration
+- **Autentikasi JWT** - Token dengan kedaluwarsa 7 hari, token versioning untuk force logout
+- **Manajemen Server dan Channel** - Text & voice channels dengan categories
+- **Real-time Messaging** - Socket.IO untuk komunikasi instan
+- **File Sharing** - Upload file max 10MB dengan MIME type filtering
+- **Message Features** - Reactions, replies, edit/delete messages, pin messages, forward messages
+- **Direct Messages** - DM 1-on-1 dan group DM
+- **Voice Channels** - WebRTC menggunakan SimplePeer dengan screen sharing
+- **Custom Roles** - Sistem permission bitfield seperti Discord
+- **Friend System** - Friend requests dan block user functionality
+- **Push Notifications** - VAPID untuk web push
+- **Typing Indicators** - Real-time typing status
+- **Message Search** - Dengan result count
+- **Audit Logging** - Untuk server administration
+- **Server Invites** - Configurable expiration dan max uses
+- **Transfer Server Ownership**
+- **Mention System** - @user, @role, @everyone, @here
+- **Link Embeds** - Preview untuk URL
+- **Responsive UI** - Mobile, tablet, dan desktop
+- **Auto-update** - Untuk desktop Electron app
+- **Master Admin Dashboard** - System administration panel
 
 ---
 
 ## Technology Stack
 
 ### Frontend (`/app`)
+
 | Teknologi | Versi | Tujuan |
 |-----------|-------|--------|
 | React | 19.2.0 | UI framework dengan TypeScript |
 | Vite | 7.2.4 | Build tool dan dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
-| shadcn/ui | New York | UI component library (53 components) |
+| shadcn/ui | New York | UI component library (53+ components) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
@@ -58,13 +57,14 @@
 | electron-updater | 6.8.3 | Auto-update mechanism |
 
 ### Backend (`/server`)
+
 | Teknologi | Versi | Tujuan |
 |-----------|-------|--------|
 | Node.js | 20+ | Runtime |
 | Express | 4.18.2 | Web framework |
 | Socket.IO | 4.7.2 | Real-time WebSocket |
 | PostgreSQL | 15+ | Primary database (production) |
-| SQLite3 | 5.1.7 | Development database |
+| SQLite3 | 5.1.7 | Development database fallback |
 | JWT | 9.0.3 | Authentication (7-day expiration) |
 | bcryptjs | 3.0.3 | Password hashing (12 salt rounds) |
 | Multer | 2.0.2 | File uploads (10MB limit) |
@@ -77,11 +77,12 @@
 | cheerio | 1.2.0 | HTML parsing untuk link previews |
 
 ### Infrastructure
+
 | Teknologi | Tujuan |
 |-----------|--------|
 | Docker | Containerization |
 | Docker Compose | Multi-container orchestration |
-| Nginx | Reverse proxy, load balancer |
+| Nginx | Reverse proxy, load balancer, static file serving |
 | Redis | Session store, rate limiting |
 | PostgreSQL | Primary database |
 
@@ -93,8 +94,8 @@
 /
 ├── app/                          # Frontend React application
 │   ├── src/
-│   │   ├── components/           # React components (54 files)
-│   │   │   ├── ui/              # shadcn/ui components (53 files)
+│   │   ├── components/           # React components (54+ files)
+│   │   │   ├── ui/              # shadcn/ui components (53 components)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display area
 │   │   │   ├── ChannelList.tsx  # Server channels sidebar
@@ -166,7 +167,7 @@
 │   └── package.json             # Dependencies
 │
 ├── server/                      # Backend Express server
-│   ├── server.js                # Main server file (~3000+ lines)
+│   ├── server.js                # Main server file (~3500+ lines)
 │   ├── database.js              # SQLite database module
 │   ├── database-postgres.js     # PostgreSQL database module
 │   ├── middleware/
@@ -191,6 +192,8 @@
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image
 │   └── package.json
+│
+├── home/                        # Landing page (Next.js style)
 │
 ├── nginx/                       # Nginx configuration
 │   └── nginx.conf               # Production Nginx config
@@ -375,6 +378,7 @@ cd android
 ## Environment Variables
 
 ### Root `.env` (Docker Environment)
+
 ```env
 # Database
 DB_PASSWORD=your_secure_postgres_password_min_16_chars
@@ -396,6 +400,7 @@ VAPID_SUBJECT=mailto:admin@workgrid.app
 ```
 
 ### Server `.env`
+
 ```env
 PORT=3001
 JWT_SECRET=your-secret-key-here
@@ -422,6 +427,7 @@ VAPID_SUBJECT=
 ```
 
 ### Frontend Environment
+
 Development (`app/.env`):
 ```env
 VITE_API_URL=http://localhost:3001/api
@@ -617,6 +623,9 @@ VITE_SOCKET_URL=https://your-domain.com
 | `leave-voice-channel` | `{ channelId }` | Leave voice channel |
 | `signal` | `{ to, signal }` | WebRTC signaling |
 | `voice-state-change` | `{ isMuted, isDeafened }` | Update voice state |
+| `screen-share-started` | `{ channelId, streamId }` | Start screen share |
+| `screen-share-stopped` | `{ channelId }` | Stop screen share |
+| `screen-share-signal` | `{ to, signal, streamId }` | Screen share signaling |
 
 #### Server → Client
 | Event | Payload | Description |
@@ -639,6 +648,9 @@ VITE_SOCKET_URL=https://your-domain.com
 | `friend_request_received` | `{ request }` | Friend request received |
 | `friend_request_accepted` | `{ friend }` | Friend request accepted |
 | `member_joined` | `{ userId, serverId, username, ... }` | New member joined |
+| `user-started-screen-share` | `{ userId, channelId, streamId }` | Screen share started |
+| `user-stopped-screen-share` | `{ userId, channelId }` | Screen share stopped |
+| `screen-share-signal` | `{ from, signal, streamId }` | Screen share signal |
 
 ---
 
@@ -648,7 +660,7 @@ VITE_SOCKET_URL=https://your-domain.com
 
 | Table | Description |
 |-------|-------------|
-| `users` | User accounts (id, username, email, password, avatar, status, token_version, is_master_admin, force_password_change) |
+| `users` | User accounts (id, username, email, password, avatar, status, token_version, is_master_admin, force_password_change, is_active) |
 | `servers` | Discord-like servers (id, name, icon, banner, owner_id) |
 | `server_members` | Server membership (server_id, user_id, role, role_id, joined_at, join_method) |
 | `categories` | Channel categories (server_id, name, position) |
@@ -662,7 +674,7 @@ VITE_SOCKET_URL=https://your-domain.com
 | `dm_messages` | DM messages |
 | `invites` | Server invite codes (code, server_id, created_by, expires_at, max_uses, uses) |
 | `bans` | Server bans (server_id, user_id, reason, created_at) |
-| `voice_participants` | Voice channel participants (is_muted, is_deafened, joined_at) |
+| `voice_participants` | Voice channel participants (is_muted, is_deafened, joined_at, is_screen_sharing, screen_share_stream_id) |
 | `voice_signaling_logs` | Voice signaling logs untuk debugging |
 | `roles` | Custom server roles dengan permissions (server_id, name, color, permissions, position, is_default) |
 | `audit_logs` | Server audit logs (server_id, action, user_id, target_id, details, created_at) |
@@ -717,6 +729,7 @@ const Permissions = {
 - [ ] Create channel categories
 - [ ] Create dan assign custom roles
 - [ ] Test voice channels
+- [ ] Test screen sharing
 - [ ] Test mobile viewport
 
 ### Test Real-time (2 Browser Test)
@@ -736,6 +749,7 @@ const Permissions = {
 - **File Uploads:** Limited to 10MB, MIME type filtering
 - **CORS:** Strict origin checking dengan ALLOWED_ORIGINS
 - **Rate Limiting:** express-rate-limit (10 req/15min auth, 100 req/min API)
+- **Socket Rate Limiting:** Throttling pada edit_message (1s), join_channel (500ms), dm-typing (2s)
 - **XSS Prevention:** Input sanitization untuk HTML tags
 - **Role-based Permissions:** Discord-like permission bitfield
 - **Input Validation:** express-validator
@@ -767,7 +781,7 @@ Allowed MIME types:
 
 ## shadcn/ui Components
 
-Project ini memiliki 53 shadcn/ui components di `app/src/components/ui/`:
+Project ini memiliki 53+ shadcn/ui components di `app/src/components/ui/`:
 
 ### Available Components
 - **Layout:** accordion, card, collapsible, resizable, scroll-area, separator, sheet, sidebar

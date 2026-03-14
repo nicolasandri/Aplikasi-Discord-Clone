@@ -1143,14 +1143,18 @@ export function MasterAdminDashboard() {
                         <div className="flex items-center justify-end gap-1">
                           {/* Toggle Active/Disable */}
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-8 w-8 ${userItem.isActive ? 'text-green-500 hover:text-green-400 hover:bg-green-500/10' : 'text-red-500 hover:text-red-400 hover:bg-red-500/10'}`}
+                            variant={userItem.isActive ? "ghost" : "default"}
+                            size="sm"
+                            className={`h-8 px-2 ${userItem.isActive ? 'text-green-500 hover:text-green-400 hover:bg-green-500/10' : 'bg-red-500 hover:bg-red-600 text-white'}`}
                             onClick={() => handleToggleUserActive(userItem.id, userItem.username, !userItem.isActive)}
                             disabled={userItem.id === user?.id}
                             title={userItem.isActive ? 'Nonaktifkan user' : 'Aktifkan user'}
                           >
-                            {userItem.isActive ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
+                            {userItem.isActive ? (
+                              <><UserCheck className="w-4 h-4 mr-1" /> Aktif</>
+                            ) : (
+                              <><UserX className="w-4 h-4 mr-1" /> Aktifkan</>
+                            )}
                           </Button>
                           <Button
                             variant="ghost"

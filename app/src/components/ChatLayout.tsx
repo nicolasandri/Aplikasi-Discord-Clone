@@ -658,12 +658,21 @@ export function ChatLayout() {
       const senderName = message.user?.displayName || message.user?.username || 'Someone';
       const channelName = fromChannel?.name || 'channel';
       
+      // Format mentions in content for notification (simple version)
+      let notificationBody = message.content?.substring(0, 100) || '📎 File';
+      
+      // Replace all mentions with simple @ symbol
+      notificationBody = notificationBody.replace(/<@([a-f0-9-]+)>/gi, '@user');
+      notificationBody = notificationBody.replace(/<@&([a-f0-9-]+)>/gi, '@role');
+      notificationBody = notificationBody.replace(/<@everyone>/gi, '@everyone');
+      notificationBody = notificationBody.replace(/<@here>/gi, '@here');
+      
       console.log('🔔 TRIGGER NOTIFICATION for:', senderName);
       
       // Call notify using ref to always have latest function
       notifyRef.current({
         title: `${senderName} di #${channelName}`,
-        body: message.content?.substring(0, 100) || '📎 File',
+        body: notificationBody,
         icon: message.user?.avatar,
       });
     }
@@ -1013,10 +1022,23 @@ export function ChatLayout() {
     }
   };
 
-  const handleSelectDMChannel = (channelId: string) => {
+  const handleSelectDMChannel = async (channelId: string) => {
     setSelectedDMChannelId(channelId);
     setViewMode('dm');
     setDMUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
+    
+    // Mark DM channel as read in backend
+    try {
+      await fetch(`${API_URL}/dm/channels/${channelId}/read`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Failed to mark DM as read:', error);
+    }
   };
 
   const handleStartDM = async (friend: any) => {
@@ -1357,6 +1379,7 @@ export function ChatLayout() {
               isFriendsOpen={viewMode === 'friends'}
               isMobile={true}
               serverUnreadCounts={serverUnreadCounts}
+              dmUnreadCount={totalDMUnread}
             />
           </div>
         </MobileDrawer>

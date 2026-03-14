@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Hash, Volume2, Users, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw, Keyboard, MessageCircle, Bell, AtSign, Phone, Video, X } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
+import { ChannelNotificationSettings } from './ChannelNotificationSettings';
 import { MemberProfilePopup } from './MemberProfilePopup';
 import type { ServerMember } from '@/types';
 import { Lightbox } from './Lightbox';
@@ -8,6 +9,7 @@ import { MessageContent } from './MessageContent';
 import { ForwardedMessageDisplay } from './ForwardedMessageDisplay';
 import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
+import { PermissionBot } from './PermissionBot';
 import { ReactionTooltip } from './ReactionTooltip';
 import { ForwardModal } from './ForwardModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1466,7 +1468,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           <div className="w-full max-w-md">
             <VoiceChannelPanel 
               channelId={channel.id} 
-              channelName={channel.name} 
+              channelName={channel.name}
+              serverId={serverId || channel.serverId}
             />
           </div>
         </div>
@@ -1499,7 +1502,14 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                   </span>
                 )}
               </button>
-              {/* 2. File */}
+              {/* 2. Notification Settings */}
+              {channel?.id && serverId && (
+                <ChannelNotificationSettings 
+                  channelId={channel.id} 
+                  serverId={serverId} 
+                />
+              )}
+              {/* 3. File */}
               <button className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" title="File Attachment">
                 <Inbox className="w-5 h-5" />
               </button>
@@ -1554,6 +1564,17 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           )}
         </div>
       </div>
+
+      {/* Permission Bot Panel - Only for text channels */}
+      {channel.type === 'text' && serverId && (
+        <div className={`${isMobile ? 'px-2 pt-2' : 'px-4 pt-4'}`}>
+          <PermissionBot 
+            channelId={channel.id} 
+            serverId={serverId} 
+            currentUserId={currentUser?.id || ''}
+          />
+        </div>
+      )}
 
       {/* Messages */}
       <div 

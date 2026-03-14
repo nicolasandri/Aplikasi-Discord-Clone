@@ -24,6 +24,23 @@ interface MessageInputProps {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+// Helper function to format message content for display (replace mentions)
+function formatContentForDisplay(content: string): string {
+  if (!content) return '';
+  
+  // Replace user mentions: <@userId> -> @user
+  let formatted = content.replace(/<@([a-f0-9-]+)>/gi, '@user');
+  
+  // Replace role mentions: <@&roleId> -> @role
+  formatted = formatted.replace(/<@&([a-f0-9-]+)>/gi, '@role');
+  
+  // Replace @everyone and @here
+  formatted = formatted.replace(/<@everyone>/gi, '@everyone');
+  formatted = formatted.replace(/<@here>/gi, '@here');
+  
+  return formatted;
+}
+
 function validateFile(file: File): { valid: boolean; error?: string } {
   if (file.size > MAX_FILE_SIZE) {
     return { valid: false, error: 'Ukuran file melebihi 10MB' };
@@ -257,7 +274,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
           <div className={`flex items-center gap-2 text-[#a0a0b0] ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <span>Membalas</span>
             <span className="text-[#00d4ff] font-medium truncate max-w-[120px]">{replyTo.user?.displayName || replyTo.user?.username}</span>
-            <span className="truncate max-w-[150px]">: {replyTo.content}</span>
+            <span className="truncate max-w-[150px]">: {formatContentForDisplay(replyTo.content)}</span>
           </div>
           <button
             type="button"

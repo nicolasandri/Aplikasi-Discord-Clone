@@ -91,10 +91,45 @@ All 5 bugs have been successfully fixed:
      - Updates local state after successful transfer
 - **Status**: ✅ Fully implemented and working
 
+## Security Fixes (Critical Bugs from BUG_REPORT.md) - 2026-03-11
+
+### BUG-003: Rate Limiting ✅ FIXED
+- **Issue**: No rate limiting on socket events - vulnerable to DoS attacks
+- **Fix**: 
+  - Added `checkSocketEventRateLimit()` helper function
+  - Applied rate limiting to: `edit_message` (1s), `join_channel` (500ms), `dm-typing` (2s)
+  - Existing: `express-rate-limit` for API, `checkMessageRateLimit` for messages
+- **Files**: `server/server.js`
+
+### BUG-004: Socket Join Channel Auth Check ✅ FIXED
+- **Issue**: `join_channel` event only checked authentication, not channel membership
+- **Fix**:
+  - Made `join_channel` handler async
+  - Added channel existence verification via `channelDB.getById()`
+  - Added server membership check via `serverDB.getMembers()`
+  - Added server access check via `userServerAccessDB.hasServerAccess()`
+- **Files**: `server/server.js`
+
+### BUG-005: Socket Send Message Channel Verification ✅ ALREADY FIXED
+- **Issue**: Users could send messages to any channel
+- **Fix**: Already implemented - verifies channel, membership, and server access before allowing message send
+- **Files**: `server/server.js`
+
+### BUG-010: Reaction Ownership Check ✅ FIXED
+- **Issue**: Users could remove other users' reactions
+- **Fix**:
+  - Added `reactionDB.getByMessageAndUser()` method in `database.js`
+  - Remove reaction endpoint now verifies ownership before removing
+  - Returns 403 if user doesn't own the reaction
+- **Files**: `server/server.js`, `server/database.js`
+
+---
+
 ## Files Modified
-1. `server/database.js` - Added dbGet/dbRun/dbAll helpers, moved search methods, added serverDB.delete() with cascade, added pin message methods, added transferOwnership method
+1. `server/database.js` - Added dbGet/dbRun/dbAll helpers, moved search methods, added serverDB.delete() with cascade, added pin message methods, added transferOwnership method, added reactionDB.getByMessageAndUser()
 2. `app/src/pages/FriendsPage.tsx` - Uncommented handleBlockUser, added Block button
-3. `server/server.js` - Replaced all 24 direct db calls with abstraction methods, added pin/unpin API endpoints, added transfer-ownership endpoint
+3. `server/server.js` - Replaced all 24 direct db calls with abstraction methods, added pin/unpin API endpoints, added transfer-ownership endpoint, added security fixes (BUG-003, BUG-004, BUG-010)
 4. `app/src/components/ChatArea.tsx` - Added pinned messages banner, pin/unpin handlers
 5. `app/src/components/MessageContextMenu.tsx` - Already had Pin option, connected to handler
 6. `app/src/components/ServerSettingsPage.tsx` - Added Transfer Ownership menu (⋮) in Server Settings → Members tab with confirmation dialog
+7. `docs/BUG_REPORT.md` - Updated status of fixed bugs (BUG-003, BUG-004, BUG-005, BUG-010)

@@ -11,7 +11,8 @@ import {
   Monitor,
   MonitorStop,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Timer
 } from 'lucide-react';
 import { useVoiceChannel } from '@/hooks/useVoiceChannel';
 import { Button } from '@/components/ui/button';
@@ -19,14 +20,47 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PermissionBot } from './PermissionBot';
 
 interface VoiceChannelPanelProps {
   channelId: string;
   channelName: string;
+  serverId?: string;
 }
 
-export function VoiceChannelPanel({ channelId, channelName }: VoiceChannelPanelProps) {
+export function VoiceChannelPanel({ channelId, channelName, serverId }: VoiceChannelPanelProps) {
   const { user } = useAuth();
+
+  // Check if this is a permission bot channel (contains "izin" or "report")
+  const isPermissionChannel = channelName.toLowerCase().includes('izin') || 
+                               channelName.toLowerCase().includes('report');
+
+  // If permission channel and serverId provided, show PermissionBot interface
+  if (isPermissionChannel && serverId && user) {
+    return (
+      <div className="h-full flex flex-col bg-background">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Timer className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">{channelName}</h3>
+            <p className="text-xs text-muted-foreground">Sistem Izin Staff</p>
+          </div>
+        </div>
+        
+        {/* Permission Bot Panel */}
+        <div className="flex-1 overflow-y-auto">
+          <PermissionBot 
+            channelId={channelId}
+            serverId={serverId}
+            currentUserId={user.id}
+          />
+        </div>
+      </div>
+    );
+  }
   const {
     isConnected,
     isMuted,
