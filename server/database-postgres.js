@@ -2921,10 +2921,21 @@ const masterAdminDB = {
   },
 
   async getAllDMMessages(limit = 100, offset = 0) {
+    // Check if display_name column exists in users table
+    const columnCheck = await queryOne(
+      `SELECT column_name 
+       FROM information_schema.columns 
+       WHERE table_name='users' AND column_name='display_name'`
+    );
+    const hasDisplayName = !!columnCheck;
+    
+    const displayNameField = hasDisplayName ? 'u.display_name' : 'NULL as display_name';
+    const memberDisplayNameField = hasDisplayName ? 'u.display_name' : 'NULL as display_name';
+    
     const rows = await queryMany(
       `SELECT dm.id, dm.channel_id, dm.sender_id, dm.content, dm.attachments,
               dm.is_read, dm.created_at, dm.edited_at,
-              u.username, u.display_name, u.avatar,
+              u.username, ${displayNameField}, u.avatar,
               dmc.name as channel_name, dmc.type as channel_type
        FROM dm_messages dm JOIN users u ON dm.sender_id = u.id
        JOIN dm_channels dmc ON dm.channel_id = dmc.id
@@ -2933,7 +2944,7 @@ const masterAdminDB = {
     );
     const result = await Promise.all(rows.map(async (row) => {
       const members = await queryMany(
-        `SELECT u.id, u.username, u.display_name, u.avatar FROM dm_channel_members dcm
+        `SELECT u.id, u.username, ${memberDisplayNameField}, u.avatar FROM dm_channel_members dcm
          JOIN users u ON dcm.user_id = u.id WHERE dcm.channel_id = $1`,
         [row.channel_id]
       );
