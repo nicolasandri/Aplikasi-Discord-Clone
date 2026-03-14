@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, FileText } from 'lucide-react';
+import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, FileText, Send } from 'lucide-react';
 import { EmojiStickerGIFPicker } from './EmojiStickerGIFPicker';
 import { ImageViewer } from './ImageViewer';
 import { UserProfilePopup } from './UserProfilePopup';
@@ -1138,6 +1138,16 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               }}
               serverId={null} // DM doesn't have serverId
             />
+            
+            {/* Send Button */}
+            <button
+              onClick={sendMessage}
+              disabled={isSending || (!newMessage.trim() && attachments.length === 0)}
+              className="p-2 rounded-full bg-[#00d4ff] text-white hover:bg-[#00b8d9] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Kirim pesan"
+            >
+              <Send className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
