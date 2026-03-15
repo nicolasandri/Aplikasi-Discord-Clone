@@ -2417,13 +2417,18 @@ const userServerAccessDB = {
     return { userId, serverId, isAllowed };
   },
   async hasServerAccess(userId, serverId) {
-    const row = await dbGet(
-      'SELECT is_allowed, access_level FROM user_server_access WHERE user_id = $1::uuid AND server_id = $2::uuid',
-      [userId, serverId]
-    );
-    if (!row) return true; // default allow if no record
-    if (row.is_allowed !== null && row.is_allowed !== undefined) return row.is_allowed === true;
-    return row.access_level !== 'denied';
+    try {
+      const row = await dbGet(
+        'SELECT is_allowed, access_level FROM user_server_access WHERE user_id::text = $1 AND server_id::text = $2',
+        [userId, serverId]
+      );
+      if (!row) return true; // default allow if no record
+      if (row.is_allowed !== null && row.is_allowed !== undefined) return row.is_allowed === true;
+      return row.access_level !== 'denied';
+    } catch (error) {
+      console.error('hasServerAccess error:', error.message);
+      return true; // default allow on error
+    }
   },
   async getServerMembersAccess(serverId) {
     return dbAll(
