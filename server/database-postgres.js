@@ -1555,6 +1555,17 @@ const reactionDB = {
     );
   },
 
+  async getByMessageAndUser(messageId, userId) {
+    return await queryMany(
+      `SELECT r.*, u.username, u.avatar 
+       FROM reactions r
+       JOIN users u ON r.user_id::text = u.id::text
+       WHERE r.message_id = $1 AND r.user_id = $2
+       ORDER BY r.created_at ASC`,
+      [messageId, userId]
+    );
+  },
+
   async getGroupedByMessage(messageId) {
     const rows = await queryMany(
       `SELECT emoji, COUNT(*) as count, ARRAY_AGG(user_id) as users
