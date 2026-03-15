@@ -216,8 +216,8 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const getFileIcon = (mimetype: string) => {
-    if (mimetype.startsWith('image/')) return <Image className="w-4 h-4" />;
+  const getFileIcon = (mimetype: string = 'application/octet-stream') => {
+    if (mimetype?.startsWith('image/')) return <Image className="w-4 h-4" />;
     if (mimetype === 'application/pdf') return <FileText className="w-4 h-4" />;
     return <File className="w-4 h-4" />;
   };
@@ -291,7 +291,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
         <div className={`bg-[#2a2b3d] px-3 py-1.5 flex flex-wrap gap-2 ${replyTo ? '' : isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
           {attachments.map((file, index) => (
             <div key={index} className={`flex items-center gap-2 bg-[#232438] rounded text-sm ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
-              <span className="text-[#a0a0b0]">{getFileIcon(file.mimetype)}</span>
+              <span className="text-[#a0a0b0]">{getFileIcon(file.mimetype || 'application/octet-stream')}</span>
               <span className="text-white truncate max-w-[100px]">{file.originalName}</span>
               <button
                 type="button"

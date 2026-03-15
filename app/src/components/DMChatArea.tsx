@@ -937,7 +937,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                                         <span className="text-2xl">📎</span>
                                         <div className="flex-1 min-w-0">
                                           <p className="text-sm truncate">{file.originalName || file.filename}</p>
-                                          <p className="text-xs text-[#6a6a7a]">{(file.size / 1024).toFixed(1)} KB</p>
+                                          <p className="text-xs text-[#6a6a7a]">{file.size ? (file.size / 1024).toFixed(1) : '?'} KB</p>
                                         </div>
                                       </div>
                                     ))}

@@ -131,7 +131,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (mimetype: string) => {
+  const getFileIcon = (mimetype: string = 'application/octet-stream') => {
     if (mimetype.startsWith('image/')) return '🖼️';
     if (mimetype.startsWith('video/')) return '🎬';
     if (mimetype.startsWith('audio/')) return '🎵';
@@ -306,7 +306,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
         {!isImage && !isVideo && !isPDF && !error && (
           <div className="text-center text-white z-10">
             <div className="w-24 h-24 mx-auto mb-4 bg-[#00d4ff]/20 rounded-2xl flex items-center justify-center text-5xl">
-              {getFileIcon(currentAttachment.mimetype)}
+              {getFileIcon(currentAttachment.mimetype || 'application/octet-stream')}
             </div>
             <p className="text-lg mb-2">{currentAttachment.filename}</p>
             <p className="text-sm text-gray-400 mb-6">
@@ -343,7 +343,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
                 />
               ) : (
                 <div className="w-full h-full bg-[#2B2D31] flex items-center justify-center text-xl">
-                  {getFileIcon(att.mimetype)}
+                  {getFileIcon(att.mimetype || 'application/octet-stream')}
                 </div>
               )}
             </button>

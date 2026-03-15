@@ -26,12 +26,31 @@ const API_URL = isElectron
 // Get base URL for backend (without /api)
 const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
+// Helper to safely check if value is a string and starts with prefix
+const safeStartsWith = (value: unknown, prefix: string): boolean => {
+  return typeof value === 'string' && value.startsWith(prefix);
+};
+
+// Helper to safely check if value is a string and includes substring
+const safeIncludes = (value: unknown, substring: string): boolean => {
+  return typeof value === 'string' && value.includes(substring);
+};
+
+// Helper to safely check if array includes value
+const safeArrayIncludes = (arr: unknown, value: string): boolean => {
+  return Array.isArray(arr) && arr.includes(value);
+};
+
 // Helper to get full file URL
-const getFileUrl = (url: string): string => {
+const getFileUrl = (url: unknown): string => {
   if (!url) return '';
-  if (url.startsWith('http')) return url;
+  if (typeof url !== 'string') {
+    console.error('getFileUrl: url is not a string:', url);
+    return '';
+  }
+  if (safeStartsWith(url, 'http')) return url;
   // Ensure url starts with /
-  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  const normalizedUrl = safeStartsWith(url, '/') ? url : `/${url}`;
   return `${BASE_URL}${normalizedUrl}`;
 };
 
@@ -40,11 +59,11 @@ const getAvatarUrl = (avatar: string | null, username: string): string => {
   if (!avatar) {
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
   }
-  if (avatar.startsWith('http')) {
+  if (safeStartsWith(avatar, 'http')) {
     return avatar;
   }
   // Relative URL - prepend base URL
-  const normalizedUrl = avatar.startsWith('/') ? avatar : `/${avatar}`;
+  const normalizedUrl = safeStartsWith(avatar, '/') ? avatar : `/${avatar}`;
   return `${BASE_URL}${normalizedUrl}`;
 };
 
@@ -374,17 +393,17 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
   // Use currentUser avatar for own messages (with cache busting)
   const getAvatarSrc = () => {
     if (isOwnMessage && currentUser?.avatar) {
-      const avatarUrl = currentUser.avatar.startsWith('http') 
+      const avatarUrl = safeStartsWith(currentUser.avatar, 'http') 
         ? currentUser.avatar 
         : `${BASE_URL}${currentUser.avatar}`;
-      return `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}v=${avatarVersion}`;
+      return `${avatarUrl}${safeIncludes(avatarUrl, '?') ? '&' : '?'}v=${avatarVersion}`;
     }
     // For other users, use the avatar from message data
     const otherAvatar = message.user?.avatar;
     if (!otherAvatar) {
       return `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user?.username || 'user'}`;
     }
-    return otherAvatar.startsWith('http') 
+    return safeStartsWith(otherAvatar, 'http') 
       ? otherAvatar 
       : `${BASE_URL}${otherAvatar}`;
   };
@@ -486,7 +505,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
               <div className="flex items-center gap-1.5 text-xs">
                 {message.replyTo?.user?.avatar ? (
                   <img 
-                    src={message.replyTo.user.avatar.startsWith('http') ? message.replyTo.user.avatar : `${BASE_URL}${message.replyTo.user.avatar}`}
+                    src={safeStartsWith(message.replyTo.user.avatar, 'http') ? message.replyTo.user.avatar : `${BASE_URL}${message.replyTo.user.avatar}`}
                     alt={message.replyTo.user?.displayName || message.replyTo.user?.username || 'User'}
                     className="w-4 h-4 rounded-full"
                     onError={(e) => {
@@ -573,17 +592,26 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                   ? 'grid grid-cols-2 gap-2' 
                   : 'grid grid-cols-3 gap-2'
           }`}>
-            {message.attachments.map((file, index) => (
+            {message.attachments.map((file, index) => {
+              // Safety check - skip if file is null/undefined
+              if (!file) return null;
+              
+              // Support both old format (type) and new format (mimetype)
+              const mime = file.mimetype || file.type || 'application/octet-stream';
+              const isImage = mime?.startsWith('image/') || false;
+              const isVideo = mime?.startsWith('video/') || false;
+              
+              return (
               <div 
                 key={index}
                 className={`cursor-pointer ${isMobile ? 'w-full' : ''}`}
                 onClick={() => onAttachmentClick?.(message, index)}
               >
-                {file.mimetype.startsWith('image/') ? (
+                {isImage ? (
                   <div className={`block ${isMobile ? 'w-full' : 'max-w-2xl'}`} style={file.width ? { maxWidth: `${file.width}px` } : undefined}>
                     <img 
                       src={getFileUrl(file.url)} 
-                      alt={file.originalName}
+                      alt={file.originalName || file.name || 'Attachment'}
                       className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#12121a] ${
                         isMobile ? 'max-h-[400px]' : 'max-h-[600px]'
                       }`}
@@ -594,7 +622,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                       }}
                     />
                   </div>
-                ) : file.mimetype.startsWith('video/') ? (
+                ) : isVideo ? (
                   <div className={`relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center ${isMobile ? 'w-full' : 'max-w-2xl'}`}>
                     <video
                       src={getFileUrl(file.url)}
@@ -613,13 +641,13 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                       <FileText className={`text-white ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm truncate">{file.originalName}</p>
-                      <p className="text-[#6a6a7a] text-xs">{(file.size / 1024).toFixed(1)} KB</p>
+                      <p className="text-white text-sm truncate">{file.originalName || file.name || 'Unknown file'}</p>
+                      <p className="text-[#6a6a7a] text-xs">{file.size ? (file.size / 1024).toFixed(1) : '?'} KB</p>
                     </div>
                   </div>
                 )}
               </div>
-            ))}
+            )})}
           </div>
         )}
         
@@ -1291,7 +1319,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     }
     
     const hasReacted = message.reactions?.some(r => 
-      r.emoji === emoji && r.users.includes(currentUser?.id || '')
+      r.emoji === emoji && safeArrayIncludes(r.users, currentUser?.id || '')
     ) ?? false;
     
     console.log('🔥 Has reacted:', hasReacted);
@@ -1409,14 +1437,16 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const handleAttachmentClick = (message: Message, index: number) => {
     if (!message.attachments || message.attachments.length === 0) return;
     
-    // Convert attachments to Lightbox format
-    const attachments = message.attachments.map((att, i) => ({
-      id: `${message.id}-${i}`,
-      url: att.url.startsWith('http') ? att.url : `${BASE_URL}${att.url}`,
-      filename: att.originalName || `file-${i}`,
-      mimetype: att.mimetype || 'application/octet-stream',
-      size: att.size || 0
-    }));
+    // Convert attachments to Lightbox format (filter out invalid attachments)
+    const attachments = message.attachments
+      .filter((att) => att?.url) // Only include attachments with valid URL
+      .map((att, i) => ({
+        id: `${message.id}-${i}`,
+        url: safeStartsWith(att.url, 'http') ? att.url : `${BASE_URL}${att.url}`,
+        filename: att.originalName || att.name || `file-${i}`,
+        mimetype: att.mimetype || att.type || 'application/octet-stream',
+        size: att.size || 0
+      }));
     
     setLightboxAttachments(attachments);
     setLightboxIndex(index);

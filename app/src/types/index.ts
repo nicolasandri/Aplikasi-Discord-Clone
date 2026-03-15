@@ -56,11 +56,14 @@ export interface Reaction {
 export interface FileAttachment {
   url: string;
   filename: string;
-  originalName: string;
+  originalName?: string;
+  name?: string;
   mimetype: string;
-  size: number;
+  size?: number;
   width?: number;
   height?: number;
+  /** @deprecated Use mimetype instead. Kept for backward compatibility with old messages. */
+  type?: string;
 }
 
 export interface ForwardedFrom {
