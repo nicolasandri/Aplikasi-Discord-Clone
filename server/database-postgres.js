@@ -639,8 +639,8 @@ const serverDB = {
               -- Get highest role name and color
               COALESCE(
                 (SELECT sr2.name FROM member_roles mr2 
-                 JOIN server_roles sr2 ON mr2.role_id = sr2.id
-                 WHERE mr2.user_id::text = u.id AND mr2.server_id = $1::uuid
+                 JOIN server_roles sr2 ON mr2.role_id::text = sr2.id::text
+                 WHERE mr2.user_id::text = u.id::text AND mr2.server_id::text = $1::text
                  ORDER BY sr2.position DESC LIMIT 1),
                 CASE sm.role
                   WHEN 'owner' THEN 'Owner'
@@ -651,8 +651,8 @@ const serverDB = {
               ) as role_name,
               COALESCE(
                 (SELECT sr2.color FROM member_roles mr2 
-                 JOIN server_roles sr2 ON mr2.role_id = sr2.id
-                 WHERE mr2.user_id::text = u.id AND mr2.server_id = $1::uuid
+                 JOIN server_roles sr2 ON mr2.role_id::text = sr2.id::text
+                 WHERE mr2.user_id::text = u.id::text AND mr2.server_id::text = $1::text
                  ORDER BY sr2.position DESC LIMIT 1),
                 CASE sm.role
                   WHEN 'owner' THEN '#ffd700'
