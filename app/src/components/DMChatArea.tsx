@@ -25,6 +25,11 @@ const API_URL = isElectron
 const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 console.log('[DMChatArea] API_URL:', API_URL, 'BASE_URL:', BASE_URL);
 
+// Helper to safely check if value is a string and starts with prefix
+const safeStartsWith = (value: unknown, prefix: string): boolean => {
+  return typeof value === 'string' && value?.startsWith(prefix);
+};
+
 interface DMChatAreaProps {
   channel: DMChannel | null;
   currentUser: User | null;
@@ -347,7 +352,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
           const existingIndex = prev.findIndex(m => 
             m.senderId === mappedMessage.senderId && 
             m.content === mappedMessage.content &&
-            m.id.startsWith('temp-')
+            m.id?.startsWith('temp-')
           );
           
           if (existingIndex !== -1) {
@@ -758,7 +763,7 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
               <div className="relative">
                 <img 
                   src={channel.friend?.avatar 
-                    ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
+                    ? (channel.friend.avatar?.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
                     : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
                   alt={channel.friend?.username || 'User'}
                   className="w-8 h-8 rounded-full"
