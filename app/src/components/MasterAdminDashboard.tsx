@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Helper to safely check if value is a string and starts with prefix
+const safeStartsWith = (value: unknown, prefix: string): boolean => {
+  return typeof value === 'string' && value.startsWith(prefix);
+};
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -414,13 +419,13 @@ export function MasterAdminDashboard() {
   const getAvatar = (avatar: string | null | undefined, seed: string) => {
     if (avatar && avatar.trim() !== '') {
       // If it's already a full URL, return as is
-      if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:')) {
+      if (safeStartsWith(avatar, 'http://') || safeStartsWith(avatar, 'https://') || safeStartsWith(avatar, 'data:')) {
         return avatar;
       }
       // If it's a relative path starting with /uploads or /api, prepend server URL
-      if (avatar.startsWith('/uploads/') || avatar.startsWith('/api/')) {
+      if (safeStartsWith(avatar, '/uploads/') || safeStartsWith(avatar, '/api/')) {
         // Remove /api prefix if present
-        const cleanPath = avatar.startsWith('/api/') ? avatar.substring(4) : avatar;
+        const cleanPath = safeStartsWith(avatar, '/api/') ? avatar.substring(4) : avatar;
         return `${BASE_URL}${cleanPath}`;
       }
       return avatar;
