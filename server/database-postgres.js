@@ -1470,6 +1470,21 @@ const messageDB = {
       };
     }
     
+    // Parse newMember info from welcome message content
+    let newMember = null;
+    if (row.is_system && row.content && row.content.includes('Selamat datang')) {
+      const match = row.content.match(/Selamat datang \*\*([^!]+)/);
+      if (match) {
+        const displayName = match[1].trim();
+        newMember = {
+          id: row.user_id,
+          username: displayName,
+          displayName: displayName,
+          avatar: null
+        };
+      }
+    }
+    
     return {
       id: row.id,
       channelId: row.channel_id,
@@ -1482,7 +1497,8 @@ const messageDB = {
       timestamp: row.created_at,
       user,
       server_id: row.server_id,
-      isSystem: row.is_system === true
+      isSystem: row.is_system === true,
+      newMember
     };
   },
 
