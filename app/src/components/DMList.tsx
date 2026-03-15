@@ -301,7 +301,7 @@ export function DMList({
                       <Avatar className={`${isMobile ? 'w-12 h-12' : 'w-8 h-8'}`}>
                         <AvatarImage 
                           src={channel.friend?.avatar 
-                            ? (channel.friend.avatar.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
+                            ? (channel.friend.avatar?.startsWith('http') ? channel.friend.avatar : `${BASE_URL}${channel.friend.avatar}`)
                             : `https://api.dicebear.com/7.x/avataaars/svg?seed=${channel.friend?.username || 'user'}`} 
                           alt={channel.friend?.displayName || channel.friend?.username || 'User'} 
                         />

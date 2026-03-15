@@ -575,7 +575,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
       if (!member.avatar) {
         return `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username || 'user'}`;
       }
-      if (member.avatar.startsWith('http')) {
+      if (member.avatar?.startsWith('http')) {
         return member.avatar;
       }
       // Add cache-busting to force reload when avatar changes
