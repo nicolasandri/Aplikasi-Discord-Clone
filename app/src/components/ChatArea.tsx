@@ -598,8 +598,8 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
               
               // Support both old format (type) and new format (mimetype)
               const mime = file.mimetype || file.type || 'application/octet-stream';
-              const isImage = mime?.startsWith('image/') || false;
-              const isVideo = mime?.startsWith('video/') || false;
+              const isImage = safeStartsWith(mime, 'image/');
+              const isVideo = safeStartsWith(mime, 'video/');
               
               return (
               <div 
