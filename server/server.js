@@ -313,6 +313,13 @@ if (!ALLOWED_ORIGINS.includes('http://workgrid.homeku.net')) {
 if (!ALLOWED_ORIGINS.includes('https://workgrid.homeku.net')) {
   ALLOWED_ORIGINS.push('https://workgrid.homeku.net');
 }
+// Force add IP address
+if (!ALLOWED_ORIGINS.includes('http://152.42.242.180')) {
+  ALLOWED_ORIGINS.push('http://152.42.242.180');
+}
+if (!ALLOWED_ORIGINS.includes('https://152.42.242.180')) {
+  ALLOWED_ORIGINS.push('https://152.42.242.180');
+}
 
 const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, notificationSettingsDB, permissionRequestsDB, Permissions } = dbModule;
 

@@ -346,7 +346,7 @@ const permissionDB = {
 
   async getUserRole(userId, serverId) {
     const result = await queryOne(
-      'SELECT role FROM server_members WHERE server_id = $1 AND user_id = $2',
+      'SELECT role FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text',
       [serverId, userId]
     );
     return result?.role || null;
@@ -357,8 +357,8 @@ const permissionDB = {
     const result = await queryOne(
       `SELECT COALESCE(STRING_AGG(sr.permissions::text, ','), '0') as all_perms
        FROM member_roles mr
-       JOIN server_roles sr ON mr.role_id = sr.id
-       WHERE mr.server_id = $1 AND mr.user_id = $2`,
+       JOIN server_roles sr ON mr.role_id::text = sr.id::text
+       WHERE mr.server_id::text = $1::text AND mr.user_id::text = $2::text`,
       [serverId, userId]
     );
     
@@ -401,7 +401,7 @@ const permissionDB = {
 
   async updateMemberRole(serverId, userId, newRole) {
     const result = await query(
-      'UPDATE server_members SET role = $1 WHERE server_id = $2 AND user_id = $3 RETURNING *',
+      'UPDATE server_members SET role = $1 WHERE server_id::text = $2::text AND user_id::text = $3::text RETURNING *',
       [newRole, serverId, userId]
     );
     return { success: result.rowCount > 0 };
@@ -409,7 +409,7 @@ const permissionDB = {
 
   async removeMember(serverId, userId) {
     const result = await query(
-      'DELETE FROM server_members WHERE server_id = $1 AND user_id = $2',
+      'DELETE FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text',
       [serverId, userId]
     );
     return { success: result.rowCount > 0 };
@@ -423,7 +423,7 @@ const permissionDB = {
         [id, serverId, userId, reason]
       );
       await client.query(
-        'DELETE FROM server_members WHERE server_id = $1 AND user_id = $2',
+        'DELETE FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text',
         [serverId, userId]
       );
       return { success: true };
@@ -432,7 +432,7 @@ const permissionDB = {
 
   async isBanned(serverId, userId) {
     const result = await queryOne(
-      'SELECT id FROM bans WHERE server_id = $1 AND user_id = $2',
+      'SELECT id FROM bans WHERE server_id::text = $1::text AND user_id::text = $2::text',
       [serverId, userId]
     );
     return !!result;
@@ -618,7 +618,7 @@ const serverDB = {
 
   async isMember(serverId, userId) {
     const result = await queryOne(
-      'SELECT 1 FROM server_members WHERE server_id = $1 AND user_id = $2',
+      'SELECT 1 FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text',
       [serverId, userId]
     );
     return !!result;
@@ -640,7 +640,7 @@ const serverDB = {
               COALESCE(
                 (SELECT sr2.name FROM member_roles mr2 
                  JOIN server_roles sr2 ON mr2.role_id = sr2.id
-                 WHERE mr2.user_id = u.id AND mr2.server_id = $1::uuid
+                 WHERE mr2.user_id::text = u.id AND mr2.server_id = $1::uuid
                  ORDER BY sr2.position DESC LIMIT 1),
                 CASE sm.role
                   WHEN 'owner' THEN 'Owner'
@@ -652,7 +652,7 @@ const serverDB = {
               COALESCE(
                 (SELECT sr2.color FROM member_roles mr2 
                  JOIN server_roles sr2 ON mr2.role_id = sr2.id
-                 WHERE mr2.user_id = u.id AND mr2.server_id = $1::uuid
+                 WHERE mr2.user_id::text = u.id AND mr2.server_id = $1::uuid
                  ORDER BY sr2.position DESC LIMIT 1),
                 CASE sm.role
                   WHEN 'owner' THEN '#ffd700'
@@ -662,10 +662,10 @@ const serverDB = {
                 END
               ) as role_color
        FROM users u
-       JOIN server_members sm ON u.id = sm.user_id
-       LEFT JOIN member_roles mr ON u.id = mr.user_id AND mr.server_id = $1::uuid
-       LEFT JOIN server_roles sr ON mr.role_id = sr.id
-       WHERE sm.server_id = $1::uuid
+       JOIN server_members sm ON u.id::text = sm.user_id::text
+       LEFT JOIN member_roles mr ON u.id::text = mr.user_id::text AND mr.server_id::text = $1::text
+       LEFT JOIN server_roles sr ON mr.role_id::text = sr.id::text
+       WHERE sm.server_id::text = $1::text
        GROUP BY u.id, u.username, u.avatar, u.status, u.created_at, sm.role, sm.joined_at, sm.join_method`,
       [serverId]
     );
@@ -693,14 +693,14 @@ const serverDB = {
 
   async getMember(serverId, userId) {
     return await queryOne(
-      'SELECT * FROM server_members WHERE server_id = $1 AND user_id = $2',
+      'SELECT * FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text',
       [serverId, userId]
     );
   },
 
   async getMemberRole(serverId, userId) {
     const row = await queryOne(
-      'SELECT role FROM server_members WHERE server_id = $1 AND user_id = $2',
+      'SELECT role FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text',
       [serverId, userId]
     );
     return row?.role || null;
@@ -731,9 +731,9 @@ const serverDB = {
                   ELSE '#99aab5'
                 END) as role_color
          FROM users u
-         JOIN server_members sm ON u.id = sm.user_id AND sm.server_id = $1
-         LEFT JOIN server_roles sr ON sm.role_id = sr.id AND sr.server_id = $1
-         WHERE u.id = $2`,
+         JOIN server_members sm ON u.id::text = sm.user_id::text AND sm.server_id::text = $1::text
+         LEFT JOIN server_roles sr ON sm.role_id::text = sr.id::text AND sr.server_id::text = $1::text
+         WHERE u.id::text = $2::text`,
         [serverId, userId]
       );
     } catch (e) {
@@ -758,8 +758,8 @@ const serverDB = {
                   ELSE '#99aab5'
                 END as role_color
          FROM users u
-         JOIN server_members sm ON u.id = sm.user_id AND sm.server_id = $1
-         WHERE u.id = $2`,
+         JOIN server_members sm ON u.id::text = sm.user_id::text AND sm.server_id::text = $1::text
+         WHERE u.id::text = $2::text`,
         [serverId, userId]
       );
     }
@@ -784,8 +784,8 @@ const serverDB = {
   async transferOwnership(serverId, oldOwnerId, newOwnerId) {
     return await withTransaction(async (client) => {
       await client.query('UPDATE servers SET owner_id = $1 WHERE id = $2', [newOwnerId, serverId]);
-      await client.query(`UPDATE server_members SET role = 'admin' WHERE server_id = $1 AND user_id = $2`, [serverId, oldOwnerId]);
-      await client.query(`UPDATE server_members SET role = 'owner' WHERE server_id = $1 AND user_id = $2`, [serverId, newOwnerId]);
+      await client.query(`UPDATE server_members SET role = 'admin' WHERE server_id::text = $1::text AND user_id::text = $2::text`, [serverId, oldOwnerId]);
+      await client.query(`UPDATE server_members SET role = 'owner' WHERE server_id::text = $1::text AND user_id::text = $2::text`, [serverId, newOwnerId]);
       return true;
     });
   },
@@ -1070,7 +1070,7 @@ const messageDB = {
        LEFT JOIN channels c ON m.channel_id::text = c.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
-       WHERE m.id = $1`,
+       WHERE m.id::text = $1::text`,
       [id]
     );
     
@@ -1084,8 +1084,8 @@ const messageDB = {
         const roleRow = await queryOne(
           `SELECT sr.color, sr.name
            FROM member_roles mr
-           JOIN server_roles sr ON mr.role_id = sr.id
-           WHERE mr.server_id = $1 AND mr.user_id = $2
+           JOIN server_roles sr ON mr.role_id::text = sr.id::text
+           WHERE mr.server_id::text = $1::text AND mr.user_id::text = $2::text
            LIMIT 1`,
           [row.server_id, row.user_id]
         );
@@ -1097,7 +1097,7 @@ const messageDB = {
         } else {
           // Check legacy role
           const legacyRow = await queryOne(
-            `SELECT role FROM server_members WHERE server_id = $1 AND user_id = $2`,
+            `SELECT role FROM server_members WHERE server_id::text = $1::text AND user_id::text = $2::text`,
             [row.server_id, row.user_id]
           );
           if (legacyRow && legacyRow.role !== 'member') {
@@ -1138,7 +1138,7 @@ const messageDB = {
        JOIN users u ON m.user_id::text = u.id::text
        LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
        LEFT JOIN users ru ON rm.user_id::text = ru.id::text
-       WHERE m.channel_id = $1
+       WHERE m.channel_id::text = $1::text
        ORDER BY m.created_at DESC
        LIMIT $2 OFFSET $3`,
       [channelId, limit, offset]
@@ -1183,7 +1183,7 @@ const messageDB = {
           `SELECT mr.user_id, sr.color, sr.name
            FROM member_roles mr
            JOIN server_roles sr ON mr.role_id = sr.id
-           WHERE mr.server_id = $1 AND mr.user_id = ANY($2::uuid[])`,
+           WHERE mr.server_id::text = $1::text AND mr.user_id::text = ANY($2::text[])`,
           [serverId, userIds]
         );
         console.log('[getByChannel] Role rows from member_roles:', roleRows);
@@ -1192,7 +1192,7 @@ const messageDB = {
         const legacyRows = await queryMany(
           `SELECT user_id, role
            FROM server_members
-           WHERE server_id = $1 AND user_id = ANY($2::uuid[]) AND role != 'member'`,
+           WHERE server_id::text = $1::text AND user_id::text = ANY($2::text[]) AND role != 'member'`,
           [serverId, userIds]
         );
         console.log('[getByChannel] Legacy roles:', legacyRows);
@@ -1276,7 +1276,7 @@ const messageDB = {
        FROM messages m
        JOIN users u ON m.user_id::text = u.id::text
        LEFT JOIN users p ON m.pinned_by::text = p.id::text
-       WHERE m.channel_id = $1 AND m.is_pinned = true
+       WHERE m.channel_id::text = $1::text AND m.is_pinned = true
        ORDER BY m.pinned_at DESC`,
       [channelId]
     );
@@ -1310,7 +1310,7 @@ const messageDB = {
 
   async getReadStatus(userId, channelId) {
     const row = await queryOne(
-      `SELECT last_read_message_id, last_read_at FROM channel_read_status WHERE user_id = $1 AND channel_id = $2`,
+      `SELECT last_read_message_id, last_read_at FROM channel_read_status WHERE user_id::text = $1::text AND channel_id::text = $2::text`,
       [userId, channelId]
     );
     return row || null;
@@ -1330,7 +1330,7 @@ const messageDB = {
 
   async getDMReadStatus(userId, dmChannelId) {
     const row = await queryOne(
-      `SELECT last_read_message_id, last_read_at FROM dm_read_status WHERE user_id = $1 AND dm_channel_id = $2`,
+      `SELECT last_read_message_id, last_read_at FROM dm_read_status WHERE user_id::text = $1::text AND dm_channel_id::text = $2::text`,
       [userId, dmChannelId]
     );
     return row || null;
@@ -1340,11 +1340,11 @@ const messageDB = {
     const row = await queryOne(
       `SELECT COUNT(*) as count 
        FROM dm_messages dm
-       WHERE dm.channel_id = $1 
-         AND dm.sender_id != $2 
+       WHERE dm.channel_id::text = $1::text 
+         AND dm.sender_id::text != $2::text 
          AND dm.created_at > COALESCE(
            (SELECT last_read_at FROM dm_read_status 
-            WHERE user_id = $3 AND dm_channel_id = $4),
+            WHERE user_id::text = $3::text AND dm_channel_id::text = $4::text),
            '1970-01-01'::timestamptz
          )`,
       [dmChannelId, userId, userId, dmChannelId]
@@ -1358,15 +1358,15 @@ const messageDB = {
     const rows = await queryMany(
       `SELECT 
         dc.id as channel_id,
-        COUNT(dm.id) FILTER (WHERE dm.sender_id::text != $1) as unread_count
+        COUNT(dm.id) FILTER (WHERE dm.sender_id::text != $1::text) as unread_count
        FROM dm_channels dc
-       LEFT JOIN dm_messages dm ON dm.channel_id::uuid = dc.id::uuid 
+       LEFT JOIN dm_messages dm ON dm.channel_id::text = dc.id::text 
          AND dm.created_at > COALESCE(
            (SELECT last_read_at FROM dm_read_status 
-            WHERE user_id::uuid = $2::uuid AND dm_channel_id::uuid = dc.id::uuid),
+            WHERE user_id::text = $2::text AND dm_channel_id::text = dc.id::text),
            '1970-01-01'::timestamptz
          )
-       WHERE dc.user1_id::uuid = $3::uuid OR dc.user2_id::uuid = $4::uuid
+       WHERE dc.user1_id::text = $3::text OR dc.user2_id::text = $4::text
        GROUP BY dc.id`,
       [userId, userId, userId, userId]
     );
@@ -1383,9 +1383,9 @@ const messageDB = {
     let conditions = [];
     let params = [];
     let i = 1;
-    if (serverId) { conditions.push(`c.server_id = $${i++}`); params.push(serverId); }
-    if (channelId) { conditions.push(`m.channel_id = $${i++}`); params.push(channelId); }
-    if (userId) { conditions.push(`m.user_id = $${i++}`); params.push(userId); }
+    if (serverId) { conditions.push(`c.server_id::text = $${i++}::text`); params.push(serverId); }
+    if (channelId) { conditions.push(`m.channel_id::text = $${i++}::text`); params.push(channelId); }
+    if (userId) { conditions.push(`m.user_id::text = $${i++}::text`); params.push(userId); }
     if (q) { conditions.push(`m.content ILIKE $${i++}`); params.push(`%${q}%`); }
     if (dateFrom) { conditions.push(`m.created_at >= $${i++}`); params.push(dateFrom); }
     if (dateTo) { conditions.push(`m.created_at <= $${i++}`); params.push(dateTo); }
@@ -1400,7 +1400,7 @@ const messageDB = {
        JOIN users u ON m.user_id::text = u.id::text
        ${where}
        ORDER BY m.created_at DESC
-       LIMIT $${i} OFFSET $${i+1}`,
+       LIMIT $${i} OFFSET $${i+1}::text`,
       params
     );
     return rows.map(r => ({ ...r, attachments: r.attachments ? (typeof r.attachments === 'string' ? JSON.parse(r.attachments) : r.attachments) : [] }));
@@ -1411,9 +1411,9 @@ const messageDB = {
     let conditions = [];
     let params = [];
     let i = 1;
-    if (serverId) { conditions.push(`c.server_id = $${i++}`); params.push(serverId); }
-    if (channelId) { conditions.push(`m.channel_id = $${i++}`); params.push(channelId); }
-    if (userId) { conditions.push(`m.user_id = $${i++}`); params.push(userId); }
+    if (serverId) { conditions.push(`c.server_id::text = $${i++}::text`); params.push(serverId); }
+    if (channelId) { conditions.push(`m.channel_id::text = $${i++}::text`); params.push(channelId); }
+    if (userId) { conditions.push(`m.user_id::text = $${i++}::text`); params.push(userId); }
     if (q) { conditions.push(`m.content ILIKE $${i++}`); params.push(`%${q}%`); }
     if (dateFrom) { conditions.push(`m.created_at >= $${i++}`); params.push(dateFrom); }
     if (dateTo) { conditions.push(`m.created_at <= $${i++}`); params.push(dateTo); }
@@ -1510,13 +1510,13 @@ const messageDB = {
        FROM channels c
        JOIN server_members sm ON c.server_id::text = sm.server_id::text
        LEFT JOIN messages m ON m.channel_id::text = c.id::text
-         AND m.user_id::text != $2
+         AND m.user_id::text != $2::text
          AND m.created_at > COALESCE(
            (SELECT last_read_at FROM channel_read_status
-            WHERE user_id::text = $3 AND channel_id::text = c.id::text),
+            WHERE user_id::text = $3::text AND channel_id::text = c.id::text),
            '1970-01-01'::timestamptz
          )
-       WHERE c.server_id = $4 AND sm.user_id::text = $5
+       WHERE c.server_id::text = $4::text AND sm.user_id::text = $5::text
        GROUP BY c.id`,
       [userId, userId, userId, serverId, userId]
     );
@@ -1565,7 +1565,7 @@ const reactionDB = {
       `SELECT r.*, u.username, u.avatar 
        FROM reactions r
        JOIN users u ON r.user_id::text = u.id::text
-       WHERE r.message_id = $1
+       WHERE r.message_id::text = $1::text
        ORDER BY r.created_at ASC`,
       [messageId]
     );
@@ -1576,7 +1576,7 @@ const reactionDB = {
       `SELECT r.*, u.username, u.avatar 
        FROM reactions r
        JOIN users u ON r.user_id::text = u.id::text
-       WHERE r.message_id = $1 AND r.user_id = $2
+       WHERE r.message_id::text = $1::text AND r.user_id::text = $2::text
        ORDER BY r.created_at ASC`,
       [messageId, userId]
     );
@@ -1586,7 +1586,7 @@ const reactionDB = {
     const rows = await queryMany(
       `SELECT emoji, COUNT(*) as count, ARRAY_AGG(user_id) as users
        FROM reactions
-       WHERE message_id = $1
+       WHERE message_id::text = $1::text
        GROUP BY emoji
        ORDER BY count DESC`,
       [messageId]
@@ -1624,7 +1624,7 @@ const inviteDB = {
       `SELECT i.*, s.name as server_name, s.icon as server_icon
        FROM invites i
        JOIN servers s ON i.server_id::text = s.id::text
-       WHERE i.code = $1`,
+       WHERE i.code::text = $1::text`,
       [code]
     );
   },
@@ -1642,7 +1642,7 @@ const inviteDB = {
       `SELECT i.*, u.username as created_by_username, u.avatar as created_by_avatar
        FROM invites i
        JOIN users u ON i.created_by::text = u.id::text
-       WHERE i.server_id = $1
+       WHERE i.server_id::text = $1::text
        ORDER BY i.created_at DESC`,
       [serverId]
     );
@@ -1697,7 +1697,7 @@ const friendDB = {
 
   async getFriendship(userId, friendId) {
     return await queryOne(
-      'SELECT * FROM friendships WHERE user_id = $1 AND friend_id = $2',
+      'SELECT * FROM friendships WHERE user_id::text = $1::text AND friend_id::text = $2::text',
       [userId, friendId]
     );
   },
@@ -1782,7 +1782,7 @@ const friendDB = {
 
   async unblockUser(userId, blockedUserId) {
     const result = await query(
-      'DELETE FROM friendships WHERE user_id = $1 AND friend_id = $2 AND status = $3',
+      'DELETE FROM friendships WHERE user_id::text = $1::text AND friend_id::text = $2::text AND status = $3',
       [userId, blockedUserId, 'blocked']
     );
     
@@ -1798,7 +1798,7 @@ const friendDB = {
       `SELECT u.id, u.username, COALESCE(u.display_name, u.username) as display_name, u.avatar, u.status, f.created_at as friendship_date
        FROM friendships f
        JOIN users u ON f.friend_id::text = u.id::text
-       WHERE f.user_id = $1 AND f.status = 'accepted'
+       WHERE f.user_id::text = $1::text AND f.status = 'accepted'
        ORDER BY u.username`,
       [userId]
     );
@@ -1812,7 +1812,7 @@ const friendDB = {
               u.avatar as requester_avatar, u.status as requester_status
        FROM friendships f
        JOIN users u ON f.user_id::text = u.id::text
-       WHERE f.friend_id = $1 AND f.status = 'pending'
+       WHERE f.friend_id::text = $1::text AND f.status = 'pending'
        ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -1824,7 +1824,7 @@ const friendDB = {
               u.avatar as recipient_avatar, u.status as recipient_status
        FROM friendships f
        JOIN users u ON f.friend_id::text = u.id::text
-       WHERE f.user_id = $1 AND f.status = 'pending'
+       WHERE f.user_id::text = $1::text AND f.status = 'pending'
        ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -1837,7 +1837,7 @@ const friendDB = {
       `SELECT u.id, u.username, u.avatar, f.created_at as blocked_date
        FROM friendships f
        JOIN users u ON f.friend_id::text = u.id::text
-       WHERE f.user_id = $1 AND f.status = 'blocked'
+       WHERE f.user_id::text = $1::text AND f.status = 'blocked'
        ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -1845,7 +1845,7 @@ const friendDB = {
 
   async isFriend(userId, friendId) {
     const result = await queryOne(
-      'SELECT id FROM friendships WHERE user_id = $1 AND friend_id = $2 AND status = $3',
+      'SELECT id FROM friendships WHERE user_id::text = $1::text AND friend_id::text = $2::text AND status = $3',
       [userId, friendId, 'accepted']
     );
     return !!result;
@@ -2024,8 +2024,8 @@ const dmDB = {
     const row = await queryOne(
       `SELECT dm.*, u.username as sender_username, u.avatar as sender_avatar
        FROM dm_messages dm
-       JOIN users u ON dm.sender_id = u.id
-       WHERE dm.id = $1`,
+       JOIN users u ON dm.sender_id::text = u.id::text
+       WHERE dm.id::text = $1::text`,
       [messageId]
     );
     
@@ -2046,8 +2046,8 @@ const dmDB = {
     const rows = await queryMany(
       `SELECT dm.*, u.username as sender_username, u.avatar as sender_avatar
        FROM dm_messages dm
-       JOIN users u ON dm.sender_id = u.id
-       WHERE dm.channel_id = $1
+       JOIN users u ON dm.sender_id::text = u.id::text
+       WHERE dm.channel_id::text = $1::text
        ORDER BY dm.created_at DESC
        LIMIT $2 OFFSET $3`,
       [channelId, limit, offset]
@@ -2078,7 +2078,7 @@ const dmDB = {
 
   async markChannelMessagesAsRead(channelId, userId) {
     const result = await query(
-      'UPDATE dm_messages SET is_read = true WHERE channel_id = $1 AND sender_id != $2 AND is_read = false',
+      'UPDATE dm_messages SET is_read = true WHERE channel_id::text = $1::text AND sender_id::text != $2::text AND is_read = false',
       [channelId, userId]
     );
     return { success: true, updated: result.rowCount };
@@ -2100,11 +2100,11 @@ const dmDB = {
     const rows = await queryMany(
       `SELECT dm.channel_id, COUNT(*) as count 
        FROM dm_messages dm
-       JOIN dm_channels dc ON dm.channel_id = dc.id
-       WHERE (dc.user1_id = $1 OR dc.user2_id = $1) 
-         AND dm.sender_id != $1 
+       JOIN dm_channels dc ON dm.channel_id::text = dc.id::text
+       WHERE (dc.user1_id::text = $1::text OR dc.user2_id::text = $1::text) 
+         AND dm.sender_id::text != $1::text 
          AND dm.is_read = false
-       GROUP BY dm.channel_id`,
+       GROUP BY dm.channel_id::text`,
       [userId]
     );
     
@@ -2118,7 +2118,7 @@ const dmDB = {
   async deleteDMChannel(channelId) {
     return withTransaction(async (client) => {
       await client.query(
-        'DELETE FROM dm_messages WHERE channel_id = $1',
+        'DELETE FROM dm_messages WHERE channel_id::text = $1::text',
         [channelId]
       );
       await client.query(
@@ -2159,7 +2159,7 @@ const dmDB = {
 
   async isChannelMember(channelId, userId) {
     const row = await queryOne(
-      'SELECT 1 FROM dm_channels WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
+      'SELECT 1 FROM dm_channels WHERE id::text = $1::text AND (user1_id::text = $2::text OR user2_id::text = $2::text)',
       [channelId, userId]
     );
     return !!row;
@@ -2176,7 +2176,7 @@ const dmDB = {
 
   async removeChannelMember(channelId, userId) {
     const result = await query(
-      'DELETE FROM dm_channel_members WHERE channel_id = $1 AND user_id = $2',
+      'DELETE FROM dm_channel_members WHERE channel_id::text = $1::text AND user_id::text = $2::text',
       [channelId, userId]
     );
     return { success: result.rowCount > 0 };
@@ -2225,7 +2225,7 @@ const voiceDB = {
 
   async leaveVoiceChannel(channelId, userId) {
     await query(
-      'DELETE FROM voice_participants WHERE channel_id = $1 AND user_id = $2',
+      'DELETE FROM voice_participants WHERE channel_id::text = $1::text AND user_id::text = $2::text',
       [channelId, userId]
     );
     return { success: true };
@@ -2235,8 +2235,8 @@ const voiceDB = {
     return await queryMany(
       `SELECT vp.*, u.username, u.avatar, u.status
        FROM voice_participants vp
-       JOIN users u ON vp.user_id = u.id
-       WHERE vp.channel_id = $1
+       JOIN users u ON vp.user_id::text = u.id::text
+       WHERE vp.channel_id::text = $1::text
        ORDER BY vp.joined_at ASC`,
       [channelId]
     );
@@ -2248,7 +2248,7 @@ const voiceDB = {
       `UPDATE voice_participants 
        SET is_muted = COALESCE($3, is_muted),
            is_deafened = COALESCE($4, is_deafened)
-       WHERE channel_id = $1 AND user_id = $2
+       WHERE channel_id::text = $1::text AND user_id::text = $2::text
        RETURNING *`,
       [channelId, userId, isMuted, isDeafened]
     );
@@ -2261,14 +2261,14 @@ const voiceDB = {
        FROM voice_participants vp
        JOIN channels c ON vp.channel_id::text = c.id::text
        JOIN servers s ON c.server_id::text = s.id::text
-       WHERE vp.user_id = $1`,
+       WHERE vp.user_id::text = $1::text`,
       [userId]
     );
   },
 
   async isUserInVoiceChannel(channelId, userId) {
     const result = await queryOne(
-      'SELECT id FROM voice_participants WHERE channel_id = $1 AND user_id = $2',
+      'SELECT id FROM voice_participants WHERE channel_id::text = $1::text AND user_id::text = $2::text',
       [channelId, userId]
     );
     return !!result;
@@ -2289,7 +2289,7 @@ const voiceDB = {
 
   async leaveAllVoiceChannels(userId) {
     await query(
-      'DELETE FROM voice_participants WHERE user_id = $1',
+      'DELETE FROM voice_participants WHERE user_id::text = $1::text',
       [userId]
     );
     return { success: true };
@@ -2300,8 +2300,8 @@ const voiceDB = {
       `SELECT c.*, sm.role as member_role, s.owner_id
        FROM channels c
        JOIN servers s ON c.server_id::text = s.id::text
-       LEFT JOIN server_members sm ON s.id::text = sm.server_id::text AND sm.user_id::text = $2
-       WHERE c.id = $1 AND c.type = 'voice'`,
+       LEFT JOIN server_members sm ON s.id::text = sm.server_id::text AND sm.user_id::text = $2::text
+       WHERE c.id::text = $1::text AND c.type = 'voice'`,
       [channelId, userId]
     );
   }
@@ -2446,7 +2446,7 @@ const userServerAccessDB = {
   async hasServerAccess(userId, serverId) {
     try {
       const row = await dbGet(
-        'SELECT is_allowed, access_level FROM user_server_access WHERE user_id::text = $1 AND server_id::text = $2',
+        'SELECT is_allowed, access_level FROM user_server_access WHERE user_id::text = $1::text AND server_id::text = $2::text',
         [userId, serverId]
       );
       if (!row) return true; // default allow if no record
@@ -2464,9 +2464,9 @@ const userServerAccessDB = {
                    WHEN usa.access_level = 'denied' THEN FALSE
                    ELSE TRUE END as is_allowed
        FROM users u
-       JOIN server_members sm ON u.id = sm.user_id
+       JOIN server_members sm ON u.id::text = sm.user_id::text
        LEFT JOIN user_server_access usa ON u.id::text = usa.user_id AND sm.server_id::text = usa.server_id
-       WHERE sm.server_id = ?
+       WHERE sm.server_id = ?::text
        ORDER BY u.username`,
       [serverId]
     );
@@ -2532,7 +2532,7 @@ const notificationSettingsDB = {
   async get(userId, channelId) {
     return await queryOne(
       `SELECT notification_level, muted_until FROM notification_settings 
-       WHERE user_id::uuid = $1::uuid AND channel_id::uuid = $2::uuid`,
+       WHERE user_id::text = $1::text AND channel_id::text = $2::text`,
       [userId, channelId]
     );
   },
@@ -2541,7 +2541,7 @@ const notificationSettingsDB = {
   async getAllForUser(userId) {
     return await queryMany(
       `SELECT channel_id, notification_level, muted_until FROM notification_settings 
-       WHERE user_id::uuid = $1::uuid`,
+       WHERE user_id::text = $1::text`,
       [userId]
     );
   },
@@ -2562,7 +2562,7 @@ const notificationSettingsDB = {
   // Delete notification setting (revert to default)
   async delete(userId, channelId) {
     await query(
-      'DELETE FROM notification_settings WHERE user_id::uuid = $1::uuid AND channel_id::uuid = $2::uuid',
+      'DELETE FROM notification_settings WHERE user_id::text = $1::text AND channel_id::text = $2::text',
       [userId, channelId]
     );
     return { success: true };
@@ -2614,7 +2614,7 @@ const permissionRequestsDB = {
   async getActiveForUser(userId, channelId) {
     return await queryOne(
       `SELECT * FROM permission_requests 
-       WHERE user_id::uuid = $1::uuid AND channel_id::uuid = $2::uuid AND status = 'active'
+       WHERE user_id::text = $1::text AND channel_id::text = $2::text AND status = 'active'
        ORDER BY started_at DESC LIMIT 1`,
       [userId, channelId]
     );
@@ -2673,8 +2673,8 @@ const permissionRequestsDB = {
     return await queryMany(
       `SELECT pr.*, u.username, u.display_name, u.avatar 
        FROM permission_requests pr
-       JOIN users u ON pr.user_id::uuid = u.id::uuid
-       WHERE pr.channel_id::uuid = $1::uuid AND pr.status = 'active'
+       JOIN users u ON pr.user_id::text = u.id::text
+       WHERE pr.channel_id::text = $1::text AND pr.status = 'active'
        ORDER BY pr.started_at DESC`,
       [channelId]
     );
@@ -2684,7 +2684,7 @@ const permissionRequestsDB = {
   async getHistoryForUser(userId, limit = 10) {
     return await queryMany(
       `SELECT * FROM permission_requests 
-       WHERE user_id::uuid = $1::uuid
+       WHERE user_id::text = $1::text
        ORDER BY created_at DESC LIMIT $2`,
       [userId, limit]
     );
@@ -2717,19 +2717,19 @@ const subscriptionDB = {
   },
   async getByUser(userId) {
     return await queryMany(
-      'SELECT * FROM push_subscriptions WHERE user_id = $1',
+      'SELECT * FROM push_subscriptions WHERE user_id::text = $1::text',
       [userId]
     );
   },
   async remove(userId, endpoint) {
     await query(
-      'DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2',
+      'DELETE FROM push_subscriptions WHERE user_id::text = $1::text AND endpoint = $2',
       [userId, endpoint]
     );
     return { success: true };
   },
   async removeAllByUser(userId) {
-    await query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]);
+    await query('DELETE FROM push_subscriptions WHERE user_id::text = $1::text', [userId]);
     return { success: true };
   }
 };
@@ -2839,7 +2839,7 @@ const roleDB = {
 
   async getMemberCount(roleId, serverId) {
     const row = await queryOne(
-      'SELECT COUNT(*) as count FROM member_roles WHERE server_id = $1 AND role_id = $2',
+      'SELECT COUNT(*) as count FROM member_roles WHERE server_id::text = $1::text AND role_id::text = $2::text',
       [serverId, roleId]
     );
     return parseInt(row?.count || 0);
@@ -2858,7 +2858,7 @@ const roleDB = {
 
   async removeMemberRole(serverId, userId, roleId) {
     const result = await query(
-      'DELETE FROM member_roles WHERE server_id = $1 AND user_id = $2 AND role_id = $3',
+      'DELETE FROM member_roles WHERE server_id::text = $1::text AND user_id::text = $2::text AND role_id::text = $3::text',
       [serverId, userId, roleId]
     );
     return { success: result.rowCount > 0 };
@@ -2866,7 +2866,7 @@ const roleDB = {
 
   async setMemberRole(serverId, userId, role) {
     const result = await query(
-      `UPDATE server_members SET role = $1, role_id = NULL WHERE server_id = $2 AND user_id = $3`,
+      `UPDATE server_members SET role = $1, role_id = NULL WHERE server_id::text = $2::text AND user_id::text = $3::text`,
       [role, serverId, userId]
     );
     return { success: result.rowCount > 0 };
@@ -2972,7 +2972,7 @@ const masterAdminDB = {
               dmc.name as channel_name, dmc.type as channel_type
        FROM dm_messages dm JOIN users u ON dm.sender_id::text = u.id::text
        JOIN dm_channels dmc ON dm.channel_id::text = dmc.id::text
-       ORDER BY dm.created_at DESC LIMIT $1 OFFSET $2`,
+       ORDER BY dm.created_at DESC LIMIT $1 OFFSET $2::text`,
       [limit, offset]
     );
     const result = await Promise.all(rows.map(async (row) => {
@@ -3033,12 +3033,12 @@ const masterAdminDB = {
 
   async deleteUser(userId) {
     return withTransaction(async (client) => {
-      await client.query('DELETE FROM messages WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM dm_messages WHERE sender_id = $1', [userId]);
-      await client.query('DELETE FROM server_members WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM member_roles WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM friendships WHERE user_id = $1 OR friend_id = $1', [userId]);
-      await client.query('DELETE FROM dm_channel_members WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM messages WHERE user_id::text = $1::text', [userId]);
+      await client.query('DELETE FROM dm_messages WHERE sender_id::text = $1::text', [userId]);
+      await client.query('DELETE FROM server_members WHERE user_id::text = $1::text', [userId]);
+      await client.query('DELETE FROM member_roles WHERE user_id::text = $1::text', [userId]);
+      await client.query('DELETE FROM friendships WHERE user_id::text = $1::text OR friend_id::text = $1::text', [userId]);
+      await client.query('DELETE FROM dm_channel_members WHERE user_id::text = $1::text', [userId]);
       const result = await client.query('DELETE FROM users WHERE id = $1', [userId]);
       return { success: result.rowCount > 0 };
     });
