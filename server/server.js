@@ -2532,6 +2532,11 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
 app.get('/api/channels/:channelId/permissions/active', authenticateToken, async (req, res) => {
   try {
     const { channelId } = req.params;
+    // Safety check for permissionRequestsDB
+    if (!permissionRequestsDB || !permissionRequestsDB.getActiveForChannel) {
+      console.error('permissionRequestsDB not available:', permissionRequestsDB);
+      return res.status(503).json({ error: 'Permission system not available' });
+    }
     const requests = await permissionRequestsDB.getActiveForChannel(channelId);
     res.json(requests);
   } catch (error) {
