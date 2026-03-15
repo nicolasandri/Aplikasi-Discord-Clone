@@ -4,12 +4,17 @@ import { X, Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw } fro
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
+// Helper to safely check if value is a string and starts with prefix
+const safeStartsWith = (value: unknown, prefix: string): boolean => {
+  return typeof value === 'string' && value.startsWith(prefix);
+};
+
 // Helper to get full file URL (same as ChatArea)
 const getFileUrl = (url: string): string => {
   if (!url) return '';
-  if (url.startsWith('http')) return url;
+  if (safeStartsWith(url, 'http')) return url;
   const baseUrl = isElectron ? 'http://localhost:3001' : '';
-  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  const normalizedUrl = safeStartsWith(url, '/') ? url : `/${url}`;
   return `${baseUrl}${normalizedUrl}`;
 };
 
@@ -37,8 +42,8 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
   const [error, setError] = useState<string | null>(null);
 
   const currentAttachment = attachments[index];
-  const isImage = currentAttachment?.mimetype?.startsWith('image/');
-  const isVideo = currentAttachment?.mimetype?.startsWith('video/');
+  const isImage = safeStartsWith(currentAttachment?.mimetype, 'image/');
+  const isVideo = safeStartsWith(currentAttachment?.mimetype, 'video/');
   const isPDF = currentAttachment?.mimetype === 'application/pdf';
 
   // Reset state when attachment changes
@@ -132,13 +137,13 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
   };
 
   const getFileIcon = (mimetype: string = 'application/octet-stream') => {
-    if (mimetype.startsWith('image/')) return '🖼️';
-    if (mimetype.startsWith('video/')) return '🎬';
-    if (mimetype.startsWith('audio/')) return '🎵';
-    if (mimetype.includes('pdf')) return '📄';
-    if (mimetype.includes('word') || mimetype.includes('document')) return '📝';
-    if (mimetype.includes('excel') || mimetype.includes('spreadsheet')) return '📊';
-    if (mimetype.includes('zip') || mimetype.includes('compressed')) return '📦';
+    if (safeStartsWith(mimetype, 'image/')) return '🖼️';
+    if (safeStartsWith(mimetype, 'video/')) return '🎬';
+    if (safeStartsWith(mimetype, 'audio/')) return '🎵';
+    if (mimetype?.includes('pdf')) return '📄';
+    if (mimetype?.includes('word') || mimetype?.includes('document')) return '📝';
+    if (mimetype?.includes('excel') || mimetype?.includes('spreadsheet')) return '📊';
+    if (mimetype?.includes('zip') || mimetype?.includes('compressed')) return '📦';
     return '📎';
   };
 
@@ -335,7 +340,7 @@ export function Lightbox({ attachments, currentIndex, isOpen, onClose, onNavigat
               }`}
               title={att.filename}
             >
-              {att.mimetype?.startsWith('image/') ? (
+              {safeStartsWith(att.mimetype, 'image/') ? (
                 <img
                   src={getFileUrl(att.url)}
                   alt={att.filename}
