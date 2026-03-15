@@ -2673,9 +2673,14 @@ app.post('/api/messages/:messageId/reactions', authenticateToken, async (req, re
     const reactions = await reactionDB.getGroupedByMessage(messageId);
     
     // Broadcast to channel
-    console.log('📡 Server: Broadcasting reaction_added to channel:', message.channel_id, 'Message:', messageId);
+    const channelId = message.channelId || message.channel_id;
+    console.log('📡 Server: Broadcasting reaction_added to channel:', channelId, 'Message:', messageId);
     console.log('📡 Server: Reactions:', JSON.stringify(reactions));
-    io.to(message.channel_id).emit('reaction_added', { messageId, reactions });
+    if (channelId) {
+      io.to(channelId).emit('reaction_added', { messageId, reactions });
+    } else {
+      console.log('⚠️ Server: Cannot broadcast reaction - channelId is undefined');
+    }
     
     // Send notification to message owner (if not self)
     if (message.userId !== userId) {
@@ -2683,7 +2688,7 @@ app.post('/api/messages/:messageId/reactions', authenticateToken, async (req, re
         // Get reactor info
         const reactor = await userDB.findById(userId);
         // Get channel info
-        const channel = await channelDB.getById(message.channel_id);
+        const channel = await channelDB.getById(channelId);
         
         if (reactor && channel && pushService.isConfigured()) {
           await pushService.sendReactionNotification(
