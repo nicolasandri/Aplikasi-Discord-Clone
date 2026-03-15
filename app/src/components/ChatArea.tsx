@@ -480,9 +480,9 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                 : (message.user?.displayName || message.user?.username)}
             </button>
             {/* Badges */}
-            {message.user?.badges?.includes('vip') && <span className="px-1.5 py-0.5 bg-[#00d4ff] text-white text-[10px] rounded font-semibold">VIP</span>}
-            {message.user?.badges?.includes('crown') && <span className="text-sm">👑</span>}
-            {message.user?.badges?.includes('verified') && <span className="text-[#43b581] text-sm">✓</span>}
+            {safeArrayIncludes(message.user?.badges, 'vip') && <span className="px-1.5 py-0.5 bg-[#00d4ff] text-white text-[10px] rounded font-semibold">VIP</span>}
+            {safeArrayIncludes(message.user?.badges, 'crown') && <span className="text-sm">👑</span>}
+            {safeArrayIncludes(message.user?.badges, 'verified') && <span className="text-[#43b581] text-sm">✓</span>}
             <span
               className="text-[11px] text-[#6a6a7a] cursor-default hover:underline"
               title={formatTooltipTimestamp(timestamp)}
@@ -655,7 +655,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         {message.reactions && message.reactions.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {message.reactions.map((reaction, index) => {
-              const hasReacted = reaction.users?.includes(currentUser?.id || '');
+              const hasReacted = safeArrayIncludes(reaction.users, currentUser?.id || '');
               const count = reaction.count || reaction.users?.length || 0;
               
               // Get usernames for tooltip using userMap
