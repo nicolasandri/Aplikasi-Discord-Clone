@@ -6,7 +6,7 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electronAP
 
 // Helper to safely check if value is a string and starts with prefix
 const safeStartsWith = (value: unknown, prefix: string): boolean => {
-  return typeof value === 'string' && value.startsWith(prefix);
+  return typeof value === 'string' && value?.startsWith(prefix);
 };
 
 // Helper to get full file URL (same as ChatArea)

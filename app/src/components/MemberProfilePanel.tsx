@@ -20,7 +20,7 @@ const API_URL = isElectron
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
+  if (API_URL?.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
   return '';
@@ -76,7 +76,7 @@ export function MemberProfilePanel({ member, serverId, onClose, onMessage, onKic
     if (!member.avatar) {
       return `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`;
     }
-    if (member.avatar.startsWith('http')) return member.avatar;
+    if (member.avatar?.startsWith('http')) return member.avatar;
     return `${BASE_URL}${member.avatar}`;
   };
 

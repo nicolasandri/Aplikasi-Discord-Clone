@@ -30,8 +30,8 @@ const API_URL = isElectron
 // Helper to get full icon URL - only returns URL for valid image paths, not emojis/text
 const getServerIconUrl = (icon: string | null): string | null => {
   if (!icon) return null;
-  if (icon.startsWith('http://') || icon.startsWith('https://')) return icon;
-  if (icon.startsWith('/')) {
+  if (icon?.startsWith('http://') || icon?.startsWith('https://')) return icon;
+  if (icon?.startsWith('/')) {
     return typeof window !== 'undefined'
       ? `${window.location.origin}${icon}`
       : icon;

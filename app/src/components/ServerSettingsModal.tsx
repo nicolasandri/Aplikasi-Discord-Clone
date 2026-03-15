@@ -15,7 +15,7 @@ const API_URL = isElectron
 
 // Get base URL for backend (without /api)
 const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
+  if (API_URL?.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
   return '';
@@ -219,7 +219,7 @@ export function ServerSettingsModal({ isOpen, onClose, server }: ServerSettingsM
   // Get full icon URL with backend domain
   const getIconUrl = (iconPath: string | null): string | undefined => {
     if (!iconPath) return undefined;
-    if (iconPath.startsWith('http')) return iconPath;
+    if (iconPath?.startsWith('http')) return iconPath;
     return `${BASE_URL}${iconPath}`;
   };
 

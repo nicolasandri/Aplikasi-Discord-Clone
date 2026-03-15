@@ -450,7 +450,7 @@ const userDB = {
     
     const result = await query(
       `INSERT INTO users (username, email, password, avatar, is_active, joined_via_group_code) 
-       VALUES ($1, $2, $3, $4, $5) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING id, username, email, avatar, status`,
       [username, email, hashedPassword, avatar, true, joinedViaGroupCode]
     );
@@ -1481,7 +1481,8 @@ const messageDB = {
       editedAt: row.edited_at,
       timestamp: row.created_at,
       user,
-      server_id: row.server_id
+      server_id: row.server_id,
+      isSystem: row.is_system === true
     };
   },
 
@@ -1489,7 +1490,7 @@ const messageDB = {
     const rows = await queryMany(
       `SELECT c.id as channel_id,
               COUNT(m.id) as unread_count,
-              MAX(CASE WHEN m.content LIKE '%<@' || $1 || '>%' THEN 1 ELSE 0 END) as has_mention
+              MAX(CASE WHEN POSITION('<@' || $1::text || '>' IN m.content) > 0 THEN 1 ELSE 0 END) as has_mention
        FROM channels c
        JOIN server_members sm ON c.server_id::text = sm.server_id::text
        LEFT JOIN messages m ON m.channel_id::text = c.id::text
@@ -2937,15 +2938,15 @@ const masterAdminDB = {
               dm.is_read, dm.created_at, dm.edited_at,
               u.username, ${displayNameField}, u.avatar,
               dmc.name as channel_name, dmc.type as channel_type
-       FROM dm_messages dm JOIN users u ON dm.sender_id = u.id
-       JOIN dm_channels dmc ON dm.channel_id = dmc.id
+       FROM dm_messages dm JOIN users u ON dm.sender_id::text = u.id::text
+       JOIN dm_channels dmc ON dm.channel_id::text = dmc.id::text
        ORDER BY dm.created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
     const result = await Promise.all(rows.map(async (row) => {
       const members = await queryMany(
         `SELECT u.id, u.username, ${memberDisplayNameField}, u.avatar FROM dm_channel_members dcm
-         JOIN users u ON dcm.user_id = u.id WHERE dcm.channel_id = $1`,
+         JOIN users u ON dcm.user_id::text = u.id::text WHERE dcm.channel_id::text = $1::text`,
         [row.channel_id]
       );
       const recipient = members.find(m => m.id !== row.sender_id);

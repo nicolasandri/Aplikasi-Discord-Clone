@@ -96,10 +96,10 @@ export function DaftarNamaStaff({ serverId }: DaftarNamaStaffProps) {
     if (!member.avatar) {
       return `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`;
     }
-    if (member.avatar.startsWith('http')) {
+    if (member.avatar?.startsWith('http')) {
       return member.avatar;
     }
-    const avatarPath = member.avatar.startsWith('/') ? member.avatar : `/${member.avatar}`;
+    const avatarPath = member.avatar?.startsWith('/') ? member.avatar : `/${member.avatar}`;
     return `${BASE_URL}${avatarPath}`;
   };
 

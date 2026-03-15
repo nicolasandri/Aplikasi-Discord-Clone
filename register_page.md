@@ -1,0 +1,61 @@
+- generic [ref=e3]:
+  - generic [ref=e73]:
+    - generic [ref=e75]:
+      - button [ref=e77] [cursor=pointer]:
+        - img [ref=e78]
+      - button "JEBOLTOGEL 0 0" [ref=e82] [cursor=pointer]:
+        - img "JEBOLTOGEL" [ref=e84]
+        - text: "0"
+        - text: "0"
+      - button [ref=e86] [cursor=pointer]:
+        - img [ref=e87]
+      - link [ref=e88] [cursor=pointer]:
+        - /url: https://github.com/your-repo/workgrid/releases
+        - img [ref=e89]
+    - generic [ref=e92]:
+      - button "Cari atau mulai percakapan" [ref=e94] [cursor=pointer]
+      - button "Teman" [ref=e96] [cursor=pointer]:
+        - img [ref=e98]
+        - generic [ref=e101]: Teman
+      - generic [ref=e102]:
+        - heading "Pesan Langsung" [level=3] [ref=e103]
+        - button "Buat Grup Baru" [ref=e104] [cursor=pointer]:
+          - img [ref=e105]
+      - generic [ref=e110]:
+        - img [ref=e111]
+        - paragraph [ref=e113]: Belum ada percakapan
+        - paragraph [ref=e114]: Mulai chat dari daftar teman
+      - generic [ref=e117] [cursor=pointer]:
+        - img "testmember01" [ref=e119]
+        - generic [ref=e121]:
+          - paragraph [ref=e122]: testmember01
+          - paragraph [ref=e123]: Online
+        - button [ref=e124]:
+          - img [ref=e125]
+    - generic [ref=e128]:
+      - generic [ref=e129]:
+        - img [ref=e130]
+        - heading "Teman" [level=2] [ref=e135]
+        - tablist [ref=e138]:
+          - tab "Online" [selected] [ref=e139] [cursor=pointer]
+          - tab "Semua" [ref=e140] [cursor=pointer]
+      - generic [ref=e144]:
+        - generic [ref=e146]:
+          - img [ref=e147]
+          - textbox "Cari teman" [ref=e150]
+        - tabpanel [ref=e151]:
+          - generic [ref=e152]: Online — 1
+          - generic [ref=e154] [cursor=pointer]:
+            - img "Admin" [ref=e157]
+            - generic [ref=e159]:
+              - generic [ref=e160]: Admin
+              - generic [ref=e161]: Online
+            - generic [ref=e162]:
+              - button "Kirim Pesan" [ref=e163]:
+                - img
+              - button "Hapus Teman" [ref=e164]:
+                - img
+    - generic [ref=e165]:
+      - generic [ref=e167]: Online
+      - button "Enable Notifications" [ref=e168] [cursor=pointer]
+  - region "Notifications alt+T"

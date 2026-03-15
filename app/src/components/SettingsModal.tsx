@@ -439,7 +439,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="absolute -bottom-8 left-4">
                     <div className="relative">
                       <img
-                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
+                        src={user?.avatar ? `${user.avatar?.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
                         alt={user?.displayName || user?.username}
                         className="w-16 h-16 rounded-full border-4 border-[#0d0d14] bg-[#1a1b2e] object-cover"
                         onError={(e) => {
@@ -650,7 +650,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="absolute -bottom-12 left-6">
                     <div className="relative">
                       <img
-                        src={user?.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
+                        src={user?.avatar ? `${user.avatar?.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`}
                         alt={user?.displayName || user?.username}
                         className="w-24 h-24 rounded-full border-4 border-[#0d0d14] bg-[#1a1b2e] object-cover"
                         onError={(e) => {

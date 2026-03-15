@@ -28,7 +28,7 @@ const BASE_URL = isElectron ? 'http://localhost:3001' : '';
 
 // Helper to safely check if value is a string and starts with prefix
 const safeStartsWith = (value: unknown, prefix: string): boolean => {
-  return typeof value === 'string' && value.startsWith(prefix);
+  return typeof value === 'string' && value?.startsWith(prefix);
 };
 
 // Helper to safely check if value is a string and includes substring

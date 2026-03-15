@@ -683,7 +683,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <img
                           src={member.avatar 
-                            ? (member.avatar.startsWith('http') ? member.avatar : `${BASE_URL}${member.avatar}`)
+                            ? (member.avatar?.startsWith('http') ? member.avatar : `${BASE_URL}${member.avatar}`)
                             : `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`}
                           alt={member.username}
                           className="w-8 h-8 rounded-full"
@@ -790,7 +790,7 @@ export function ServerRoles({ serverId, isOwner }: ServerRolesProps) {
                   />
                   <img
                     src={member.avatar 
-                            ? (member.avatar.startsWith('http') ? member.avatar : `${BASE_URL}${member.avatar}`)
+                            ? (member.avatar?.startsWith('http') ? member.avatar : `${BASE_URL}${member.avatar}`)
                             : `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.username}`}
                     alt={member.username}
                     className="w-8 h-8 rounded-full"

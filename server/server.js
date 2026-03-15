@@ -304,7 +304,15 @@ const dbModule = usePostgres ? require('./database-postgres') : require('./datab
 // Security: Allowed origins for CORS
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://workgrid.homeku.net'];
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'https://workgrid.homeku.net', 'http://workgrid.homeku.net'];
+
+// Force add workgrid.homeku.net origins
+if (!ALLOWED_ORIGINS.includes('http://workgrid.homeku.net')) {
+  ALLOWED_ORIGINS.push('http://workgrid.homeku.net');
+}
+if (!ALLOWED_ORIGINS.includes('https://workgrid.homeku.net')) {
+  ALLOWED_ORIGINS.push('https://workgrid.homeku.net');
+}
 
 const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, notificationSettingsDB, permissionRequestsDB, Permissions } = dbModule;
 
@@ -807,6 +815,37 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
             }
           } catch (autoFriendError) {
             console.error('[Register] Auto-friend error:', autoFriendError);
+          }
+          
+          // Create welcome message in "selamat-datang" channel
+          try {
+            const channels = await channelDB.getByServerId(autoJoinServer);
+            const welcomeChannel = channels.find(ch => ch.name === 'selamat-datang') || channels[0];
+            
+            if (welcomeChannel) {
+              const welcomeMessage = await messageDB.create(
+                welcomeChannel.id,
+                user.id,
+                `Selamat datang **${user.display_name || user.username}!** 👋 Semua member sekarang bisa berteman denganmu.`,
+                null,
+                null,
+                true // isSystem = true
+              );
+              
+              // Broadcast welcome message
+              io.to(welcomeChannel.id).emit('new_message', {
+                ...welcomeMessage,
+                isSystem: true,
+                newMember: {
+                  id: user.id,
+                  username: user.username,
+                  displayName: user.display_name,
+                  avatar: user.avatar
+                }
+              });
+            }
+          } catch (welcomeError) {
+            console.error('[Register] Failed to create welcome message:', welcomeError);
           }
           
           console.log(`[Register] User ${username} auto-joined server ${autoJoinServer} via group code ${groupCode}`);
@@ -4306,10 +4345,11 @@ app.post('/api/invites/:code/join', authenticateToken, async (req, res) => {
       if (welcomeChannel) {
         const welcomeMessage = await messageDB.create(
           welcomeChannel.id,
-          null, // system message has no user
-          `Selamat datang ${user.display_name || user.username}! 👋`,
+          userId,
+          `Selamat datang **${user.display_name || user.username}**! 👋 Semua member sekarang bisa berteman denganmu.`,
           null,
-          'system' // message type
+          null,
+          true // isSystem = true
         );
         
         // Broadcast welcome message

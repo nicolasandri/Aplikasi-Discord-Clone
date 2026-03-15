@@ -41,7 +41,7 @@ const API_URL = isElectron
 
 // Get base URL for backend (without /api)
 const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
+  if (API_URL?.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
   // For relative API URL in web/production mode, use relative base

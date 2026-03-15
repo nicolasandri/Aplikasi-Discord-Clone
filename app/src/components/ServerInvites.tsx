@@ -29,7 +29,7 @@ const API_URL = isElectron
   : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
+  if (API_URL?.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
   return '';
@@ -141,7 +141,7 @@ export function ServerInvites({ serverId }: ServerInvitesProps) {
     if (!invite.createdByAvatar) {
       return `https://api.dicebear.com/7.x/avataaars/svg?seed=${invite.createdByUsername}`;
     }
-    if (invite.createdByAvatar.startsWith('http')) return invite.createdByAvatar;
+    if (invite.createdByAvatar?.startsWith('http')) return invite.createdByAvatar;
     return `${BASE_URL}${invite.createdByAvatar}`;
   };
 

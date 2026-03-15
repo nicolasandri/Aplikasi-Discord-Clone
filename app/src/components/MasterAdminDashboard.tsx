@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // Helper to safely check if value is a string and starts with prefix
 const safeStartsWith = (value: unknown, prefix: string): boolean => {
-  return typeof value === 'string' && value.startsWith(prefix);
+  return typeof value === 'string' && value?.startsWith(prefix);
 };
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -170,7 +170,7 @@ export function ChatLayout() {
     if (path === '/friends') {
       console.log('[URL Parse] Setting viewMode to friends');
       setViewMode('friends');
-    } else if (path.startsWith('/channels/')) {
+    } else if (path?.startsWith('/channels/')) {
       // URL format: /channels/:serverId/:channelId
       const parts = path.split('/');
       console.log('[URL Parse] parts:', parts);
@@ -683,7 +683,7 @@ export function ChatLayout() {
       }
       
       const filtered = prev.filter(m => {
-        if (!m.id.startsWith('temp-')) return true;
+        if (!m.id?.startsWith('temp-')) return true;
         return !(m.userId === message.userId && 
                  m.content === message.content &&
                  m.channelId === message.channelId);

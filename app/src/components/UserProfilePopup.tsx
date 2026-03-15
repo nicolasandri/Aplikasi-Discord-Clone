@@ -444,7 +444,7 @@ export function UserProfilePopup({ userId, serverId, isOpen, onClose, onStartDM 
           <div className="relative inline-block">
             <img
               src={profile.avatar 
-                ? `${profile.avatar.startsWith('http') ? profile.avatar : `${BASE_URL}${profile.avatar}`}?v=${avatarVersion}`
+                ? `${profile.avatar?.startsWith('http') ? profile.avatar : `${BASE_URL}${profile.avatar}`}?v=${avatarVersion}`
                 : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}
               alt={displayName}
               className="w-[80px] h-[80px] rounded-full border-4 border-[#1e1f22] bg-[#1e1f22]"

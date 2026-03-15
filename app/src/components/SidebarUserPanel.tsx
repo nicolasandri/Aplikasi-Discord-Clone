@@ -23,7 +23,7 @@ const API_URL = isElectron
 
 // Get base URL for backend (without /api)
 const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
+  if (API_URL?.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
   return '';
@@ -100,7 +100,7 @@ export function SidebarUserPanel({ onOpenSettings }: SidebarUserPanelProps) {
         {/* Avatar */}
         <div className="relative flex-shrink-0">
           <img
-            src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+            src={user.avatar ? `${user.avatar?.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
             alt={user.displayName || user.username}
             className="w-8 h-8 rounded-full object-cover bg-[#1a1b2e]"
             onError={(e) => {
@@ -141,7 +141,7 @@ export function SidebarUserPanel({ onOpenSettings }: SidebarUserPanelProps) {
             <div className="absolute -bottom-6 left-4">
               <div className="relative">
                 <img
-                  src={user.avatar ? `${user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+                  src={user.avatar ? `${user.avatar?.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}`}?v=${avatarVersion}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
                   alt={user.displayName || user.username}
                   className="w-16 h-16 rounded-full object-cover border-4 border-[#18191c] bg-[#1a1b2e]"
                   onError={(e) => {

@@ -94,7 +94,7 @@
 /
 ├── app/                          # Frontend React application
 │   ├── src/
-│   │   ├── components/           # React components (54+ files)
+│   │   ├── components/           # React components (56+ files)
 │   │   │   ├── ui/              # shadcn/ui components (53 components)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display area
@@ -188,6 +188,8 @@
 │   │   ├── 011_add_user_server_access.sql
 │   │   ├── 012_add_dm_group_support.sql
 │   │   ├── 013_add_push_subscriptions.sql
+│   │   ├── 014_add_is_active_column.sql
+│   │   ├── 014_add_users_display_name.sql
 │   │   └── setup-postgres.js
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image

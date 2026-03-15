@@ -1,0 +1,121 @@
+# ============================================
+# Docker Compose - VPS Deployment
+# WorkGrid (Discord Clone)
+# VPS: 152.42.242.180
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    container_name: discord_clone_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: discord_clone
+      POSTGRES_USER: discord_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - discord_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U discord_user -d discord_clone"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=4MB
+
+  # ============================================
+  # Redis Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: discord_clone_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - discord_network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend API
+  # ============================================
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: discord_clone_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: discord_clone
+      DB_USER: discord_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: ${FRONTEND_URL:-http://152.42.242.180}
+      USE_POSTGRES: "true"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://152.42.242.180}
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - discord_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # Frontend (Nginx)
+  # ============================================
+  frontend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_SOCKET_URL: ""
+    container_name: discord_clone_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - discord_network
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  discord_network:
+    driver: bridge

@@ -65,7 +65,7 @@ export function MobileHeader({
               <>
                 <img 
                   src={dmChannel?.friend?.avatar 
-                    ? (dmChannel.friend.avatar.startsWith('http') ? dmChannel.friend.avatar : `${BASE_URL}${dmChannel.friend.avatar}`)
+                    ? (dmChannel.friend.avatar?.startsWith('http') ? dmChannel.friend.avatar : `${BASE_URL}${dmChannel.friend.avatar}`)
                     : `https://api.dicebear.com/7.x/avataaars/svg?seed=${dmChannel?.friend?.username || 'user'}`}
                   alt={dmChannel?.friend?.username || 'User'}
                   className="w-7 h-7 rounded-full flex-shrink-0 object-cover"

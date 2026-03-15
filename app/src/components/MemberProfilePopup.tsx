@@ -75,7 +75,7 @@ export function MemberProfilePopup({ member, isOpen, onClose, onSendMessage, ser
     if (!member.avatar) {
       return `https://api.dicebear.com/7.x/avataaars/svg?seed=${username || 'user'}`;
     }
-    if (member.avatar.startsWith('http')) {
+    if (member.avatar?.startsWith('http')) {
       return member.avatar;
     }
     return `${BASE_URL}${member.avatar}`;

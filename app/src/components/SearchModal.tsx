@@ -13,7 +13,7 @@ const API_URL = isElectron
 
 // Get base URL for backend (without /api)
 const BASE_URL = (() => {
-  if (API_URL.startsWith('http')) {
+  if (API_URL?.startsWith('http')) {
     return API_URL.replace(/\/api\/?$/, '');
   }
   return '';
@@ -24,11 +24,11 @@ const getAvatarUrl = (avatar: string | null, username: string): string => {
   if (!avatar) {
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
   }
-  if (avatar.startsWith('http')) {
+  if (avatar?.startsWith('http')) {
     return avatar;
   }
   // Relative URL - prepend base URL
-  const normalizedUrl = avatar.startsWith('/') ? avatar : `/${avatar}`;
+  const normalizedUrl = avatar?.startsWith('/') ? avatar : `/${avatar}`;
   return `${BASE_URL}${normalizedUrl}`;
 };
 
