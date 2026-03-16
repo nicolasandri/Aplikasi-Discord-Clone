@@ -133,6 +133,157 @@ html:has(body.landing-active) {
   }
 }
 
+/* ==================== MODERN DESIGN UTILITIES ==================== */
+
+/* Glassmorphism */
+.glass-modern {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glow Effects */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+.glow-cyan-strong {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.8);
+}
+
+.text-glow-strong {
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+}
+
+.text-glow-subtle {
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+}
+
+/* Button Shine Effect */
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  100% {
+    left: 100%;
+  }
+}
+
+/* Grid Pattern Background */
+.bg-grid {
+  background-image:
+    linear-gradient(0deg, transparent calc(100% - 1px), rgba(0, 212, 255, 0.1) calc(100% - 1px)),
+    linear-gradient(90deg, transparent calc(100% - 1px), rgba(0, 212, 255, 0.1) calc(100% - 1px));
+  background-size: 50px 50px;
+}
+
+/* Scanline Effect */
+.scanline {
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 0.97;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.97;
+  }
+}
+
+/* Gradient Background Orbs (animated separately in Framer Motion) */
+.gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.gradient-orb-primary {
+  background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, transparent 70%);
+}
+
+.gradient-orb-secondary {
+  background: radial-gradient(circle, rgba(0, 153, 255, 0.25) 0%, transparent 70%);
+}
+
+.gradient-orb-tertiary {
+  background: radial-gradient(circle, rgba(0, 255, 200, 0.15) 0%, transparent 70%);
+}
+
+/* Hero Section Styling */
+.hero-background {
+  background: linear-gradient(135deg, #050608 0%, #0a0c10 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 10;
+}
+
+/* Modern Card Styling */
+.modern-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+}
+
+/* Animated Border */
+@keyframes border-glow {
+  0% {
+    box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
+  }
+}
+
+.border-glow {
+  animation: border-glow 2s ease-in-out infinite;
+}
+
+/* Smooth Transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-smooth-fast {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
