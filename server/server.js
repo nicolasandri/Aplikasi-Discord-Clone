@@ -2248,6 +2248,59 @@ app.put('/api/servers/:serverId/roles/:roleId/reorder', authenticateToken, async
 // PERMISSION TYPES ENDPOINTS (Jenis Izin)
 // ============================================
 
+// Setup database for permission types (temporary endpoint for migration)
+app.post('/api/admin/setup-permission-types', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is master admin
+    const user = await dbGet(isPostgres
+      ? 'SELECT is_master_admin FROM users WHERE id = $1'
+      : 'SELECT is_master_admin FROM users WHERE id = ?',
+      [req.userId]
+    );
+    
+    if (!user || !user.is_master_admin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Create table
+    await query(`
+      CREATE TABLE IF NOT EXISTS server_permission_types (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        max_duration INTEGER DEFAULT 5,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(server_id, name)
+      )
+    `);
+    
+    // Create index
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_server_permission_types_server_id 
+      ON server_permission_types(server_id)
+    `);
+    
+    // Insert default types for all servers
+    await query(`
+      INSERT INTO server_permission_types (server_id, name, max_duration)
+      SELECT 
+        s.id as server_id,
+        unnest(ARRAY['wc', 'makan', 'rokok']) as name,
+        5 as max_duration
+      FROM servers s
+      WHERE NOT EXISTS (
+        SELECT 1 FROM server_permission_types WHERE server_id = s.id
+      )
+      ON CONFLICT (server_id, name) DO NOTHING
+    `);
+    
+    res.json({ success: true, message: 'Permission types table created' });
+  } catch (error) {
+    console.error('Setup permission types error:', error);
+    res.status(500).json({ error: 'Failed to setup permission types', details: error.message });
+  }
+});
+
 // Get all permission types for a server
 app.get('/api/servers/:serverId/permission-types', authenticateToken, async (req, res) => {
   try {
