@@ -1626,8 +1626,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         </div>
       </div>
 
-      {/* Permission Bot Panel - Only for text channels */}
-      {channel.type === 'text' && serverId && (
+      {/* Permission Bot Panel - Only for report izin channel */}
+      {channel.type === 'text' && serverId && channel.name?.toLowerCase().includes('report izin') && (
         <div className={`${isMobile ? 'px-2 pt-2' : 'px-4 pt-4'}`}>
           <PermissionBot 
             channelId={channel.id} 
