@@ -1,0 +1,57 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - button [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+      - button "JEBOLTOGEL 0 0" [ref=e14] [cursor=pointer]:
+        - img "JEBOLTOGEL" [ref=e16]
+        - text: "0"
+        - text: "0"
+      - button [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+      - link [ref=e20] [cursor=pointer]:
+        - /url: https://github.com/your-repo/workgrid/releases
+        - img [ref=e21]
+    - generic [ref=e24]:
+      - button "Cari atau mulai percakapan" [ref=e26] [cursor=pointer]
+      - button "Teman" [ref=e28] [cursor=pointer]:
+        - img [ref=e30]
+        - generic [ref=e33]: Teman
+      - generic [ref=e34]:
+        - heading "Pesan Langsung" [level=3] [ref=e35]
+        - button "Buat Grup Baru" [ref=e36] [cursor=pointer]:
+          - img [ref=e37]
+      - button "jebolkasir1 jebolkasir1 01:26:10 Belum ada pesan" [ref=e42] [cursor=pointer]:
+        - img "jebolkasir1" [ref=e45]
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]: jebolkasir1
+            - generic [ref=e50]: 01:26:10
+          - generic [ref=e52]: Belum ada pesan
+      - generic [ref=e55] [cursor=pointer]:
+        - img "Admin" [ref=e57]
+        - generic [ref=e59]:
+          - paragraph [ref=e60]: Admin
+          - paragraph [ref=e61]: Online
+        - button [ref=e62]:
+          - img [ref=e63]
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - img [ref=e68]
+        - heading "Teman" [level=2] [ref=e73]
+        - tablist [ref=e76]:
+          - tab "Online" [selected] [ref=e77] [cursor=pointer]
+          - tab "Semua" [ref=e78] [cursor=pointer]
+      - generic [ref=e82]:
+        - generic [ref=e84]:
+          - img [ref=e85]
+          - textbox "Cari teman" [ref=e88]
+        - tabpanel [ref=e89]:
+          - generic [ref=e90]: Online — 0
+          - generic [ref=e92]:
+            - img [ref=e93]
+            - paragraph [ref=e97]: Tidak ada teman yang online
+    - generic [ref=e98]:
+      - generic [ref=e100]: Online
+      - button "Enable Notifications" [ref=e101] [cursor=pointer]
+  - region "Notifications alt+T"

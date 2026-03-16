@@ -1,0 +1,54 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - button [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+      - button "J 0 0" [ref=e14] [cursor=pointer]:
+        - generic [ref=e15]: J
+        - text: "0"
+        - text: "0"
+      - button [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+      - link [ref=e19] [cursor=pointer]:
+        - /url: https://github.com/your-repo/workgrid/releases
+        - img [ref=e20]
+    - generic [ref=e23]:
+      - button "Cari atau mulai percakapan" [ref=e25] [cursor=pointer]
+      - button "Teman" [ref=e27] [cursor=pointer]:
+        - img [ref=e29]
+        - generic [ref=e32]: Teman
+      - generic [ref=e33]:
+        - heading "Pesan Langsung" [level=3] [ref=e34]
+        - button "Buat Grup Baru" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+      - generic [ref=e41]:
+        - img [ref=e42]
+        - paragraph [ref=e44]: Belum ada percakapan
+        - paragraph [ref=e45]: Mulai chat dari daftar teman
+      - generic [ref=e48] [cursor=pointer]:
+        - img "Admin" [ref=e50]
+        - generic [ref=e52]:
+          - paragraph [ref=e53]: Admin
+          - paragraph [ref=e54]: Online
+        - button [ref=e55]:
+          - img [ref=e56]
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - img [ref=e61]
+        - heading "Teman" [level=2] [ref=e66]
+        - tablist [ref=e69]:
+          - tab "Online" [selected] [ref=e70] [cursor=pointer]
+          - tab "Semua" [ref=e71] [cursor=pointer]
+      - generic [ref=e75]:
+        - generic [ref=e77]:
+          - img [ref=e78]
+          - textbox "Cari teman" [ref=e81]
+        - tabpanel [ref=e82]:
+          - generic [ref=e83]: Online — 0
+          - generic [ref=e85]:
+            - img [ref=e86]
+            - paragraph [ref=e90]: Tidak ada teman yang online
+    - generic [ref=e91]:
+      - generic [ref=e93]: Online
+      - button "Enable Notifications" [ref=e94] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -283,14 +283,14 @@ function WelcomeMessage({ message, onWave }: WelcomeMessageProps) {
         >
           {newMember?.displayName || newMember?.username || 'New Member'}
         </span>
-        <span className="text-[#6a6a7a] text-xs">
+        <span className="text-gray-500 text-xs">
           {new Date(timestamp).toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'numeric', 
             day: 'numeric' 
           })}
         </span>
-        <span className="text-[#6a6a7a] text-xs">
+        <span className="text-gray-500 text-xs">
           {(() => {
             const d = new Date(timestamp);
             const h = d.getHours().toString().padStart(2, '0');
@@ -304,10 +304,10 @@ function WelcomeMessage({ message, onWave }: WelcomeMessageProps) {
       {/* Wave button */}
       <button
         onClick={onWave}
-        className="mt-2 flex items-center gap-2 px-3 py-2 bg-[#12121a] hover:bg-[#0d0d14] border border-[#40444b] rounded-md transition-colors group"
+        className="mt-2 flex items-center gap-2 px-3 py-2 bg-[#1a1d24] hover:bg-[#0d0f13] border border-white/10 rounded-md transition-colors group"
       >
         <span className="text-xl">👋</span>
-        <span className="text-[#a0a0b0] text-sm group-hover:text-white">Wave to say hi!</span>
+        <span className="text-gray-400 text-sm group-hover:text-white">Wave to say hi!</span>
       </button>
     </div>
   );
@@ -429,7 +429,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
 
   return (
     <div
-      className={`flex gap-3 group hover:bg-[#12121a] ${isMobile ? 'px-2 py-1' : 'px-4 py-0.5'}`}
+      className={`flex gap-3 group hover:bg-[#1a1d24] ${isMobile ? 'px-2 py-1' : 'px-4 py-0.5'}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       onContextMenu={handleContextMenu}
@@ -461,7 +461,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
       ) : (
         <div className={`flex-shrink-0 flex justify-end pt-1 ${isMobile ? 'w-8' : 'w-10'}`}>
           <span 
-            className="text-[10px] text-[#6a6a7a] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block cursor-default"
+            className="text-[10px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block cursor-default"
             title={formatTooltipTimestamp(timestamp)}
           >
             {formatTime(timestamp)}
@@ -473,35 +473,34 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           <div className="flex items-center gap-2 mb-0.5">
             <button 
               onClick={() => onUserClick?.(message.userId)}
-              className="font-bold hover:underline cursor-pointer text-sm bg-transparent border-none p-0"
-              style={{ color: memberRoleColors.get(message.userId) || message.user?.role_color || '#dcddde' }}
+              className="font-semibold hover:underline cursor-pointer text-sm bg-transparent border-none p-0 text-[#00d4ff]"
             >
               {isOwnMessage 
                 ? (currentUser?.displayName || currentUser?.username || 'You')
                 : (message.user?.displayName || message.user?.username)}
             </button>
             {/* Badges */}
-            {safeArrayIncludes(message.user?.badges, 'vip') && <span className="px-1.5 py-0.5 bg-[#00d4ff] text-white text-[10px] rounded font-semibold">VIP</span>}
+            {safeArrayIncludes(message.user?.badges, 'vip') && <span className="px-1.5 py-0.5 bg-cyan-500 text-white text-[10px] rounded font-semibold">VIP</span>}
             {safeArrayIncludes(message.user?.badges, 'crown') && <span className="text-sm">👑</span>}
             {safeArrayIncludes(message.user?.badges, 'verified') && <span className="text-[#43b581] text-sm">✓</span>}
             <span
-              className="text-[11px] text-[#6a6a7a] cursor-default hover:underline"
+              className="text-[11px] text-[#6c757d] cursor-default hover:underline"
               title={formatTooltipTimestamp(timestamp)}
             >
               {formatDiscordTimestamp(timestamp)}
             </span>
             {message.editedAt && (
-              <span className="text-[11px] text-[#6a6a7a]">(edited)</span>
+              <span className="text-[11px] text-gray-500">(edited)</span>
             )}
             {!message.timestamp && !(message as any).createdAt && (
-              <span className="text-[11px] text-[#6a6a7a]">(sending...)</span>
+              <span className="text-[11px] text-gray-500">(sending...)</span>
             )}
           </div>
         )}
         
         {/* Reply reference */}
         {message.replyTo && (
-          <div className="flex items-start gap-2 mb-2 p-2 rounded-md bg-[#12121a]/50 border-l-2 border-[#00d4ff]">
+          <div className="flex items-start gap-2 mb-2 p-2 rounded-md bg-[#1a1d24]/50 border-l-2 border-cyan-500">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-xs">
                 {message.replyTo?.user?.avatar ? (
@@ -515,7 +514,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     }}
                   />
                 ) : (
-                  <div className="w-4 h-4 rounded-full bg-[#00d4ff] flex items-center justify-center text-[8px] text-white font-bold">
+                  <div className="w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center text-[8px] text-white font-bold">
                     {(message.replyTo.user?.displayName || message.replyTo.user?.username || 'U')[0].toUpperCase()}
                   </div>
                 )}
@@ -526,7 +525,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                   {message.replyTo.user?.displayName || message.replyTo.user?.username}
                 </span>
               </div>
-              <p className="text-[#a0a0b0] text-xs mt-0.5 truncate">
+              <p className="text-gray-400 text-xs mt-0.5 truncate">
                 {message.replyTo.content}
               </p>
             </div>
@@ -549,24 +548,24 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                   onEditCancel?.();
                 }
               }}
-              className="w-full bg-[#2a2b3d] text-white text-sm rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
+              className="w-full bg-[#252830] text-white text-sm rounded px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#00d4ff]"
               rows={2}
               style={{ minHeight: '44px' }}
             />
             <div className="flex items-center gap-2 mt-2">
               <button
                 onClick={onEditSave}
-                className="px-3 py-1.5 bg-[#00d4ff] hover:bg-[#00b8db] text-white text-xs font-medium rounded transition-colors"
+                className="px-3 py-1.5 bg-cyan-500 hover:bg-[#00b8db] text-white text-xs font-medium rounded transition-colors"
               >
                 Simpan
               </button>
               <button
                 onClick={onEditCancel}
-                className="px-3 py-1.5 bg-transparent hover:bg-[#2a2b3d] text-[#a0a0b0] hover:text-white text-xs font-medium rounded transition-colors"
+                className="px-3 py-1.5 bg-transparent hover:bg-[#252830] text-gray-400 hover:text-white text-xs font-medium rounded transition-colors"
               >
                 Batal
               </button>
-              <span className="text-[#6a6a7a] text-xs ml-2">
+              <span className="text-gray-500 text-xs ml-2">
                 Tekan Enter untuk menyimpan, Escape untuk membatalkan
               </span>
             </div>
@@ -628,7 +627,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     <img 
                       src={getFileUrl(file.url)} 
                       alt={file.originalName || file.name || 'Attachment'}
-                      className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#12121a] ${
+                      className={`w-full rounded-lg hover:opacity-90 transition-opacity object-contain bg-[#1a1d24] ${
                         isMobile ? 'max-h-[400px]' : 'max-h-[600px]'
                       }`}
                       loading="lazy"
@@ -652,13 +651,13 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     </div>
                   </div>
                 ) : (
-                  <div className={`flex items-center gap-2 bg-[#12121a] hover:bg-[#0d0d14] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-2xl'}`}>
-                    <div className={`bg-[#00d4ff] rounded-lg flex items-center justify-center flex-shrink-0 ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
+                  <div className={`flex items-center gap-2 bg-[#1a1d24] hover:bg-[#0d0f13] rounded-lg p-2 transition-colors ${isMobile ? 'w-full' : 'p-3 max-w-2xl'}`}>
+                    <div className={`bg-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0 ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
                       <FileText className={`text-white ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm truncate">{file.originalName || file.name || 'Unknown file'}</p>
-                      <p className="text-[#6a6a7a] text-xs">{file.size ? (file.size / 1024).toFixed(1) : '?'} KB</p>
+                      <p className="text-gray-500 text-xs">{file.size ? (file.size / 1024).toFixed(1) : '?'} KB</p>
                     </div>
                   </div>
                 )}
@@ -704,8 +703,8 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     }}
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-sm transition-all ${
                       hasReacted
-                        ? 'bg-[#00d4ff]/20 border border-[#00d4ff] hover:bg-[#00d4ff]/30'
-                        : 'bg-[#12121a] border border-[#40444b] hover:border-[#00d4ff]/50 hover:bg-[#2a2b3d]'
+                        ? 'bg-cyan-500/20 border border-cyan-500 hover:bg-cyan-500/30'
+                        : 'bg-[#1a1d24] border border-white/10 hover:border-cyan-500/50 hover:bg-[#252830]'
                     }`}
                   >
                     <span 
@@ -714,7 +713,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
                     >
                       {reaction.emoji}
                     </span>
-                    <span className={`text-sm font-semibold ${hasReacted ? 'text-[#00d4ff]' : 'text-[#a0a0b0]'}`}>
+                    <span className={`text-sm font-semibold ${hasReacted ? 'text-cyan-400' : 'text-gray-400'}`}>
                       {count}
                     </span>
                   </button>
@@ -727,16 +726,16 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
       
       {/* Message Actions */}
       {showActions && (
-        <div className="absolute right-4 -top-3 flex items-center bg-[#0d0d14] border border-[#08080c] rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute right-4 -top-3 flex items-center bg-[#0d0f13] border border-[#08080c] rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onReply(message)}
-            className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#4f545c] rounded-l-lg"
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-l-lg"
             title="Reply"
           >
             <Reply className="w-4 h-4" />
           </button>
           <div className="relative group/emoji">
-            <div className="p-2 text-[#a0a0b0] hover:text-white hover:bg-[#4f545c] cursor-pointer">
+            <div className="p-2 text-gray-400 hover:text-white hover:bg-white/10 cursor-pointer">
               <EmojiPicker onEmojiSelect={handleReaction} />
             </div>
           </div>
@@ -744,7 +743,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             <>
               <button
                 onClick={() => onDelete(message.id)}
-                className="p-2 text-[#a0a0b0] hover:text-[#ed4245] hover:bg-[#4f545c] rounded-r-lg"
+                className="p-2 text-gray-400 hover:text-[#ed4245] hover:bg-white/10 rounded-r-lg"
                 title="Delete"
               >
                 <Trash2 className="w-4 h-4" />
@@ -1471,13 +1470,13 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
   if (!channel) {
     return (
-      <div className="flex-1 bg-[#0d0d14] flex items-center justify-center">
+      <div className="flex-1 bg-[#0d0f13] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-24 h-24 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Hash className="w-12 h-12 text-[#00d4ff]" />
+          <div className="w-24 h-24 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Hash className="w-12 h-12 text-cyan-400" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Selamat Datang!</h2>
-          <p className="text-[#a0a0b0]">Pilih channel untuk mulai chatting</p>
+          <p className="text-gray-400">Pilih channel untuk mulai chatting</p>
         </div>
       </div>
     );
@@ -1489,7 +1488,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   // Voice channel view
   if (channel.type === 'voice') {
     return (
-      <div className="flex-1 bg-[#0d0d14] flex flex-col min-h-0">
+      <div className="flex-1 bg-[#0d0f13] flex flex-col min-h-0">
         {/* Header */}
         <div className="h-12 px-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-3">
@@ -1499,12 +1498,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           <div className="flex items-center gap-4">
             <button 
               onClick={onOpenSearch}
-              className="relative flex items-center bg-[#08080c] hover:bg-[#12121a] text-[#6a6a7a] hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
+              className="relative flex items-center bg-[#050608] hover:bg-[#1a1d24] text-gray-500 hover:text-white text-sm rounded-md px-3 py-1.5 w-36 transition-all group"
               title="Cari pesan (Ctrl+K)"
             >
               <Search className="w-4 h-4 mr-2" />
               <span>Cari</span>
-              <kbd className="ml-auto text-xs bg-[#0d0d14] px-1.5 py-0.5 rounded text-[#6a6a7a] group-hover:text-[#a0a0b0]">Ctrl+K</kbd>
+              <kbd className="ml-auto text-xs bg-[#0d0f13] px-1.5 py-0.5 rounded text-gray-500 group-hover:text-gray-400">Ctrl+K</kbd>
             </button>
           </div>
         </div>
@@ -1525,12 +1524,12 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
   // Text channel view
   return (
-    <div className="flex-1 bg-[#0d0d14] flex flex-col min-h-0">
+    <div className="flex-1 bg-[#050608] flex flex-col min-h-0">
       {/* Header - Simplified for mobile */}
-      <div className={`${isMobile ? 'h-11 px-3' : 'h-12 px-4'} flex items-center justify-between shadow-md bg-[#0d0d14] border-b border-[#08080c] flex-shrink-0`}>
-        <div className="flex items-center gap-2 min-w-0">
-          <Hash className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-[#8e9297] flex-shrink-0`} />
-          <h2 className="text-white font-semibold truncate">{channel.name}</h2>
+      <div className={`${isMobile ? 'h-11 px-3' : 'h-14 px-4'} flex items-center justify-between bg-[#0a0c10] border-b border-white/5 flex-shrink-0 shadow-sm`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <Hash className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-cyan-400 flex-shrink-0`} />
+          <h2 className="text-white font-bold text-lg truncate">{channel.name}</h2>
           {/* Refresh button untuk permission bot */}
           {channel.name?.toLowerCase().includes('report izin') && onRefresh && (
             <button 
@@ -1540,7 +1539,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                 setTimeout(() => setIsRefreshing(false), 500);
               }}
               disabled={isRefreshing}
-              className="text-[#00d4ff] hover:text-[#00d4ff]/80 transition-colors p-1 ml-1 disabled:opacity-50"
+              className="text-cyan-400 hover:text-cyan-400/80 transition-colors p-1 ml-1 disabled:opacity-50"
               title="Refresh pesan izin"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -1553,7 +1552,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
               {/* 1. Pin - Pinned Messages */}
               <button 
                 onClick={() => setIsPinnedMessagesOpen(true)}
-                className="relative text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" 
+                className="relative text-gray-400 hover:text-cyan-400 transition-colors p-1" 
                 title="Pinned Messages"
               >
                 <Pin className="w-5 h-5" />
@@ -1571,7 +1570,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                 />
               )}
               {/* 3. File */}
-              <button className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" title="File Attachment">
+              <button className="text-gray-400 hover:text-cyan-400 transition-colors p-1" title="File Attachment">
                 <Inbox className="w-5 h-5" />
               </button>
             </>
@@ -1579,19 +1578,19 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           {/* 3. Search */}
           <button 
             onClick={onOpenSearch}
-            className={`relative flex items-center bg-[#08080c] hover:bg-[#12121a] text-[#6a6a7a] hover:text-white text-sm rounded-md transition-all group ${isMobile ? 'px-2 py-1.5 w-28' : 'px-3 py-1.5 w-36'}`}
+            className={`relative flex items-center bg-[#050608] hover:bg-[#1a1d24] text-gray-500 hover:text-white text-sm rounded-md transition-all group ${isMobile ? 'px-2 py-1.5 w-28' : 'px-3 py-1.5 w-36'}`}
             title="Cari pesan (Ctrl+K)"
           >
             <Search className="w-4 h-4 mr-2" />
             <span className={isMobile ? 'hidden' : ''}>Cari</span>
-            {!isMobile && <kbd className="ml-auto text-xs bg-[#0d0d14] px-1.5 py-0.5 rounded text-[#6a6a7a] group-hover:text-[#a0a0b0]">Ctrl+K</kbd>}
+            {!isMobile && <kbd className="ml-auto text-xs bg-[#0d0f13] px-1.5 py-0.5 rounded text-gray-500 group-hover:text-gray-400">Ctrl+K</kbd>}
           </button>
           {!isMobile && (
             <>
               {/* 4. Help */}
               <button 
                 onClick={() => setIsHelpOpen(true)}
-                className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1" 
+                className="text-gray-400 hover:text-cyan-400 transition-colors p-1" 
                 title="Bantuan"
               >
                 <HelpCircle className="w-5 h-5" />
@@ -1607,7 +1606,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                 setTimeout(() => setIsRefreshing(false), 500);
               }}
               disabled={isRefreshing}
-              className="text-[#a0a0b0] hover:text-[#00d4ff] transition-colors p-1 disabled:opacity-50"
+              className="text-gray-400 hover:text-cyan-400 transition-colors p-1 disabled:opacity-50"
               title="Refresh pesan"
             >
               <RefreshCw className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -1617,7 +1616,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
             /* 6. Users/Anggota - Toggle Member List */
             <button 
               onClick={onToggleMemberList}
-              className={`transition-colors p-1 ${showMemberList ? 'text-[#00d4ff]' : 'text-[#a0a0b0] hover:text-[#00d4ff]'}`} 
+              className={`transition-colors p-1 ${showMemberList ? 'text-cyan-400' : 'text-gray-400 hover:text-cyan-400'}`} 
               title={showMemberList ? 'Sembunyikan daftar anggota' : 'Tampilkan daftar anggota'}
             >
               <Users className="w-5 h-5" />
@@ -1653,13 +1652,13 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         {groupedMessages.length === 0 ? (
 
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-[#00d4ff]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Hash className="w-8 h-8 text-[#00d4ff]" />
+            <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Hash className="w-8 h-8 text-cyan-400" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">
               Selamat datang di #{channel.name}!
             </h3>
-            <p className="text-[#a0a0b0]">Ini adalah awal dari channel #{channel.name}.</p>
+            <p className="text-gray-400">Ini adalah awal dari channel #{channel.name}.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -1667,9 +1666,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
               <div key={groupIndex}>
                 {/* Date Divider */}
                 <div className="flex items-center justify-center mb-4">
-                  <div className="h-[1px] bg-[#2a2b3d] flex-1" />
-                  <span className="px-4 text-xs text-[#6a6a7a] font-medium">{group.date}</span>
-                  <div className="h-[1px] bg-[#2a2b3d] flex-1" />
+                  <div className="h-[1px] bg-[#252830] flex-1" />
+                  <span className="px-4 text-xs text-gray-500 font-medium">{group.date}</span>
+                  <div className="h-[1px] bg-[#252830] flex-1" />
                 </div>
 
                 {/* Messages */}
@@ -1721,7 +1720,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                         <div 
                           id={`message-${message.id}`}
                           ref={el => { if (el) messageRefs.current.set(message.id, el); }}
-                          className={`relative ${compactClass} ${isHighlighted ? 'bg-[#00d4ff]/20 rounded-lg transition-colors duration-500' : ''}`}
+                          className={`relative ${compactClass} ${isHighlighted ? 'bg-cyan-500/20 rounded-lg transition-colors duration-500' : ''}`}
                         >
                           <MessageItem
                             message={message}
@@ -1764,7 +1763,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
         {/* Typing Indicator */}
         {channelTypingUsers.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 text-[#a0a0b0] text-sm">
+          <div className="flex items-center gap-2 px-4 py-2 text-gray-400 text-sm">
             <div className="flex gap-1">
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full typing-dot" />
               <div className="w-2 h-2 bg-[#b9bbbe] rounded-full typing-dot" />
@@ -1825,17 +1824,17 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
       {/* Pin Confirmation Modal */}
       <Dialog open={!!pinMessageConfirm} onOpenChange={() => setPinMessageConfirm(null)}>
-        <DialogContent className="bg-[#313338] border-[#232438] text-white max-w-md">
+        <DialogContent className="bg-[#1a1d24] border-white/5 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Pin className="w-6 h-6 text-[#00d4ff]" />
+              <Pin className="w-6 h-6 text-cyan-400" />
               Sematkan Pesan Ini?
             </DialogTitle>
           </DialogHeader>
           
           {pinMessageConfirm && (
             <div className="py-4">
-              <p className="text-[#a0a0b0] mb-4">
+              <p className="text-gray-400 mb-4">
                 Pesan ini akan disematkan ke channel <span className="text-white font-medium">#{channel?.name}</span> agar mudah ditemukan oleh semua anggota.
               </p>
               
@@ -1855,11 +1854,11 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                       <span className="font-semibold text-white">
                         {pinMessageConfirm.user?.displayName || pinMessageConfirm.user?.username}
                       </span>
-                      <span className="text-xs text-[#6a6a7a]">
+                      <span className="text-xs text-gray-500">
                         {new Date(pinMessageConfirm.timestamp || Date.now()).toLocaleString('id-ID')}
                       </span>
                     </div>
-                    <p className="text-[#a0a0b0] mt-1 break-words">
+                    <p className="text-gray-400 mt-1 break-words">
                       {pinMessageConfirm.content}
                     </p>
                   </div>
@@ -1869,13 +1868,13 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setPinMessageConfirm(null)}
-                  className="flex-1 px-4 py-2.5 bg-[#232438] hover:bg-[#2a2b3d] text-white rounded-md transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 bg-[#232438] hover:bg-[#252830] text-white rounded-md transition-colors font-medium"
                 >
                   Batal
                 </button>
                 <button
                   onClick={() => pinMessageConfirm && handlePinMessage(pinMessageConfirm.id)}
-                  className="flex-1 px-4 py-2.5 bg-[#00d4ff] hover:bg-[#00b8db] text-black rounded-md transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 bg-cyan-500 hover:bg-[#00b8db] text-black rounded-md transition-colors font-medium"
                 >
                   Ya, Sematkan
                 </button>
@@ -1887,20 +1886,20 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
       {/* Pinned Messages Modal */}
       <Dialog open={isPinnedMessagesOpen} onOpenChange={setIsPinnedMessagesOpen}>
-        <DialogContent className="bg-[#313338] border-[#232438] text-white max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-[#1a1d24] border-white/5 text-white max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Pin className="w-6 h-6 text-[#00d4ff]" />
+              <Pin className="w-6 h-6 text-cyan-400" />
               Pesan yang Disematkan
               {pinnedMessages.length > 0 && (
-                <span className="text-sm font-normal text-[#6a6a7a]">({pinnedMessages.length})</span>
+                <span className="text-sm font-normal text-gray-500">({pinnedMessages.length})</span>
               )}
             </DialogTitle>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto py-4 space-y-3">
             {pinnedMessages.length === 0 ? (
-              <div className="text-center py-12 text-[#6a6a7a]">
+              <div className="text-center py-12 text-gray-500">
                 <Pin className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium text-white mb-2">Belum ada pesan yang disematkan</p>
                 <p className="text-sm">Pesan yang disematkan akan muncul di sini</p>
@@ -1909,7 +1908,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
               pinnedMessages.map((msg) => (
                 <div 
                   key={msg.id} 
-                  className="bg-[#232438] rounded-lg p-4 hover:bg-[#2a2b3d] transition-colors group"
+                  className="bg-[#232438] rounded-lg p-4 hover:bg-[#252830] transition-colors group"
                 >
                   <div className="flex items-start gap-3">
                     <img
@@ -1926,7 +1925,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           <span className="font-semibold text-white">
                             {msg.user?.displayName || msg.user?.username}
                           </span>
-                          <span className="text-xs text-[#6a6a7a]">
+                          <span className="text-xs text-gray-500">
                             {new Date(msg.timestamp || Date.now()).toLocaleString('id-ID')}
                           </span>
                         </div>
@@ -1942,7 +1941,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                                 setTimeout(() => element.classList.remove('highlight-message'), 2000);
                               }
                             }}
-                            className="p-1.5 text-[#a0a0b0] hover:text-[#00d4ff] hover:bg-[#1a1b2e] rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-cyan-400 hover:bg-[#1a1b2e] rounded transition-colors"
                             title="Lihat pesan"
                           >
                             <Search className="w-4 h-4" />
@@ -1950,7 +1949,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           {userPermissions?.canManageMessages && (
                             <button
                               onClick={() => handleUnpinMessage(msg.id)}
-                              className="p-1.5 text-[#a0a0b0] hover:text-[#ed4245] hover:bg-[#1a1b2e] rounded transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-[#ed4245] hover:bg-[#1a1b2e] rounded transition-colors"
                               title="Hapus sematan"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1958,7 +1957,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           )}
                         </div>
                       </div>
-                      <p className="text-[#a0a0b0] mt-1 break-words">
+                      <p className="text-gray-400 mt-1 break-words">
                         {msg.content}
                       </p>
                     </div>
@@ -1972,10 +1971,10 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
       {/* Help Modal */}
       <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
-        <DialogContent className="bg-[#0d0d14] border-[#1a1a24] text-white max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-[#0d0f13] border-[#1a1a24] text-white max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <HelpCircle className="w-6 h-6 text-[#00d4ff]" />
+              <HelpCircle className="w-6 h-6 text-cyan-400" />
               Panduan Penggunaan WorkGrid
             </DialogTitle>
           </DialogHeader>
@@ -1983,59 +1982,59 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
           <div className="space-y-6 py-4">
             {/* Shortcut Keyboard */}
             <section>
-              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                 <Keyboard className="w-4 h-4" />
                 Shortcut Keyboard
               </h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex justify-between bg-[#08080c] p-2 rounded">
-                  <span className="text-[#a0a0b0]">Cari pesan</span>
+                <div className="flex justify-between bg-[#050608] p-2 rounded">
+                  <span className="text-gray-400">Cari pesan</span>
                   <kbd className="bg-[#1a1a24] px-2 py-0.5 rounded text-xs">Ctrl + K</kbd>
                 </div>
-                <div className="flex justify-between bg-[#08080c] p-2 rounded">
-                  <span className="text-[#a0a0b0]">Kirim pesan</span>
+                <div className="flex justify-between bg-[#050608] p-2 rounded">
+                  <span className="text-gray-400">Kirim pesan</span>
                   <kbd className="bg-[#1a1a24] px-2 py-0.5 rounded text-xs">Enter</kbd>
                 </div>
-                <div className="flex justify-between bg-[#08080c] p-2 rounded">
-                  <span className="text-[#a0a0b0]">Baris baru</span>
+                <div className="flex justify-between bg-[#050608] p-2 rounded">
+                  <span className="text-gray-400">Baris baru</span>
                   <kbd className="bg-[#1a1a24] px-2 py-0.5 rounded text-xs">Shift + Enter</kbd>
                 </div>
-                <div className="flex justify-between bg-[#08080c] p-2 rounded">
-                  <span className="text-[#a0a0b0]">Refresh</span>
-                  <span className="text-[#6a6a7a] text-xs">Klik icon 🔄</span>
+                <div className="flex justify-between bg-[#050608] p-2 rounded">
+                  <span className="text-gray-400">Refresh</span>
+                  <span className="text-gray-500 text-xs">Klik icon 🔄</span>
                 </div>
               </div>
             </section>
 
             {/* Fitur Chat */}
             <section>
-              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                 <MessageCircle className="w-4 h-4" />
                 Fitur Chat
               </h3>
-              <ul className="space-y-2 text-sm text-[#a0a0b0]">
+              <ul className="space-y-2 text-sm text-gray-400">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">Kirim Pesan:</strong> Ketik di kotak input bawah dan tekan Enter</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">Upload File:</strong> Klik icon + di sebelah kiri input</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">Emoji & GIF:</strong> Klik icon 😊 atau GIF di input</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">Reply:</strong> Klik kanan pada pesan → Balas</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">Reaction:</strong> Klik kanan pada pesan → Tambah reaksi</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">Edit/Hapus:</strong> Klik kanan pada pesan Anda</span>
                 </li>
               </ul>
@@ -2043,21 +2042,21 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
             {/* Mention */}
             <section>
-              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                 <AtSign className="w-4 h-4" />
                 Mention/Menyebut
               </h3>
-              <ul className="space-y-2 text-sm text-[#a0a0b0]">
+              <ul className="space-y-2 text-sm text-gray-400">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">@nama</strong> - Sebut user tertentu</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">@everyone</strong> - Sebut semua anggota server</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#00d4ff]">•</span>
+                  <span className="text-cyan-400">•</span>
                   <span><strong className="text-white">@here</strong> - Sebut yang online saja</span>
                 </li>
               </ul>
@@ -2065,33 +2064,33 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
             {/* Toolbar Icon */}
             <section>
-              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                 <Pin className="w-4 h-4" />
                 Icon Toolbar
               </h3>
-              <ul className="space-y-2 text-sm text-[#a0a0b0]">
+              <ul className="space-y-2 text-sm text-gray-400">
                 <li className="flex items-center gap-2">
-                  <Pin className="w-4 h-4 text-[#6a6a7a]" />
+                  <Pin className="w-4 h-4 text-gray-500" />
                   <span><strong className="text-white">Pin:</strong> Lihat pesan yang di-pin</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Inbox className="w-4 h-4 text-[#6a6a7a]" />
+                  <Inbox className="w-4 h-4 text-gray-500" />
                   <span><strong className="text-white">File:</strong> Lihat file attachment</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Search className="w-4 h-4 text-[#6a6a7a]" />
+                  <Search className="w-4 h-4 text-gray-500" />
                   <span><strong className="text-white">Cari:</strong> Cari pesan (Ctrl+K)</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4 text-[#6a6a7a]" />
+                  <HelpCircle className="w-4 h-4 text-gray-500" />
                   <span><strong className="text-white">Bantuan:</strong> Panduan ini</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 text-[#6a6a7a]" />
+                  <RefreshCw className="w-4 h-4 text-gray-500" />
                   <span><strong className="text-white">Refresh:</strong> Muat ulang pesan</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#6a6a7a]" />
+                  <Users className="w-4 h-4 text-gray-500" />
                   <span><strong className="text-white">Anggota:</strong> Lihat daftar member</span>
                 </li>
               </ul>
@@ -2099,34 +2098,34 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
 
             {/* Status */}
             <section>
-              <h3 className="text-[#00d4ff] font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                 <Bell className="w-4 h-4" />
                 Status Online
               </h3>
               <div className="flex gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-[#00d4ff] rounded-full"></div>
-                  <span className="text-[#a0a0b0]">Online</span>
+                  <div className="w-3 h-3 bg-cyan-500 rounded-full"></div>
+                  <span className="text-gray-400">Online</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-[#faa81a] rounded-full"></div>
-                  <span className="text-[#a0a0b0]">Idle</span>
+                  <span className="text-gray-400">Idle</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-[#ed4245] rounded-full"></div>
-                  <span className="text-[#a0a0b0]">DND</span>
+                  <span className="text-gray-400">DND</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-[#747f8d] rounded-full"></div>
-                  <span className="text-[#a0a0b0]">Offline</span>
+                  <span className="text-gray-400">Offline</span>
                 </div>
               </div>
             </section>
 
             {/* Tips */}
-            <section className="bg-[#00d4ff]/10 border border-[#00d4ff]/30 rounded-lg p-4">
-              <h3 className="text-[#00d4ff] font-semibold mb-2">💡 Tips</h3>
-              <p className="text-sm text-[#a0a0b0]">
+            <section className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+              <h3 className="text-cyan-400 font-semibold mb-2">💡 Tips</h3>
+              <p className="text-sm text-gray-400">
                 Klik kanan pada pesan untuk melihat menu aksi (Reply, Edit, Hapus, Forward, Pin, Reaction)
               </p>
             </section>

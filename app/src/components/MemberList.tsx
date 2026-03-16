@@ -60,7 +60,7 @@ const roleColors: Record<string, string> = {
   owner: 'text-[#ffd700]',
   admin: 'text-[#ed4245]',
   moderator: 'text-[#43b581]',
-  member: 'text-[#a0a0b0]',
+  member: 'text-gray-400',
 };
 
 // Role hierarchy for checking who can manage whom (higher = more power)
@@ -461,7 +461,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
 
   if (!serverId) {
     return (
-      <div className="w-60 bg-[#232438] border-l border-[#0f0f1a] hidden lg:block">
+      <div className="w-60 bg-[#111318] border-l border-[#0f0f1a] hidden lg:block">
         <div className="p-4 text-[#6a6a7a] text-sm text-center">
           Pilih server untuk melihat member
         </div>
@@ -597,7 +597,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
 
     const memberContent = (
       <div 
-        className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[#34373c] cursor-pointer group"
+        className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 cursor-pointer group transition-colors"
         onClick={handleMemberClick}
         onContextMenu={handleContextMenu}
       >
@@ -612,15 +612,13 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
             }}
           />
           <div
-            className={`absolute bottom-0 right-0 w-3 h-3 ${statusColors[member.status || 'offline']} rounded-full border-2 border-[#232438]`}
+            className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${statusColors[member.status || 'offline']} rounded-full border-2 border-[#0a0c10]`}
           />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
             <span 
-              className={`text-sm font-bold truncate group-hover:text-white ${
-                member.status === 'offline' ? 'text-[#6a6a7a]' : ''
-              }`}
+              className="text-sm font-semibold truncate group-hover:text-white transition-colors"
               style={{ 
                 color: member.status === 'offline' 
                   ? '#72767d' 
@@ -633,7 +631,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           </div>
           {showRole && (
             <div 
-              className="text-[10px] uppercase tracking-wide truncate"
+              className="text-[11px] font-medium truncate"
               style={{ color: display.color }}
             >
               {display.name}
@@ -652,24 +650,24 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
         <ContextMenuTrigger asChild>
           {memberContent}
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-56 bg-[#18191c] border-[#232438]">
+        <ContextMenuContent className="w-56 bg-[#1a1d24] border-white/5">
           <div className="px-2 py-1.5 text-sm font-medium text-[#dcddde]">
             {displayName}
           </div>
-          <ContextMenuSeparator className="bg-[#232438]" />
+          <ContextMenuSeparator className="bg-[#111318]" />
           
           {/* Standard Roles Submenu - Only for Owner and Admin */}
           {(isOwner || currentUserRole === 'admin') && (
             <ContextMenuSub>
-              <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
+              <ContextMenuSubTrigger className="text-gray-400 hover:text-white hover:bg-cyan-500 focus:bg-cyan-500 focus:text-white">
                 Jobdesk Standar
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="bg-[#18191c] border-[#232438]">
+              <ContextMenuSubContent className="bg-[#1a1d24] border-white/5">
                 {(['member', 'moderator', 'admin'] as const).map((role) => (
                   <ContextMenuItem
                     key={role}
-                    className={`text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white ${
-                      member.role === role ? 'bg-[#00d4ff]/20' : ''
+                    className={`text-gray-400 hover:text-white hover:bg-cyan-500 focus:bg-cyan-500 focus:text-white ${
+                      member.role === role ? 'bg-cyan-500/20' : ''
                     } ${!canManageUser(role, member.id) ? 'opacity-50 pointer-events-none' : ''}`}
                     onClick={() => handleChangeRole(member.id, role)}
                     disabled={!canManageUser(role, member.id)}
@@ -686,16 +684,16 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           {/* Roles Submenu - Like Discord (All roles with checkmarks) - Only for Owner, Admin, and Moderator */}
           {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && customRoles.length > 0 && (
             <ContextMenuSub>
-              <ContextMenuSubTrigger className="text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white">
+              <ContextMenuSubTrigger className="text-gray-400 hover:text-white hover:bg-cyan-500 focus:bg-cyan-500 focus:text-white">
                 Role
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="bg-[#18191c] border-[#232438] max-h-64 overflow-y-auto">
+              <ContextMenuSubContent className="bg-[#1a1d24] border-white/5 max-h-64 overflow-y-auto">
                 {sortedRoles.map((role) => {
                   const hasRole = memberHasRole(member, role.id);
                   return (
                     <ContextMenuItem
                       key={role.id}
-                      className={`text-[#a0a0b0] hover:text-white hover:bg-[#00d4ff] focus:bg-[#00d4ff] focus:text-white ${
+                      className={`text-gray-400 hover:text-white hover:bg-cyan-500 focus:bg-cyan-500 focus:text-white ${
                         !canManage ? 'opacity-50 pointer-events-none' : ''
                       }`}
                       onClick={() => handleToggleRole(member.id, role.id, role.name, hasRole)}
@@ -726,7 +724,7 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           {/* Kick/Ban - Only for Owner, Admin, and Moderator */}
           {(isOwner || currentUserRole === 'admin' || currentUserRole === 'moderator') && (
             <>
-              <ContextMenuSeparator className="bg-[#232438]" />
+              <ContextMenuSeparator className="bg-[#111318]" />
               <ContextMenuItem
                 className="text-[#ed4245] hover:text-[#ed4245] hover:bg-[#ed4245]/10 focus:bg-[#ed4245]/10"
                 onClick={() => handleKickMember(member.id, displayName)}
@@ -751,29 +749,29 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
 
   return (
     <>
-      <div className="w-60 bg-[#232438] border-l border-[#0f0f1a] hidden lg:flex flex-col">
+      <div className="w-60 bg-[#050608] border-l border-white/5 hidden lg:flex flex-col">
         {/* Header with role manager button */}
-        <div className="p-3 border-b border-[#0f0f1a] flex items-center justify-between">
-          <span className="text-[#96989d] text-xs font-semibold uppercase">Member</span>
+        <div className="h-14 px-4 border-b border-white/5 flex items-center justify-between">
+          <span className="text-gray-400 text-sm font-semibold">Member</span>
           {(isOwner || currentUserRole === 'admin') && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowRoleManager(true)}
-              className="h-7 px-2 text-[#a0a0b0] hover:text-white hover:bg-[#34373c]"
+              className="h-7 px-2 text-gray-400 hover:text-white hover:bg-white/5"
             >
               <Settings className="w-4 h-4" />
             </Button>
           )}
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-3 pt-4">
           {/* Online Members grouped by Role - only show groups with members */}
           {sortedCombinations
             .filter(group => group.members.length > 0)
             .map((group, index) => (
-              <div key={index} className="mb-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wide mb-2 px-2">
+              <div key={index} className="mb-5">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider mb-2 px-2 text-gray-500">
                   {group.roleParts.map((part, i) => (
                     <span key={i}>
                       <span style={{ color: part.color }}>{part.name}</span>
@@ -794,8 +792,8 @@ export function MemberList({ serverId, isMobile: _isMobile = false, userStatuses
           
           {/* Offline Members */}
           {offlineMembers.length > 0 && (
-            <div className="mb-6 mt-6">
-              <h3 className="text-[#96989d] text-xs font-semibold uppercase tracking-wide mb-2 px-2">
+            <div className="mb-5 mt-6">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider mb-2 px-2 text-gray-500">
                 Offline — {offlineMembers.length}
               </h3>
               <div className="space-y-1">

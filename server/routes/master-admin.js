@@ -428,6 +428,117 @@ module.exports = (dbModule) => {
     }
   });
 
+  // ==================== DM CHANNELS (SUPERADMIN MONITORING) ====================
+  
+  // Get all DM channels (for superadmin monitoring)
+  router.get('/dm-channels', async (req, res) => {
+    try {
+      const { limit = 100, offset = 0 } = req.query;
+      
+      // Get all DM channels with member info
+      const channels = await dbModule.dbAll(
+        `SELECT dmc.id, dmc.type, dmc.name, dmc.user1_id, dmc.user2_id, dmc.created_at
+         FROM dm_channels dmc
+         ORDER BY dmc.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [parseInt(limit), parseInt(offset)]
+      );
+      
+      // Get members for each channel
+      const channelsWithMembers = await Promise.all(
+        channels.map(async (channel) => {
+          // Get both users from dm_channels directly
+          const members = await dbModule.dbAll(
+            `SELECT u.id, u.username, u.display_name, u.avatar, u.status, u.is_active
+             FROM users u
+             WHERE u.id IN (?, ?)`,
+            [channel.user1_id, channel.user2_id]
+          );
+          
+          // Get last message
+          const lastMessage = await dbModule.dbGet(
+            `SELECT dm.content, dm.created_at, dm.sender_id, u.username as sender_username
+             FROM dm_messages dm
+             JOIN users u ON dm.sender_id = u.id
+             WHERE dm.channel_id = ?
+             ORDER BY dm.created_at DESC
+             LIMIT 1`,
+            [channel.id]
+          );
+          
+          // Get message count
+          const messageCount = await dbModule.dbGet(
+            `SELECT COUNT(*) as count FROM dm_messages WHERE channel_id = ?`,
+            [channel.id]
+          );
+          
+          return {
+            ...channel,
+            members,
+            lastMessage: lastMessage || null,
+            messageCount: messageCount?.count || 0
+          };
+        })
+      );
+      
+      res.json({ channels: channelsWithMembers });
+    } catch (error) {
+      console.error('Get all DM channels error:', error);
+      res.status(500).json({ error: 'Failed to get DM channels' });
+    }
+  });
+
+  // Get specific DM channel messages (for superadmin)
+  router.get('/dm-channels/:channelId/messages', async (req, res) => {
+    try {
+      const { channelId } = req.params;
+      const { limit = 100, offset = 0 } = req.query;
+      
+      // Verify channel exists
+      const channel = await dbModule.dbGet(
+        'SELECT * FROM dm_channels WHERE id = ?',
+        [channelId]
+      );
+      
+      if (!channel) {
+        return res.status(404).json({ error: 'DM channel not found' });
+      }
+      
+      // Get messages with sender info
+      const messages = await dbModule.dbAll(
+        `SELECT dm.id, dm.sender_id, dm.content, dm.attachments, dm.is_read,
+                dm.created_at, dm.edited_at,
+                u.username, u.display_name, u.avatar
+         FROM dm_messages dm
+         JOIN users u ON dm.sender_id = u.id
+         WHERE dm.channel_id = ?
+         ORDER BY dm.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [channelId, parseInt(limit), parseInt(offset)]
+      );
+      
+      // Get channel members from user1_id and user2_id
+      const members = await dbModule.dbAll(
+        `SELECT u.id, u.username, u.display_name, u.avatar, u.status
+         FROM users u
+         WHERE u.id IN (?, ?)`,
+        [channel.user1_id, channel.user2_id]
+      );
+      
+      res.json({ 
+        channel: {
+          ...channel,
+          members
+        },
+        messages 
+      });
+    } catch (error) {
+      console.error('Get DM channel messages error:', error);
+      res.status(500).json({ error: 'Failed to get DM channel messages' });
+    }
+  });
+
+  // Get all DM messages (global view for superadmin)
   router.get('/dm-messages', async (req, res) => {
     try {
       const { limit = 100, offset = 0 } = req.query;

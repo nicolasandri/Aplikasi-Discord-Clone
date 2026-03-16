@@ -5,6 +5,7 @@ import { ServerList } from './ServerList';
 import { ChannelList } from './ChannelList';
 import { ChatArea } from './ChatArea';
 import { MessageInput } from './MessageInput';
+// Note: Using original ChatArea and MessageInput from project
 import { MemberList } from './MemberList';
 import { SettingsModal } from './SettingsModal';
 import { ServerSettingsModal } from './ServerSettingsModal';

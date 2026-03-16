@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 35% 5%;
+    --foreground: 216 30% 96%;
+    --card: 216 28% 10%;
+    --card-foreground: 216 30% 96%;
+    --popover: 216 28% 10%;
+    --popover-foreground: 216 30% 96%;
+    --primary: 186 100% 59%;
+    --primary-foreground: 216 35% 5%;
+    --secondary: 216 20% 15%;
+    --secondary-foreground: 216 30% 96%;
+    --muted: 216 20% 15%;
+    --muted-foreground: 216 15% 68%;
+    --accent: 186 100% 59%;
+    --accent-foreground: 216 35% 5%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 216 15% 18%;
+    --input: 216 20% 12%;
+    --ring: 186 100% 59%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500;
+  }
+  
+  .glass {
+    @apply bg-[rgba(14,22,35,0.72)] backdrop-blur-[14px] backdrop-saturate-[115%];
+  }
+  
+  .glass-border {
+    @apply border border-[rgba(244,247,251,0.10)];
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070B12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a2332;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2a3544;
+}
+
+/* Input focus styles */
+input:focus, input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(46, 233, 255, 0.18);
+  border-color: rgba(46, 233, 255, 0.65);
+}
+
+/* Noise overlay */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* QR Scan line animation */
+@keyframes scanLine {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(140px);
+  }
+}
+
+.scan-line {
+  animation: scanLine 2.2s ease-in-out infinite;
+}
+
+/* Status dot pulse */
+@keyframes statusPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+.status-pulse {
+  animation: statusPulse 2.4s ease-in-out infinite;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .scan-line,
+  .status-pulse {
+    animation: none;
+  }
+}

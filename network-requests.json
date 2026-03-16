@@ -1,0 +1,23 @@
+[GET] http://152.42.242.180/api/users/me => [200] OK
+[GET] http://152.42.242.180/api/servers => [200] OK
+[GET] http://152.42.242.180/api/friends => [200] OK
+[GET] http://152.42.242.180/api/servers => [200] OK
+[GET] http://152.42.242.180/api/friends => [200] OK
+[GET] http://152.42.242.180/api/friends/pending => [200] OK
+[GET] http://152.42.242.180/api/dm/channels => [301] Moved Permanently
+[GET] http://152.42.242.180/api/friends => [200] OK
+[GET] http://152.42.242.180/api/friends/blocked => [200] OK
+[GET] http://152.42.242.180/uploads/file-1773528611546-967951381.jpg => [404] Not Found
+[GET] http://152.42.242.180/uploads/file-1773526988381-971537826.jpg?v=1773633689972 => [404] Not Found
+[GET] https://workgrid.homeku.net/api/dm/channels => [FAILED] net::ERR_CONNECTION_REFUSED
+[GET] http://152.42.242.180/api/dm/channels => [301] Moved Permanently
+[GET] http://152.42.242.180/api/dm/unread-count => [200] OK
+[GET] https://workgrid.homeku.net/api/dm/channels => [FAILED] net::ERR_CONNECTION_REFUSED
+[GET] http://152.42.242.180/api/dm/channels => [301] Moved Permanently
+[GET] http://152.42.242.180/api/dm/unread-count => [200] OK
+[GET] https://workgrid.homeku.net/api/dm/channels => [FAILED] net::ERR_CONNECTION_REFUSED
+[GET] https://workgrid.homeku.net/api/dm/channels => [FAILED] net::ERR_CONNECTION_REFUSED
+[GET] https://workgrid.homeku.net/api/dm/channels => [FAILED] net::ERR_CONNECTION_REFUSED
+[GET] https://workgrid.homeku.net/api/dm/channels => [FAILED] net::ERR_CONNECTION_REFUSED
+[GET] http://152.42.242.180/api/dm/channels => [301] Moved Permanently
+[GET] https://workgrid.homeku.net/api/dm/channels

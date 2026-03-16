@@ -43,16 +43,20 @@ function SortableChannelItem({
   const hasUnread = unread && unread.count > 0;
   const hasMention = unread?.hasMention;
 
+  const mergedStyle = selectedChannelId === channel.id 
+    ? { ...style, marginLeft: '8px', paddingLeft: '6px' } 
+    : style;
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`group flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer ${
+      style={mergedStyle}
+      className={`group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer mx-2 relative ${
         selectedChannelId === channel.id
-          ? 'bg-[#2a2b3d] text-white'
+          ? 'bg-[#111318] text-white border-l-2 border-cyan-500'
           : hasUnread
-            ? 'bg-[#232438] text-white'
-            : 'text-[#a0a0b0] hover:bg-[#34373c] hover:text-[#dcddde]'
+            ? 'text-white hover:bg-white/5'
+            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
       }`}
     >
       {/* Drag Handle */}
@@ -73,20 +77,20 @@ function SortableChannelItem({
         className="flex-1 flex items-center gap-2 min-w-0"
       >
         {channel.type === 'voice' ? (
-          <Volume2 className="w-4 h-4 text-[#6a6a7a]" />
+          <Volume2 className={`w-4 h-4 ${selectedChannelId === channel.id ? 'text-cyan-400' : hasUnread ? 'text-white' : 'text-[#6a6a7a]'}`} />
         ) : (
-          <Hash className={`w-4 h-4 ${hasUnread ? 'text-white' : 'text-[#6a6a7a]'}`} />
+          <Hash className={`w-4 h-4 ${selectedChannelId === channel.id ? 'text-cyan-400' : hasUnread ? 'text-white' : 'text-[#6a6a7a]'}`} />
         )}
-        <span className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : ''}`}>
+        <span className={`text-sm truncate ${hasUnread || selectedChannelId === channel.id ? 'font-semibold text-white' : ''}`}>
           {channel.name}
         </span>
 
         {/* Unread badge */}
         {hasUnread && (
-          <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+          <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center ${
             hasMention
               ? 'bg-[#ed4245] text-white'
-              : 'bg-[#b9bbbe] text-[#2f3136]'
+              : 'bg-cyan-500 text-[#0d0d14]'
           }`}>
             {unread.count > 99 ? '99+' : unread.count}
           </span>
@@ -102,7 +106,7 @@ function SortableChannelItem({
               onDeleteChannel(channel.id);
             }
           }}
-          className="p-1 hover:bg-[#ed4245]/20 rounded text-[#a0a0b0] hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
+          className="p-1 hover:bg-[#ed4245]/20 rounded text-gray-400 hover:text-[#ed4245] opacity-0 group-hover:opacity-100 transition-opacity"
           title="Hapus Channel"
         >
           <Trash2 className="w-3 h-3" />

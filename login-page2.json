@@ -1,0 +1,54 @@
+- generic [ref=e3]:
+  - generic [ref=e58]:
+    - generic [ref=e60]:
+      - button [ref=e62] [cursor=pointer]:
+        - img [ref=e63]
+      - button "J 0 0" [ref=e67] [cursor=pointer]:
+        - generic [ref=e68]: J
+        - text: "0"
+        - text: "0"
+      - button [ref=e70] [cursor=pointer]:
+        - img [ref=e71]
+      - link [ref=e72] [cursor=pointer]:
+        - /url: https://github.com/your-repo/workgrid/releases
+        - img [ref=e73]
+    - generic [ref=e76]:
+      - button "Cari atau mulai percakapan" [ref=e78] [cursor=pointer]
+      - button "Teman" [ref=e80] [cursor=pointer]:
+        - img [ref=e82]
+        - generic [ref=e85]: Teman
+      - generic [ref=e86]:
+        - heading "Pesan Langsung" [level=3] [ref=e87]
+        - button "Buat Grup Baru" [ref=e88] [cursor=pointer]:
+          - img [ref=e89]
+      - generic [ref=e94]:
+        - img [ref=e95]
+        - paragraph [ref=e97]: Belum ada percakapan
+        - paragraph [ref=e98]: Mulai chat dari daftar teman
+      - generic [ref=e101] [cursor=pointer]:
+        - img "Admin" [ref=e103]
+        - generic [ref=e105]:
+          - paragraph [ref=e106]: Admin
+          - paragraph [ref=e107]: Online
+        - button [ref=e108]:
+          - img [ref=e109]
+    - generic [ref=e112]:
+      - generic [ref=e113]:
+        - img [ref=e114]
+        - heading "Teman" [level=2] [ref=e119]
+        - tablist [ref=e122]:
+          - tab "Online" [selected] [ref=e123] [cursor=pointer]
+          - tab "Semua" [ref=e124] [cursor=pointer]
+      - generic [ref=e128]:
+        - generic [ref=e130]:
+          - img [ref=e131]
+          - textbox "Cari teman" [ref=e134]
+        - tabpanel [ref=e135]:
+          - generic [ref=e136]: Online — 0
+          - generic [ref=e138]:
+            - img [ref=e139]
+            - paragraph [ref=e143]: Tidak ada teman yang online
+    - generic [ref=e144]:
+      - generic [ref=e146]: Online
+      - button "Enable Notifications" [ref=e147] [cursor=pointer]
+  - region "Notifications alt+T"

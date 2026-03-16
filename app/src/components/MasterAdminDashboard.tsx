@@ -172,8 +172,10 @@ export function MasterAdminDashboard() {
   const [servers, setServers] = useState<ServerWithDetails[]>([]);
   const [messages, setMessages] = useState<MessageWithDetails[]>([]);
   const [dmMessages, setDmMessages] = useState<DMMessageWithDetails[]>([]);
+  const [dmChannels, setDmChannels] = useState<any[]>([]);
   const [conversations, setConversations] = useState<DMConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<DMConversation | null>(null);
+  const [selectedDMChannel, setSelectedDMChannel] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageSearchQuery, setMessageSearchQuery] = useState('');
@@ -300,6 +302,71 @@ export function MasterAdminDashboard() {
     } catch (error) {
       console.error('Error fetching servers:', error);
       toast.error('Gagal memuat data server');
+    }
+  };
+
+  const fetchDMChannels = async () => {
+    setLoading(true);
+    try {
+      // Fetch all DM channels (superadmin view)
+      const response = await fetch(`${API_URL}/admin/dm-channels?limit=100`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      console.log('DM Channels response status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        setDmChannels(data.channels || []);
+      } else if (response.status === 401) {
+        toast.error('Sesi login habis. Silakan login ulang.');
+        logout();
+      }
+    } catch (error) {
+      console.error('Error fetching DM channels:', error);
+      toast.error('Gagal memuat data channel DM');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDMChannelMessages = async (channelId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/admin/dm-channels/${channelId}/messages?limit=100`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Map snake_case to camelCase for messages
+        const mappedMessages = data.messages.map((msg: any) => ({
+          id: msg.id,
+          channelId: msg.channel_id,
+          senderId: msg.sender_id,
+          senderUsername: msg.username,
+          senderDisplayName: msg.display_name,
+          senderAvatar: msg.avatar,
+          content: msg.content,
+          createdAt: msg.created_at,
+          editedAt: msg.edited_at,
+          isRead: msg.is_read,
+          attachments: msg.attachments,
+        }));
+        setDmMessages(mappedMessages);
+        setSelectedDMChannel(data.channel);
+      } else if (response.status === 401) {
+        toast.error('Sesi login habis. Silakan login ulang.');
+        logout();
+      }
+    } catch (error) {
+      console.error('Error fetching DM channel messages:', error);
+      toast.error('Gagal memuat pesan DM');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -935,6 +1002,10 @@ export function MasterAdminDashboard() {
               <MessageSquare className="w-4 h-4 mr-2" />
               Pesan ({stats?.total_messages || 0})
             </TabsTrigger>
+            <TabsTrigger value="dm-monitor" className="data-[state=active]:bg-[#404249]" onClick={() => fetchDMChannels()}>
+              <MessageSquare className="w-4 h-4 mr-2" />
+              DM Monitor
+            </TabsTrigger>
             <TabsTrigger value="channelaccess" className="data-[state=active]:bg-[#404249]" onClick={() => fetchServerAccessData()}>
               <Server className="w-4 h-4 mr-2" />
               Akses Server
@@ -1276,12 +1347,12 @@ export function MasterAdminDashboard() {
                 <div className="p-4 border-b border-[#1E1F22]">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-[#B5BAC1] text-xs font-semibold uppercase tracking-wider">
-                      Pesan Langsung
+                      Semua DM ({dmChannels.length})
                     </h3>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      onClick={fetchDMMessages}
+                      onClick={fetchDMChannels}
                       className="h-6 w-6 p-0 text-[#B5BAC1] hover:text-white"
                     >
                       <RefreshCw className="w-4 h-4" />
@@ -1489,6 +1560,148 @@ export function MasterAdminDashboard() {
                       <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-30" />
                       <p className="text-lg">Pilih percakapan untuk melihat pesan</p>
                       <p className="text-sm mt-1">Klik salah satu percakapan di sidebar kiri</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* DM Monitor Tab - Superadmin View All DM Channels */}
+          <TabsContent value="dm-monitor" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+            <div className="h-full flex rounded-lg border border-[#1E1F22] bg-[#313338] overflow-hidden">
+              {/* Left Sidebar - DM Channel List */}
+              <div className="w-80 bg-[#2B2D31] border-r border-[#1E1F22] flex flex-col">
+                {/* Header */}
+                <div className="p-4 border-b border-[#1E1F22]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[#B5BAC1] text-xs font-semibold uppercase tracking-wider">
+                      Semua DM ({dmChannels.length})
+                    </h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={fetchDMChannels}
+                      className="h-6 w-6 p-0 text-[#B5BAC1] hover:text-white"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Cari DM channel..."
+                    value={messageSearchQuery}
+                    onChange={(e) => setMessageSearchQuery(e.target.value)}
+                    className="bg-[#1E1F22] border-[#1E1F22] text-white text-sm h-8"
+                  />
+                </div>
+                
+                {/* DM Channel List */}
+                <div className="flex-1 overflow-y-auto">
+                  {dmChannels
+                    .filter(channel => {
+                      if (!messageSearchQuery) return true;
+                      const search = messageSearchQuery.toLowerCase();
+                      return channel.members?.some((m: any) => 
+                        (m.username?.toLowerCase().includes(search) || 
+                         m.display_name?.toLowerCase().includes(search))
+                      );
+                    })
+                    .map((channel) => (
+                      <div
+                        key={channel.id}
+                        onClick={() => fetchDMChannelMessages(channel.id)}
+                        className={`p-3 cursor-pointer transition-colors hover:bg-[#35373C] ${
+                          selectedDMChannel?.id === channel.id ? 'bg-[#35373C]' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Member Avatars */}
+                          <div className="flex -space-x-2">
+                            {channel.members?.slice(0, 2).map((member: any, idx: number) => (
+                              <img
+                                key={idx}
+                                src={getAvatar(member.avatar, member.username)}
+                                alt={member.display_name || member.username}
+                                className="w-8 h-8 rounded-full border-2 border-[#2B2D31]"
+                              />
+                            ))}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-medium text-sm truncate">
+                              {channel.members?.map((m: any) => m.display_name || m.username).join(', ') || 'Unknown'}
+                            </div>
+                            <div className="text-[#B5BAC1] text-xs">
+                              {channel.messageCount} pesan • {channel.type || 'direct'}
+                            </div>
+                          </div>
+                        </div>
+                        {channel.lastMessage && (
+                          <div className="mt-2 text-xs text-[#B5BAC1] truncate">
+                            <span className="text-[#B5BAC1]">{channel.lastMessage.sender_username}:</span>{' '}
+                            {channel.lastMessage.content?.substring(0, 30)}
+                            {channel.lastMessage.content?.length > 30 ? '...' : ''}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Right Side - Messages */}
+              <div className="flex-1 flex flex-col bg-[#313338]">
+                {selectedDMChannel ? (
+                  <>
+                    {/* Header */}
+                    <div className="h-14 border-b border-[#1E1F22] px-4 flex items-center justify-between bg-[#313338]">
+                      <div>
+                        <h3 className="text-white font-semibold">
+                          {selectedDMChannel.members?.map((m: any) => m.display_name || m.username).join(' ↔ ')}
+                        </h3>
+                        <p className="text-xs text-[#B5BAC1]">
+                          {selectedDMChannel.members?.length} anggota • {dmMessages.length} pesan
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {[...dmMessages].reverse().map((msg, idx) => {
+                        const isCurrentUser = msg.senderId === user?.id;
+                        return (
+                          <div key={idx} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`flex gap-3 max-w-[70%] ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                              <img
+                                src={getAvatar(msg.senderAvatar, msg.senderUsername)}
+                                alt={msg.senderDisplayName}
+                                className="w-8 h-8 rounded-full flex-shrink-0"
+                              />
+                              <div>
+                                <div className={`flex items-center gap-2 mb-1 ${isCurrentUser ? 'justify-end' : ''}`}>
+                                  <span className="text-xs text-[#B5BAC1]">
+                                    {msg.senderDisplayName || msg.senderUsername}
+                                  </span>
+                                  <span className="text-xs text-[#72767D]">
+                                    {formatChatTime(msg.createdAt)}
+                                  </span>
+                                </div>
+                                <div className={`inline-block px-4 py-2 rounded-2xl text-[#DBDEE1] text-sm ${
+                                  isCurrentUser ? 'bg-[#5865F2] rounded-tr-none' : 'bg-[#383A40] rounded-tl-none'
+                                }`}>
+                                  {msg.content}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-[#B5BAC1]">
+                      <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg">Pilih DM channel untuk melihat pesan</p>
+                      <p className="text-sm mt-1">Klik salah satu channel di sidebar kiri</p>
                     </div>
                   </div>
                 )}

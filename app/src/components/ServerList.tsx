@@ -83,8 +83,8 @@ function ServerIconButton({
             onClick={onClick}
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 relative ${
               isSelected
-                ? 'bg-[#00d4ff]'
-                : 'bg-[#0d0d14] hover:bg-[#00d4ff]'
+                ? 'bg-[#1a1d24] border-2 border-cyan-500 rounded-2xl'
+                : 'bg-[#1a1d24] hover:border-2 hover:border-cyan-500/50 hover:rounded-2xl'
             }`}
             style={{ 
               borderRadius: '50%',
@@ -133,7 +133,7 @@ function ServerIconButton({
 
             {/* Unread badge */}
             {hasUnread && (
-              <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#08080c] z-20 ${
+              <div className={`absolute -bottom-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#0a0c10] z-20 ${
                 hasMention ? 'bg-[#ed4245] text-white' : 'bg-[#b9bbbe] text-[#2f3136]'
               }`}>
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -291,11 +291,11 @@ export function ServerList({
           onClick={handleDMClick}
           className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
             isFriendsOpen || selectedServerId === 'home'
-              ? 'bg-[#00d4ff] text-white'
-              : 'bg-[#0d0d14] text-white hover:bg-[#00d4ff]'
+              ? 'bg-cyan-500 text-white'
+              : 'bg-[#1a1d24] text-white hover:bg-cyan-500'
           }`}
         >
-          <div className="w-12 h-12 rounded-full bg-[#0d0d14] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-[#1a1d24] flex items-center justify-center">
             <MessageCircle className="w-6 h-6" />
           </div>
           <div className="flex-1 text-left">
@@ -323,11 +323,11 @@ export function ServerList({
                 onClick={() => onSelectServer(server.id)}
                 className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all ${
                   selectedServerId === server.id && !isFriendsOpen
-                    ? 'bg-[#00d4ff] text-white'
-                    : 'bg-[#0d0d14] text-white hover:bg-[#00d4ff]'
+                    ? 'bg-cyan-500 text-white'
+                    : 'bg-[#1a1d24] text-white hover:bg-cyan-500'
                 }`}
               >
-                <div className="w-12 h-12 rounded-full bg-[#0d0d14] flex items-center justify-center overflow-hidden">
+                <div className="w-12 h-12 rounded-full bg-[#1a1d24] flex items-center justify-center overflow-hidden">
                   {(() => {
                     const iconUrl = getServerIconUrl(server.icon);
                     return iconUrl ? (
@@ -353,7 +353,7 @@ export function ServerList({
         {/* Add Server Button */}
         <button
           onClick={() => setIsCreateOpen(true)}
-          className="w-full flex items-center gap-4 p-3 rounded-xl bg-[#0d0d14] hover:bg-[#00d4ff] text-[#00d4ff] hover:text-white transition-all"
+          className="w-full flex items-center gap-4 p-3 rounded-xl bg-[#1a1d24] hover:bg-cyan-500 text-cyan-400 hover:text-white transition-all"
         >
           <div className="w-12 h-12 rounded-full flex items-center justify-center">
             <Plus className="w-6 h-6" />
@@ -363,7 +363,7 @@ export function ServerList({
 
         {/* Create Server Dialog */}
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent className="bg-[#0d0d14] border-[#08080c] text-white">
+          <DialogContent className="bg-[#1a1d24] border-[#0a0c10] text-white">
             <DialogHeader>
               <DialogTitle className="text-xl">Buat Server Baru</DialogTitle>
             </DialogHeader>
@@ -374,7 +374,7 @@ export function ServerList({
                   value={newServerName}
                   onChange={(e) => setNewServerName(e.target.value)}
                   placeholder="Server saya"
-                  className="bg-[#08080c] border-[#040405] text-white"
+                  className="bg-[#0a0c10] border-[#111318] text-white"
                 />
               </div>
               <div className="space-y-2">
@@ -384,12 +384,12 @@ export function ServerList({
                   onChange={(e) => setNewServerIcon(e.target.value)}
                   placeholder="🌐"
                   maxLength={2}
-                  className="bg-[#08080c] border-[#040405] text-white"
+                  className="bg-[#0a0c10] border-[#111318] text-white"
                 />
               </div>
               <Button
                 onClick={handleCreateServer}
-                className="w-full bg-[#00d4ff] hover:bg-[#00b8db]"
+                className="w-full bg-cyan-500 hover:bg-cyan-400"
               >
                 Buat Server
               </Button>
@@ -401,7 +401,7 @@ export function ServerList({
   }
 
   return (
-    <div className="w-[72px] bg-[#08080c] flex flex-col h-full">
+    <div className="w-[72px] bg-[#0a0c10] flex flex-col h-full">
       {/* Scrollable Server Area */}
       <div className="flex-1 flex flex-col items-center py-3 gap-2 overflow-y-auto min-h-0">
         {/* Direct Messages / Friends Button */}
@@ -413,11 +413,11 @@ export function ServerList({
                 onClick={handleDMClick}
                 className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
                   isFriendsOpen || selectedServerId === 'home'
-                    ? 'bg-[#00d4ff] rounded-2xl'
-                    : 'bg-[#0d0d14] hover:bg-[#00d4ff] hover:rounded-2xl'
+                    ? 'bg-[#1a1d24] border-2 border-cyan-500 rounded-2xl'
+                    : 'bg-[#1a1d24] hover:border-2 hover:border-cyan-500/50 hover:rounded-2xl'
                 }`}
               >
-                <MessageCircle className="w-6 h-6 text-white" />
+                <MessageCircle className={`w-6 h-6 ${isFriendsOpen || selectedServerId === 'home' ? 'text-cyan-400' : 'text-gray-400'}`} />
               </button>
               
               {/* Selected indicator */}
@@ -427,20 +427,20 @@ export function ServerList({
               
               {/* Unread DM badge - show even when friends page is open (Discord behavior) */}
               {dmUnreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
+                <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#0a0c10]">
                   {dmUnreadCount > 99 ? '99+' : dmUnreadCount}
                 </Badge>
               )}
               {/* Pending friend requests badge */}
               {pendingCount > 0 && dmUnreadCount === 0 && (
-                <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#08080c]">
+                <Badge className="absolute -top-1 -right-1 bg-[#ed4245] text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center p-0 border-2 border-[#0a0c10]">
                   {pendingCount > 9 ? '9+' : pendingCount}
                 </Badge>
               )}
 
               {/* Online friend count badge */}
               {onlineFriendCount > 0 && pendingCount === 0 && (
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00d4ff] rounded-full border-2 border-[#08080c] flex items-center justify-center">
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full border-2 border-[#0a0c10] flex items-center justify-center">
                   <span className="text-[8px] text-white font-bold">{onlineFriendCount > 9 ? '9+' : onlineFriendCount}</span>
                 </div>
               )}
@@ -452,7 +452,7 @@ export function ServerList({
         </Tooltip>
       </TooltipProvider>
 
-      <div className="w-8 h-[2px] bg-[#0d0d14] rounded-full my-1" />
+      <div className="w-8 h-[2px] bg-[#1a1d24] rounded-full my-1" />
 
       {/* Server List */}
       {servers.map((server) => {
@@ -479,8 +479,8 @@ export function ServerList({
           <Tooltip>
             <TooltipTrigger asChild>
               <DialogTrigger asChild>
-                <button className="w-12 h-12 rounded-full bg-[#0d0d14] hover:bg-[#00d4ff] flex items-center justify-center transition-all duration-200 mt-2 relative">
-                  <Plus className="w-6 h-6 text-[#00d4ff] group-hover:text-white transition-colors" />
+                <button className="w-12 h-12 rounded-full bg-[#1a1d24] hover:border-2 hover:border-cyan-500/50 hover:rounded-2xl flex items-center justify-center transition-all duration-200 mt-2 relative group">
+                  <Plus className="w-6 h-6 text-cyan-400 group-hover:text-cyan-400 transition-colors" />
                 </button>
               </DialogTrigger>
             </TooltipTrigger>
@@ -489,7 +489,7 @@ export function ServerList({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <DialogContent className="bg-[#0d0d14] border-[#08080c] text-white">
+        <DialogContent className="bg-[#1a1d24] border-[#0a0c10] text-white">
           <DialogHeader>
             <DialogTitle className="text-xl">Buat Server Baru</DialogTitle>
           </DialogHeader>
@@ -500,7 +500,7 @@ export function ServerList({
                 value={newServerName}
                 onChange={(e) => setNewServerName(e.target.value)}
                 placeholder="Server saya"
-                className="bg-[#08080c] border-[#040405] text-white"
+                className="bg-[#0a0c10] border-[#111318] text-white"
               />
             </div>
             <div className="space-y-2">
@@ -510,12 +510,12 @@ export function ServerList({
                 onChange={(e) => setNewServerIcon(e.target.value)}
                 placeholder="🌐"
                 maxLength={2}
-                className="bg-[#08080c] border-[#040405] text-white"
+                className="bg-[#0a0c10] border-[#111318] text-white"
               />
             </div>
             <Button
               onClick={handleCreateServer}
-              className="w-full bg-[#00d4ff] hover:bg-[#00b8db]"
+              className="w-full bg-cyan-500 hover:bg-cyan-400"
             >
               Buat Server
             </Button>
@@ -525,10 +525,10 @@ export function ServerList({
 
       {/* Explore Button - Hidden */}
       {/*
-      <button className="w-12 h-12 rounded-full bg-[#0d0d14] hover:bg-[#00d4ff] flex items-center justify-center transition-all duration-200 group">
-        <Compass className="w-6 h-6 text-[#00d4ff] group-hover:text-white transition-colors" />
+      <button className="w-12 h-12 rounded-full bg-[#1a1d24] hover:bg-cyan-500 flex items-center justify-center transition-all duration-200 group">
+        <Compass className="w-6 h-6 text-cyan-400 group-hover:text-white transition-colors" />
       </button>
-      <div className="w-8 h-[2px] bg-[#0d0d14] rounded-full my-1" />
+      <div className="w-8 h-[2px] bg-[#1a1d24] rounded-full my-1" />
       */}
 
       {/* Update/Download Button */}

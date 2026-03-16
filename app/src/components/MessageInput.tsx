@@ -267,13 +267,13 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
   };
 
   return (
-    <form onSubmit={handleSubmit} onClick={handleInputAreaClick} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#1a1b2e] border-t border-[#0f0f1a] z-40 cursor-text' : 'px-4 pb-4 cursor-text'}`}>
+    <form onSubmit={handleSubmit} onClick={handleInputAreaClick} className={`${isMobile ? 'fixed bottom-[60px] left-0 right-0 px-2 py-2 bg-[#0a0c10] border-t border-white/5 z-40 cursor-text' : 'px-6 pb-6 cursor-text bg-[#050608]'}`}>
       {/* Reply Indicator */}
       {replyTo && (
-        <div className={`bg-[#2a2b3d] px-3 py-1.5 flex items-center justify-between ${isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
+        <div className={`bg-[#111318] px-3 py-1.5 flex items-center justify-between ${isMobile ? 'rounded-t-xl' : 'rounded-t-xl'}`}>
           <div className={`flex items-center gap-2 text-[#a0a0b0] ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <span>Membalas</span>
-            <span className="text-[#00d4ff] font-medium truncate max-w-[120px]">{replyTo.user?.displayName || replyTo.user?.username}</span>
+            <span className="text-cyan-400 font-medium truncate max-w-[120px]">{replyTo.user?.displayName || replyTo.user?.username}</span>
             <span className="truncate max-w-[150px]">: {formatContentForDisplay(replyTo.content)}</span>
           </div>
           <button
@@ -288,9 +288,9 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
 
       {/* Attachments Preview */}
       {attachments.length > 0 && (
-        <div className={`bg-[#2a2b3d] px-3 py-1.5 flex flex-wrap gap-2 ${replyTo ? '' : isMobile ? 'rounded-t-md' : 'rounded-t-lg'}`}>
+        <div className={`bg-[#111318] px-3 py-1.5 flex flex-wrap gap-2 ${replyTo ? '' : isMobile ? 'rounded-t-xl' : 'rounded-t-xl'}`}>
           {attachments.map((file, index) => (
-            <div key={index} className={`flex items-center gap-2 bg-[#232438] rounded text-sm ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
+            <div key={index} className={`flex items-center gap-2 bg-[#0a0c10] rounded text-sm ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
               <span className="text-[#a0a0b0]">{getFileIcon(file.mimetype || 'application/octet-stream')}</span>
               <span className="text-white truncate max-w-[100px]">{file.originalName}</span>
               <button
@@ -305,7 +305,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
         </div>
       )}
       
-      <div className={`bg-[#2a2b3d] flex items-center min-h-[44px] ${attachments.length > 0 || replyTo ? isMobile ? 'rounded-b-md' : 'rounded-b-lg' : isMobile ? 'rounded-md' : 'rounded-lg'}`}>
+      <div className={`bg-[#0d0f13] flex items-center min-h-[60px] ${attachments.length > 0 || replyTo ? isMobile ? 'rounded-b-2xl' : 'rounded-b-2xl' : isMobile ? 'rounded-2xl' : 'rounded-2xl'} border border-white/10 hover:border-cyan-500/30 transition-all duration-200 shadow-lg`}>
         {/* Hidden File Input */}
         <input
           ref={fileInputRef}
@@ -324,7 +324,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             e.stopPropagation();
             fileInputRef.current?.click();
           }}
-          className={`flex-shrink-0 text-[#a0a0b0] hover:text-[#dcddde] transition-colors disabled:opacity-50 flex items-center justify-center ${isMobile ? 'w-10 h-10' : 'w-11 h-11'}`}
+          className={`flex-shrink-0 text-[#71717a] hover:text-cyan-400 transition-colors disabled:opacity-50 flex items-center justify-center ${isMobile ? 'w-10 h-10' : 'w-11 h-11'}`}
           disabled={disabled || uploading}
         >
           {uploading ? (
@@ -344,7 +344,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             disabled={disabled}
             placeholder={getPlaceholder()}
             rows={1}
-            className="w-full bg-transparent text-[#dcddde] placeholder-[#72767d] resize-none outline-none min-h-[24px] max-h-[120px] overflow-y-auto disabled:opacity-50 py-3"
+            className="w-full bg-transparent text-[#e4e4e7] placeholder-[#52525b] resize-none outline-none min-h-[28px] max-h-[140px] overflow-y-auto disabled:opacity-50 py-3.5 text-[15px]"
             style={{ 
               fontFamily: 'inherit',
               fontSize: isMobile ? '14px' : '15px',
@@ -371,7 +371,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
               <button
                 type="button"
                 onClick={(e) => e.stopPropagation()}
-                className="w-8 h-8 flex items-center justify-center text-[#a0a0b0] hover:text-[#dcddde] transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-[#71717a] hover:text-cyan-400 transition-colors"
                 disabled={disabled}
               >
                 <Gift className="w-5 h-5" />
@@ -396,21 +396,21 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               disabled={disabled}
-              className="w-full h-full flex items-center justify-center text-[#a0a0b0] hover:text-yellow-400 transition-colors"
+              className="w-full h-full flex items-center justify-center text-[#71717a] hover:text-cyan-400 transition-colors"
             >
               <Smile className="w-5 h-5" />
             </button>
             
             {showEmojiPicker && (
               <>
-                <div className={`absolute bottom-full right-0 mb-2 z-50 bg-[#2B2D31] rounded-lg shadow-xl border border-[#1E1F22] p-3 ${isMobile ? 'min-w-[180px]' : 'min-w-[200px]'}`}>
+                <div className={`absolute bottom-full right-0 mb-2 z-50 bg-[#1a1d24] rounded-lg shadow-xl border border-white/5 p-3 ${isMobile ? 'min-w-[180px]' : 'min-w-[200px]'}`}>
                   <div className="text-xs text-gray-400 mb-2">Emoji cepat</div>
                   <div className={`grid gap-1 ${isMobile ? 'grid-cols-5' : 'grid-cols-5'}`}>
                     {commonEmojis.map((emoji) => (
                       <button
                         key={emoji}
                         onClick={() => insertEmoji(emoji)}
-                        className="p-2 text-lg hover:bg-[#404249] rounded transition-colors"
+                        className="p-2 text-lg hover:bg-white/10 rounded transition-colors"
                         type="button"
                       >
                         {emoji}
@@ -440,7 +440,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
               setTimeout(() => textareaRef.current?.focus(), 0);
             }}
             disabled={disabled}
-            className="w-8 h-8 flex items-center justify-center text-[#a0a0b0] hover:text-[#dcddde] transition-colors disabled:opacity-50"
+            className="w-8 h-8 flex items-center justify-center text-[#71717a] hover:text-cyan-400 transition-colors disabled:opacity-50"
           >
             <AtSign className="w-5 h-5" />
           </button>
@@ -450,7 +450,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, MessageInputProps>
             type="submit"
             onClick={(e) => e.stopPropagation()}
             disabled={disabled || (!message.trim() && attachments.length === 0)}
-            className="w-8 h-8 flex items-center justify-center text-[#00d4ff] hover:text-[#00b8db] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-8 h-8 flex items-center justify-center text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </button>

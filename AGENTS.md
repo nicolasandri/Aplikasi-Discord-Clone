@@ -94,7 +94,7 @@
 /
 ├── app/                          # Frontend React application
 │   ├── src/
-│   │   ├── components/           # React components (56 files)
+│   │   ├── components/           # React components (59 files)
 │   │   │   ├── ui/              # shadcn/ui components (53 components)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display area
@@ -124,7 +124,7 @@
 │   │   │   ├── UpdateButton.tsx # Electron update button
 │   │   │   ├── MasterAdminDashboard.tsx # System admin panel
 │   │   │   ├── ForceChangePassword.tsx # Password change on first login
-│   │   │   └── ... (56 total components)
+│   │   │   └── ... (59 total components)
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/               # Custom React hooks (6 files)
@@ -144,6 +144,7 @@
 │   │   ├── pages/               # Page-level components
 │   │   │   ├── InvitePage.tsx   # Invite acceptance page
 │   │   │   └── FriendsPage.tsx  # Friends management page
+│   │   ├── services/            # API service functions
 │   │   ├── landing/             # Landing page components
 │   │   ├── App.tsx              # Root component
 │   │   ├── main.tsx             # Entry point
@@ -178,6 +179,8 @@
 │   │   └── master-admin.js      # Master admin routes
 │   ├── services/
 │   │   └── push.js              # Push notification service
+│   ├── webrtc/                  # WebRTC signaling handlers
+│   ├── config/                  # Configuration files
 │   ├── migrations/              # Database migrations
 │   │   ├── 001_initial_schema.sql
 │   │   ├── 002_migrate_sqlite_to_postgres.js
@@ -190,7 +193,7 @@
 │   │   ├── 013_add_push_subscriptions.sql
 │   │   ├── 014_add_is_active_column.sql
 │   │   ├── 014_add_users_display_name.sql
-│   │   └── setup-postgres.js
+│   │   └── 015_add_permission_types.sql
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image
 │   └── package.json
@@ -200,7 +203,7 @@
 ├── nginx/                       # Nginx configuration
 │   └── nginx.conf               # Production Nginx config
 │
-├── scripts/                     # Deployment scripts (36 shell scripts)
+├── scripts/                     # Deployment scripts (36+ shell scripts)
 │   ├── deploy.sh                # Deploy script
 │   ├── backup.sh                # Backup script
 │   ├── restore.sh               # Restore script
@@ -214,6 +217,7 @@
 │
 ├── docker-compose.yml           # Docker Compose (dev)
 ├── docker-compose.prod.yml      # Docker Compose (production)
+├── docker-compose.vps.yml       # Docker Compose (VPS specific)
 ├── .env                         # Environment variables
 ├── .env.example                 # Environment template
 └── package.json                 # Root package.json
@@ -379,6 +383,9 @@ docker-compose up --build -d
 
 # Production (dengan load balancing)
 docker-compose -f docker-compose.prod.yml up -d
+
+# VPS specific
+docker-compose -f docker-compose.vps.yml up -d
 ```
 
 ### Android APK Build

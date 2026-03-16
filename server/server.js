@@ -2338,12 +2338,12 @@ app.post('/api/servers/:serverId/permission-types', authenticateToken, async (re
       return res.status(400).json({ error: 'Name is required' });
     }
     
-    const result = await query(
+    const result = await dbRun(
       'INSERT INTO server_permission_types (server_id, name, max_duration) VALUES ($1, $2, $3) RETURNING *',
       [serverId, name.trim(), maxDuration || 5]
     );
     
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(result[0]);
   } catch (error) {
     console.error('Create permission type error:', error);
     if (error.message.includes('unique constraint')) {
@@ -2366,16 +2366,16 @@ app.put('/api/servers/:serverId/permission-types/:id', authenticateToken, async 
       return res.status(403).json({ error: 'You do not have permission to manage server settings' });
     }
     
-    const result = await query(
+    const result = await dbRun(
       'UPDATE server_permission_types SET name = COALESCE($1, name), max_duration = COALESCE($2, max_duration) WHERE id = $3 AND server_id = $4 RETURNING *',
       [name ? name.trim() : null, maxDuration, id, serverId]
     );
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({ error: 'Permission type not found' });
     }
     
-    res.json(result.rows[0]);
+    res.json(result[0]);
   } catch (error) {
     console.error('Update permission type error:', error);
     res.status(500).json({ error: 'Failed to update permission type' });
@@ -2394,12 +2394,12 @@ app.delete('/api/servers/:serverId/permission-types/:id', authenticateToken, asy
       return res.status(403).json({ error: 'You do not have permission to manage server settings' });
     }
     
-    const result = await query(
+    const result = await dbRun(
       'DELETE FROM server_permission_types WHERE id = $1 AND server_id = $2 RETURNING *',
       [id, serverId]
     );
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({ error: 'Permission type not found' });
     }
     

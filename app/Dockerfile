@@ -17,12 +17,16 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
+# Remove dev env files to ensure production env is used
+RUN rm -f .env .env.local
+
 # Create production build
 # Pass API URL sebagai build argument
 ARG VITE_API_URL=/api
-ARG VITE_SOCKET_URL=
+ARG VITE_SOCKET_URL=/
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_SOCKET_URL=${VITE_SOCKET_URL}
+ENV NODE_ENV=production
 
 RUN npm run build
 
@@ -39,8 +43,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create nginx cache directory
-RUN mkdir -p /var/cache/nginx/client_temp && \
-    chmod 755 /var/cache/nginx/client_temp
+RUN mkdir -p /var/cache/nginx/client_temp && chmod 755 /var/cache/nginx/client_temp
 
 # Expose port
 EXPOSE 80
