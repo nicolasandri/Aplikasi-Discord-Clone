@@ -2245,6 +2245,123 @@ app.put('/api/servers/:serverId/roles/:roleId/reorder', authenticateToken, async
 });
 
 // ============================================
+// PERMISSION TYPES ENDPOINTS (Jenis Izin)
+// ============================================
+
+// Get all permission types for a server
+app.get('/api/servers/:serverId/permission-types', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const userId = req.userId;
+    
+    // Check if user is server member
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this server' });
+    }
+    
+    const result = await query(
+      'SELECT * FROM server_permission_types WHERE server_id = $1 ORDER BY name ASC',
+      [serverId]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get permission types error:', error);
+    res.status(500).json({ error: 'Failed to get permission types' });
+  }
+});
+
+// Create new permission type
+app.post('/api/servers/:serverId/permission-types', authenticateToken, async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const { name, maxDuration } = req.body;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Server)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage server settings' });
+    }
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    
+    const result = await query(
+      'INSERT INTO server_permission_types (server_id, name, max_duration) VALUES ($1, $2, $3) RETURNING *',
+      [serverId, name.trim(), maxDuration || 5]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create permission type error:', error);
+    if (error.message.includes('unique constraint')) {
+      return res.status(400).json({ error: 'Permission type with this name already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create permission type' });
+  }
+});
+
+// Update permission type
+app.put('/api/servers/:serverId/permission-types/:id', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, id } = req.params;
+    const { name, maxDuration } = req.body;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Server)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage server settings' });
+    }
+    
+    const result = await query(
+      'UPDATE server_permission_types SET name = COALESCE($1, name), max_duration = COALESCE($2, max_duration) WHERE id = $3 AND server_id = $4 RETURNING *',
+      [name ? name.trim() : null, maxDuration, id, serverId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Permission type not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update permission type error:', error);
+    res.status(500).json({ error: 'Failed to update permission type' });
+  }
+});
+
+// Delete permission type
+app.delete('/api/servers/:serverId/permission-types/:id', authenticateToken, async (req, res) => {
+  try {
+    const { serverId, id } = req.params;
+    const userId = req.userId;
+    
+    // Check permissions (Manage Server)
+    const hasPermission = await permissionDB.hasPermission(userId, serverId, Permissions.MANAGE_SERVER);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to manage server settings' });
+    }
+    
+    const result = await query(
+      'DELETE FROM server_permission_types WHERE id = $1 AND server_id = $2 RETURNING *',
+      [id, serverId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Permission type not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete permission type error:', error);
+    res.status(500).json({ error: 'Failed to delete permission type' });
+  }
+});
+
+// ============================================
 // ROLE-CHANNEL ACCESS ENDPOINTS (Simplified)
 // ============================================
 
@@ -2467,7 +2584,8 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
       
       // Create new permission request
       const requestType = type || 'wc';
-      const result = await permissionRequestsDB.create(userId, serverId, channelId, requestType, 5);
+      const maxDuration = req.body.maxDuration || 5;
+      const result = await permissionRequestsDB.create(userId, serverId, channelId, requestType, maxDuration);
       
       // Get the created request
       const newRequest = await permissionRequestsDB.getById(result.id);
@@ -2479,7 +2597,7 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
           title: '✅ IZIN DIMULAI',
           staff: `@${user.username}`,
           type: requestType,
-          maxDuration: '5 menit',
+          maxDuration: `${maxDuration} menit`,
           startedAt: newRequest.started_at,
           mode: '✅ Format benar',
           note: 'Akhiri dengan: kembali'

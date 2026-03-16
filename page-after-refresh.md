@@ -1,0 +1,57 @@
+- generic [ref=e3]:
+  - generic [ref=e58]:
+    - generic [ref=e60]:
+      - button [ref=e62] [cursor=pointer]:
+        - img [ref=e63]
+      - button "JEBOLTOGEL 0 0" [ref=e67] [cursor=pointer]:
+        - img "JEBOLTOGEL" [ref=e69]
+        - text: "0"
+        - text: "0"
+      - button [ref=e71] [cursor=pointer]:
+        - img [ref=e72]
+      - link [ref=e73] [cursor=pointer]:
+        - /url: https://github.com/your-repo/workgrid/releases
+        - img [ref=e74]
+    - generic [ref=e77]:
+      - button "Cari atau mulai percakapan" [ref=e79] [cursor=pointer]
+      - button "Teman" [ref=e81] [cursor=pointer]:
+        - img [ref=e83]
+        - generic [ref=e86]: Teman
+      - generic [ref=e87]:
+        - heading "Pesan Langsung" [level=3] [ref=e88]
+        - button "Buat Grup Baru" [ref=e89] [cursor=pointer]:
+          - img [ref=e90]
+      - button "jebolkasir1 jebolkasir1 04:45:22 Ok bos" [ref=e95] [cursor=pointer]:
+        - img "jebolkasir1" [ref=e98]
+        - generic [ref=e100]:
+          - generic [ref=e101]:
+            - generic [ref=e102]: jebolkasir1
+            - generic [ref=e103]: 04:45:22
+          - generic [ref=e105]: Ok bos
+      - generic [ref=e108] [cursor=pointer]:
+        - img "Admin" [ref=e110]
+        - generic [ref=e112]:
+          - paragraph [ref=e113]: Admin
+          - paragraph [ref=e114]: Online
+        - button [ref=e115]:
+          - img [ref=e116]
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - img [ref=e121]
+        - heading "Teman" [level=2] [ref=e126]
+        - tablist [ref=e129]:
+          - tab "Online" [selected] [ref=e130] [cursor=pointer]
+          - tab "Semua" [ref=e131] [cursor=pointer]
+      - generic [ref=e135]:
+        - generic [ref=e137]:
+          - img [ref=e138]
+          - textbox "Cari teman" [ref=e141]
+        - tabpanel [ref=e142]:
+          - generic [ref=e143]: Online — 0
+          - generic [ref=e145]:
+            - img [ref=e146]
+            - paragraph [ref=e150]: Tidak ada teman yang online
+    - generic [ref=e151]:
+      - generic [ref=e153]: Online
+      - button "Enable Notifications" [ref=e154] [cursor=pointer]
+  - region "Notifications alt+T"

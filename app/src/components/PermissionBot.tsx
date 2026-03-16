@@ -5,6 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
+interface PermissionType {
+  id: string;
+  name: string;
+  max_duration: number;
+}
+
 interface PermissionRequest {
   id: string;
   user_id: string;
@@ -43,6 +49,8 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
   const [izinType, setIzinType] = useState('');
   const [loading, setLoading] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [permissionTypes, setPermissionTypes] = useState<PermissionType[]>([]);
+  const [selectedType, setSelectedType] = useState<PermissionType | null>(null);
   const { toast } = useToast();
 
   const API_URL = typeof window !== 'undefined' && (window as any).electronAPI
@@ -68,6 +76,32 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
     }
   }, [channelId, currentUserId, API_URL]);
 
+  // Fetch permission types from server settings
+  useEffect(() => {
+    const fetchPermissionTypes = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/servers/${serverId}/permission-types`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setPermissionTypes(data);
+          // Set default selected type
+          if (data.length > 0 && !selectedType) {
+            setSelectedType(data[0]);
+            setIzinType(data[0].name);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch permission types:', error);
+      }
+    };
+    
+    fetchPermissionTypes();
+  }, [serverId, API_URL]);
+
   // Polling
   useEffect(() => {
     fetchMyPermission();
@@ -92,7 +126,7 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
   }, [myActiveRequest]);
 
   const handleIzin = async () => {
-    if (!izinType.trim()) return;
+    if (!selectedType) return;
     
     setLoading(true);
     try {
@@ -107,7 +141,8 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
           channelId,
           serverId,
           command: 'IZIN',
-          type: izinType
+          type: selectedType.name,
+          maxDuration: selectedType.max_duration
         })
       });
 
@@ -120,6 +155,10 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
           duration: 3000
         });
         setIzinType('');
+        if (permissionTypes.length > 0) {
+          setSelectedType(permissionTypes[0]);
+          setIzinType(permissionTypes[0].name);
+        }
         fetchMyPermission();
         // Refresh messages to show bot message
         setTimeout(() => {
@@ -258,26 +297,42 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
       ) : (
         /* Request Form */
         <div className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              value={izinType}
-              onChange={(e) => setIzinType(e.target.value)}
-              placeholder="Jenis izin (wc, makan, rokok, dll)"
-              className="flex-1 bg-[#2a2b3d] border-[#40444b] text-white placeholder-gray-500"
-              disabled={loading}
-              onKeyPress={(e) => e.key === 'Enter' && handleIzin()}
-            />
-            <Button
-              onClick={handleIzin}
-              disabled={loading || !izinType.trim()}
-              className="bg-[#00d4ff] hover:bg-[#00b8db] text-black font-medium"
-            >
-              {loading ? '...' : 'IZIN'}
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500">
-            Contoh: wc, makan, rokok, dll. Maksimal 5 menit.
-          </p>
+          {permissionTypes.length === 0 ? (
+            <div className="text-sm text-gray-400 text-center py-3">
+              Belum ada jenis izin. Hubungi admin untuk menambahkan.
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <select
+                  value={selectedType?.id || ''}
+                  onChange={(e) => {
+                    const type = permissionTypes.find(t => t.id === e.target.value);
+                    setSelectedType(type || null);
+                    setIzinType(type?.name || '');
+                  }}
+                  className="flex-1 bg-[#2a2b3d] border border-[#40444b] text-white rounded px-3 py-2 focus:outline-none focus:border-[#00d4ff]"
+                  disabled={loading}
+                >
+                  {permissionTypes.map((type) => (
+                    <option key={type.id} value={type.id} className="bg-[#2a2b3d]">
+                      {type.name.charAt(0).toUpperCase() + type.name.slice(1)} ({type.max_duration} menit)
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  onClick={handleIzin}
+                  disabled={loading || !selectedType}
+                  className="bg-[#00d4ff] hover:bg-[#00b8db] text-black font-medium"
+                >
+                  {loading ? '...' : 'IZIN'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Pilih jenis izin dari daftar. Durasi maksimal ditentukan oleh admin.
+              </p>
+            </>
+          )}
           <p className="text-xs text-gray-500">
             Laporan izin akan muncul di chat channel ini.
           </p>

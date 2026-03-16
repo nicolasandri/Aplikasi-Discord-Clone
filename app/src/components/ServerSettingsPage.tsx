@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Settings, Shield, Users, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck } from 'lucide-react';
+import { X, Settings, Shield, Users, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck, Clock } from 'lucide-react';
 import { ServerRoles } from './ServerRoles';
+import { PermissionTypesSettings } from './PermissionTypesSettings';
 import { DaftarNamaStaff } from './DaftarNamaStaff';
 import type { Server, ServerMember } from '@/types';
 import {
@@ -51,7 +52,7 @@ const BANNER_COLORS = [
 ];
 
 export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: ServerSettingsPageProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'roles' | 'members' | 'invites' | 'bans'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'roles' | 'members' | 'permissionTypes' | 'invites' | 'bans'>('overview');
   const [serverName, setServerName] = useState(server?.name || '');
   const [serverIcon, setServerIcon] = useState(server?.icon || '');
   const [description, setDescription] = useState('');
@@ -227,6 +228,7 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
     { id: 'overview' as const, label: 'Overview', icon: Settings },
     { id: 'roles' as const, label: 'Jobdesk', icon: Shield },
     { id: 'members' as const, label: 'Members', icon: Users },
+    { id: 'permissionTypes' as const, label: 'Jenis Izin', icon: Clock },
   ];
 
   return (
@@ -398,6 +400,10 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
 
           {activeTab === 'members' && (
             <DaftarNamaStaff serverId={server.id} />
+          )}
+
+          {activeTab === 'permissionTypes' && (
+            <PermissionTypesSettings serverId={server.id} />
           )}
         </div>
       </div>
