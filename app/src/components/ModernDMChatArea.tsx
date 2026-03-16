@@ -27,10 +27,10 @@ const statusColors = {
 interface ModernDMChatAreaProps {
   channel: DMChannel | null;
   currentUser: User | null;
-  onBack?: () => void;
+  // onBack?: () => void;
   onAddMember?: (channelId: string) => void;
   onLeaveGroup?: (channelId: string) => void;
-  onFocusInput?: () => void;
+  // onFocusInput?: () => void;
   isMobile?: boolean;
 }
 
@@ -50,10 +50,8 @@ function formatTime(timestamp: string): string {
 export function ModernDMChatArea({
   channel,
   currentUser,
-  onBack,
   onAddMember,
   onLeaveGroup,
-  onFocusInput,
   isMobile = false
 }: ModernDMChatAreaProps) {
   const [messages, setMessages] = useState<DMMessage[]>([]);
@@ -305,24 +303,24 @@ export function ModernDMChatArea({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className={`flex gap-3 ${msg.userId === currentUser?.id ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`flex gap-3 ${msg.senderId === currentUser?.id ? 'flex-row-reverse' : 'flex-row'}`}
             >
               <img
-                src={msg.userId === currentUser?.id
+                src={msg.senderId === currentUser?.id
                   ? (currentUser?.avatar ? `${BASE_URL}${currentUser.avatar}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.username || 'user'}`)
-                  : `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username || 'user'}`}
-                alt={msg.username || 'User'}
+                  : (msg.sender_avatar ? `${BASE_URL}${msg.sender_avatar}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.sender_username || 'user'}`)}
+                alt={msg.sender_username || 'User'}
                 className="w-8 h-8 rounded-lg ring-1 ring-white/10 flex-shrink-0"
               />
-              <div className={`flex flex-col gap-1 max-w-xs ${msg.userId === currentUser?.id ? 'items-end' : 'items-start'}`}>
+              <div className={`flex flex-col gap-1 max-w-xs ${msg.senderId === currentUser?.id ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-2 px-3">
-                  <span className="text-xs font-medium text-white/60">{msg.username || 'Unknown'}</span>
+                  <span className="text-xs font-medium text-white/60">{msg.sender_username || 'Unknown'}</span>
                   <span className="text-xs text-white/40">{formatTime(msg.createdAt)}</span>
                 </div>
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   className={`px-4 py-2.5 rounded-xl max-w-xs ${
-                    msg.userId === currentUser?.id
+                    msg.senderId === currentUser?.id
                       ? 'bg-gradient-to-r from-cyan-500/80 to-blue-500/80 text-white rounded-br-sm'
                       : 'bg-white/5 text-white/90 border border-white/10 rounded-bl-sm hover:bg-white/[0.08]'
                   } transition-all backdrop-blur-sm`}

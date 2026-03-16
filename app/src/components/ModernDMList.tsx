@@ -58,7 +58,7 @@ export function ModernDMList({
   };
   currentUserIdRef.current = getUserIdFromToken();
 
-  const fetchDMChannels = useCallback(async (force = false) => {
+  const fetchDMChannels = useCallback(async (_force = false) => {
     const token = tokenRef.current;
     if (!token) return;
 
