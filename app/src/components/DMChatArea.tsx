@@ -895,7 +895,14 @@ export function DMChatArea({ channel, currentUser, onBack: _onBack, onAddMember,
                           <img
                             src={senderAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderName || 'user'}`}
                             alt={senderName}
-                            className="w-10 h-10 rounded-full flex-shrink-0"
+                            className="w-10 h-10 rounded-full flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => {
+                              const userId = isOwn ? currentUser?.id : (channel?.friend?.id || channel?.members?.find(m => m.id !== currentUser?.id)?.id);
+                              if (userId) {
+                                setSelectedUserId(userId);
+                                setIsProfileOpen(true);
+                              }
+                            }}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderName || 'user'}`;
