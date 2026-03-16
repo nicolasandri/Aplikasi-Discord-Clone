@@ -1,0 +1,83 @@
+================================================================================
+                    SSH KEY INFORMATION FOR VPS
+================================================================================
+
+VPS Details:
+  IP Address: 152.42.242.180
+  Username: root
+  Password: %0|F?H@f!berhO3e (use for initial setup only)
+
+SSH Key Generated:
+  Private Key: C:\Users\PC\.ssh\workgrid_vps
+  Public Key: C:\Users\PC\.ssh\workgrid_vps.pub
+  Key Type: RSA 4096-bit
+  Fingerprint: SHA256:SPJRPMkSD6+KyRzFKitqyO+ZvAaC4heiw8lcUUspBLE
+
+================================================================================
+                          PUBLIC KEY (COPY THIS)
+================================================================================
+
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHPIPZ62PCoQiIlvzlGwUS4GIklSm9AlosHQHsh07L0JLgZWx/ISg20vyGmq3TXeMSuw+pUE/McaAoFQBeXtUHaM/mchGFFf1ApHLAjkVEFl8/4cuyHDHPbw/bd7qiu8igIKilD/nVWP1AnX4apk8qho7W25vxL37q/q0qPakDtkX5N/BG+d1/YFYHdKkQQSYY1fVtrqn2Y5cxJV9J1NDjq+TToOg/KsPYea6DXyINBpaoOhqP+lzQhYW/BkLfaM33LUtcG3RnIWF+C8WgUPjYi8I77xKvxTYI7lLZKR7Z4JkAGEL4/wgY2mmAY5Z+I18vHQR2Z5cHeK6zIVxVkuyYu5ejqUbHgNGlmxFWTjZ0xlfkLfDZX9TtbNHb1rP2HlnKDbMTss3AX2Wcz4vWP6TIjl+1fjs/AvgsKvUiIalQgXz0AUgUf+s9JnW5Z/ujudImFO8vNmbh0d3VFEpvXAb993g855yWt80+FVTjNgL5TZBUUbn/JQjI/I2qaSt92JQAVAfY2vdqYYmuwmnvoNswm7WNM5aL3/Ukbg+HHsN918P/EFSwcFwqJZg0bL/CsMxeWcCnB7KQv9ugiDLEhpereFR1fbojwFVqkFxK+/xu5BQ8kadT1vpkVcBVQoTRXpibFrkNX9RlQ== workgrid@152.42.242.180
+
+================================================================================
+                           SETUP STEPS ON VPS
+================================================================================
+
+1. SSH into VPS with password:
+   ssh root@152.42.242.180
+   (Password: %0|F?H@f!berhO3e)
+
+2. Create .ssh directory:
+   mkdir -p ~/.ssh
+   chmod 700 ~/.ssh
+
+3. Add public key:
+   echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHPIPZ62PCoQiIlvzlGwUS4GIklSm9AlosHQHsh07L0JLgZWx/ISg20vyGmq3TXeMSuw+pUE/McaAoFQBeXtUHaM/mchGFFf1ApHLAjkVEFl8/4cuyHDHPbw/bd7qiu8igIKilD/nVWP1AnX4apk8qho7W25vxL37q/q0qPakDtkX5N/BG+d1/YFYHdKkQQSYY1fVtrqn2Y5cxJV9J1NDjq+TToOg/KsPYea6DXyINBpaoOhqP+lzQhYW/BkLfaM33LUtcG3RnIWF+C8WgUPjYi8I77xKvxTYI7lLZKR7Z4JkAGEL4/wgY2mmAY5Z+I18vHQR2Z5cHeK6zIVxVkuyYu5ejqUbHgNGlmxFWTjZ0xlfkLfDZX9TtbNHb1rP2HlnKDbMTss3AX2Wcz4vWP6TIjl+1fjs/AvgsKvUiIalQgXz0AUgUf+s9JnW5Z/ujudImFO8vNmbh0d3VFEpvXAb993g855yWt80+FVTjNgL5TZBUUbn/JQjI/I2qaSt92JQAVAfY2vdqYYmuwmnvoNswm7WNM5aL3/Ukbg+HHsN918P/EFSwcFwqJZg0bL/CsMxeWcCnB7KQv9ugiDLEhpereFR1fbojwFVqkFxK+/xu5BQ8kadT1vpkVcBVQoTRXpibFrkNX9RlQ== workgrid@152.42.242.180" >> ~/.ssh/authorized_keys
+   chmod 600 ~/.ssh/authorized_keys
+
+4. Exit dan test SSH key:
+   exit
+   ssh -i C:\Users\PC\.ssh\workgrid_vps root@152.42.242.180
+
+================================================================================
+                         CONNECTION COMMANDS
+================================================================================
+
+From Windows CMD/PowerShell:
+  ssh -i C:\Users\PC\.ssh\workgrid_vps root@152.42.242.180
+
+From Git Bash:
+  ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+
+Or use alias (after adding to ~/.ssh/config):
+  ssh workgrid-vps
+
+Upload files to VPS:
+  scp -i C:\Users\PC\.ssh\workgrid_vps -r C:\path\to\files root@152.42.242.180:/root/workgrid/
+
+Download files from VPS:
+  scp -i C:\Users\PC\.ssh\workgrid_vps -r root@152.42.242.180:/root/workgrid/files C:\path\to\save\
+
+================================================================================
+                              SECURITY
+================================================================================
+
+✓ Keep private key safe - DO NOT share!
+✓ Private key permissions should be 600 (-rw-------)
+✓ After SSH key setup, disable password authentication on VPS
+✓ Use SSH key for all future connections
+
+Disable Password Auth (on VPS):
+  sudo nano /etc/ssh/sshd_config
+
+  Find and change:
+  PasswordAuthentication no
+  PubkeyAuthentication yes
+
+  Then restart:
+  sudo systemctl restart sshd
+
+================================================================================
+
+Created: March 17, 2026
+Ready for VPS Setup ✅
