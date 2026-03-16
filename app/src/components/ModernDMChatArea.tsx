@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Phone, Video, Users, UserPlus, MoreVertical, LogOut, Plus, X, Send } from 'lucide-react';
 import { EmojiStickerGIFPicker } from './EmojiStickerGIFPicker';
 import { ImageViewer } from './ImageViewer';
+import { ModernMemberProfilePopup } from './ModernMemberProfilePopup';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DropdownMenu,
@@ -59,6 +60,7 @@ export function ModernDMChatArea({
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -305,12 +307,24 @@ export function ModernDMChatArea({
               transition={{ delay: idx * 0.05 }}
               className={`flex gap-3 ${msg.senderId === currentUser?.id ? 'flex-row-reverse' : 'flex-row'}`}
             >
-              <img
+              <motion.img
+                whileHover={{ scale: 1.1 }}
+                onClick={() => {
+                  if (msg.senderId !== currentUser?.id) {
+                    setSelectedMember({
+                      id: msg.senderId,
+                      username: msg.sender_username,
+                      displayName: msg.sender_username,
+                      avatar: msg.sender_avatar,
+                      status: 'offline'
+                    });
+                  }
+                }}
                 src={msg.senderId === currentUser?.id
                   ? (currentUser?.avatar ? `${BASE_URL}${currentUser.avatar}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.username || 'user'}`)
                   : (msg.sender_avatar ? `${BASE_URL}${msg.sender_avatar}` : `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.sender_username || 'user'}`)}
                 alt={msg.sender_username || 'User'}
-                className="w-8 h-8 rounded-lg ring-1 ring-white/10 flex-shrink-0"
+                className={`w-8 h-8 rounded-lg ring-1 ring-white/10 flex-shrink-0 ${msg.senderId !== currentUser?.id ? 'cursor-pointer hover:ring-cyan-500/50' : ''}`}
               />
               <div className={`flex flex-col gap-1 max-w-xs ${msg.senderId === currentUser?.id ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-2 px-3">
@@ -420,6 +434,16 @@ export function ModernDMChatArea({
           </motion.button>
         </div>
       </motion.div>
+
+      {/* Member Profile Popup */}
+      {selectedMember && (
+        <ModernMemberProfilePopup
+          member={selectedMember}
+          isOpen={!!selectedMember}
+          onClose={() => setSelectedMember(null)}
+          isMobile={isMobile}
+        />
+      )}
     </div>
   );
 }
