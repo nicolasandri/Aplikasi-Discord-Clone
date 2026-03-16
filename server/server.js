@@ -2251,6 +2251,8 @@ app.put('/api/servers/:serverId/roles/:roleId/reorder', authenticateToken, async
 // Setup database for permission types (temporary endpoint for migration)
 app.post('/api/admin/setup-permission-types', authenticateToken, async (req, res) => {
   try {
+    const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+    
     // Check if user is master admin
     const user = await dbGet(isPostgres
       ? 'SELECT is_master_admin FROM users WHERE id = $1'
@@ -2263,7 +2265,7 @@ app.post('/api/admin/setup-permission-types', authenticateToken, async (req, res
     }
     
     // Create table
-    await query(`
+    await dbRun(isPostgres, `
       CREATE TABLE IF NOT EXISTS server_permission_types (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
@@ -2275,24 +2277,26 @@ app.post('/api/admin/setup-permission-types', authenticateToken, async (req, res
     `);
     
     // Create index
-    await query(`
+    await dbRun(isPostgres, `
       CREATE INDEX IF NOT EXISTS idx_server_permission_types_server_id 
       ON server_permission_types(server_id)
     `);
     
     // Insert default types for all servers
-    await query(`
-      INSERT INTO server_permission_types (server_id, name, max_duration)
-      SELECT 
-        s.id as server_id,
-        unnest(ARRAY['wc', 'makan', 'rokok']) as name,
-        5 as max_duration
-      FROM servers s
-      WHERE NOT EXISTS (
-        SELECT 1 FROM server_permission_types WHERE server_id = s.id
-      )
-      ON CONFLICT (server_id, name) DO NOTHING
-    `);
+    if (isPostgres) {
+      await dbRun(isPostgres, `
+        INSERT INTO server_permission_types (server_id, name, max_duration)
+        SELECT 
+          s.id as server_id,
+          unnest(ARRAY['wc', 'makan', 'rokok']) as name,
+          5 as max_duration
+        FROM servers s
+        WHERE NOT EXISTS (
+          SELECT 1 FROM server_permission_types WHERE server_id = s.id
+        )
+        ON CONFLICT (server_id, name) DO NOTHING
+      `);
+    }
     
     res.json({ success: true, message: 'Permission types table created' });
   } catch (error) {
@@ -2313,12 +2317,13 @@ app.get('/api/servers/:serverId/permission-types', authenticateToken, async (req
       return res.status(403).json({ error: 'You are not a member of this server' });
     }
     
-    const result = await query(
+    const isPostgres = process.env.USE_POSTGRES === 'true' || process.env.DATABASE_URL;
+    const result = await dbAll(isPostgres, 
       'SELECT * FROM server_permission_types WHERE server_id = $1 ORDER BY name ASC',
       [serverId]
     );
     
-    res.json(result.rows);
+    res.json(result);
   } catch (error) {
     console.error('Get permission types error:', error);
     res.status(500).json({ error: 'Failed to get permission types' });
