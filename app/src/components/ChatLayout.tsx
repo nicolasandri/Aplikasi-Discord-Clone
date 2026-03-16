@@ -438,26 +438,40 @@ export function ChatLayout() {
         });
         if (response.ok) {
           const data = await response.json();
-          // API returns nested data with support for group DMs
-          const mappedChannels: DMChannel[] = data.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            type: row.type || 'direct',
-            members: row.members || [],
-            friend: row.friend ? {
-              id: row.friend.id,
-              username: row.friend.username,
-              displayName: row.friend.displayName,
-              avatar: row.friend.avatar,
-              status: row.friend.status || 'offline',
-              email: '',
-            } : undefined,
-            lastMessage: row.last_message,
-            lastMessageAt: row.last_message_at,
-            unreadCount: row.unread_count || 0,
-            updatedAt: row.updated_at || row.last_message_at,
-            creatorId: row.creator_id,
-          }));
+          // API returns members array, find friend from members
+          const mappedChannels: DMChannel[] = data.map((row: any) => {
+            // Find friend (other user) from members array
+            let friend = row.friend;
+            if (!friend && row.members && Array.isArray(row.members)) {
+              friend = row.members.find((m: any) => m.id !== user?.id);
+              if (friend) {
+                friend = {
+                  ...friend,
+                  displayName: friend.displayName || friend.display_name || friend.username,
+                };
+              }
+            }
+            
+            return {
+              id: row.id,
+              name: row.name,
+              type: row.type || 'direct',
+              members: row.members || [],
+              friend: friend ? {
+                id: friend.id,
+                username: friend.username,
+                displayName: friend.displayName || friend.display_name || friend.username,
+                avatar: friend.avatar,
+                status: friend.status || 'offline',
+                email: '',
+              } : undefined,
+              lastMessage: row.last_message || row.lastMessage,
+              lastMessageAt: row.last_message_at || row.lastMessageAt,
+              unreadCount: row.unread_count || row.unreadCount || 0,
+              updatedAt: row.updated_at || row.updatedAt || row.last_message_at,
+              creatorId: row.creator_id,
+            };
+          });
           setDmChannels(mappedChannels);
         }
       } catch (error) {

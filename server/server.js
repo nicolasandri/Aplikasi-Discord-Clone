@@ -2472,6 +2472,43 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
       // Get the created request
       const newRequest = await permissionRequestsDB.getById(result.id);
       
+      // Create bot message
+      const botMessageId = uuidv4();
+      const botMessageContent = JSON.stringify({
+        embed: {
+          title: '✅ IZIN DIMULAI',
+          staff: `@${user.username}`,
+          type: requestType,
+          maxDuration: '5 menit',
+          startedAt: newRequest.started_at,
+          mode: '✅ Format benar',
+          note: 'Akhiri dengan: kembali'
+        }
+      });
+      
+      // Save bot message to database
+      try {
+        await query(
+          `INSERT INTO messages (id, channel_id, user_id, content, created_at) 
+           VALUES ($1, $2, $3, $4, NOW())`,
+          [botMessageId, channelId, '00000000-0000-0000-0000-000000000000', botMessageContent]
+        );
+        
+        // Broadcast bot message via socket
+        if (io) {
+          io.to(channelId).emit('new_message', {
+            id: botMessageId,
+            channel_id: channelId,
+            user_id: '00000000-0000-0000-0000-000000000000',
+            content: botMessageContent,
+            created_at: new Date().toISOString(),
+            is_bot: true
+          });
+        }
+      } catch (botError) {
+        console.error('Failed to send bot message:', botError);
+      }
+      
       res.json({
         success: true,
         action: 'started',
@@ -2508,6 +2545,45 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
         const secs = seconds % 60;
         return `${mins}m ${secs}d`;
       };
+      
+      // Create bot message for completion
+      const botMessageId = uuidv4();
+      const botMessageContent = JSON.stringify({
+        embed: {
+          title: '✅ IZIN SELESAI',
+          staff: `@${user.username}`,
+          type: activeRequest.request_type,
+          startedAt: activeRequest.started_at,
+          endedAt: new Date().toISOString(),
+          actualDuration: formatDuration(result.actualDurationSeconds),
+          penalty: result.penaltySeconds > 0 ? formatDuration(result.penaltySeconds) : '0d',
+          recordedDuration: formatDuration(result.recordedDurationSeconds),
+          endedWith: `✅ Ditutup dengan kata ${command.toLowerCase()}`
+        }
+      });
+      
+      // Save bot message to database
+      try {
+        await query(
+          `INSERT INTO messages (id, channel_id, user_id, content, created_at) 
+           VALUES ($1, $2, $3, $4, NOW())`,
+          [botMessageId, channelId, '00000000-0000-0000-0000-000000000000', botMessageContent]
+        );
+        
+        // Broadcast bot message via socket
+        if (io) {
+          io.to(channelId).emit('new_message', {
+            id: botMessageId,
+            channel_id: channelId,
+            user_id: '00000000-0000-0000-0000-000000000000',
+            content: botMessageContent,
+            created_at: new Date().toISOString(),
+            is_bot: true
+          });
+        }
+      } catch (botError) {
+        console.error('Failed to send bot message:', botError);
+      }
       
       res.json({
         success: true,

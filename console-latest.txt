@@ -1,0 +1,218 @@
+Total messages: 176 (Errors: 2, Warnings: 1)
+
+[LOG] [DMChatArea] API_URL: /api BASE_URL:  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] SW registered: https://workgrid.homeku.net/ @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:789
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔔 Initial notification permission: denied @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Parse] pathname: / @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Parse] Defaulting to friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [setViewMode] Changing from dm to friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Update] viewMode: dm pathname: / @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔄 Defaulting to Friends view @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [setViewMode] Changing from dm to friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 useSocket: Initializing socket connection... @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Update] viewMode: friends pathname: / @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Update] Navigating to /friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[WARNING] WebSocket connection to 'wss://workgrid.homeku.net/socket.io/?EIO=4&transport=websocket' failed: WebSocket is closed before the connection is established. @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔔 Initial notification permission: denied @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Parse] pathname: /friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Parse] Setting viewMode to friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [setViewMode] Changing from dm to friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Update] viewMode: dm pathname: /friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 useSocket: Initializing socket connection... @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Update] viewMode: friends pathname: /friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: friends selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ⏳ FriendsPage: Socket not ready, retrying... @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] 🔌 useSocket: Socket connected: h291vNpuGdCeqD8iAAAH @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: friends selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: friends selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [FriendsPage] Blocked data: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] 🔌 Socket: Event received: authenticated  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [FriendsPage] Friends data: [Object, Object, Object, Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] 🔌 Socket: Event received: user_status_changed  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] useSocket: User status changed: {userId: 91d43d70-b985-4776-ae9f-41d077232510, status: online, username: jebolkasir1} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: friends selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: friends selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: friends selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ FriendsPage: Socket listeners attached @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [setViewMode] Changing from friends to dm @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [URL Update] viewMode: dm pathname: /friends @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: null @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: null selectedDMChannel: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📨 DM channels raw data: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] 📨 DM channels mapped: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:66
+[LOG] [setViewMode] Changing from dm to dm @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: {id: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, name: null, type: direct, members: Array(2), friend: Object} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc selectedDMChannel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Attaching DM socket listeners. Socket connected: true @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 💾 Saved lastVisitedDM: {dmChannelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, timestamp: 1773608893255} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ Joining DM channel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc Friend: Admin Avatar: /uploads/file-1773526988381-971537826.jpg @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📤 Emitting join-dm-channel for: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ⌨️ handleTyping called: {connected: true, channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📤 Emitting dm-typing: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] Sending via socket: {channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, content: Test waktu WIB, attachments: Array(0)} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: new-dm-message  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] 📨 new-dm-message received: {
+  "channelId": "91e37fdf-6286-4010-8ed2-d5a0c72d82bc",
+  "message": {
+    "id": "ea05ed6b-3337-45f4-b273-72346e7b9f9e",
+    "channel_id": "91e37fdf-6286-4010-8ed2-d5a0c72d82bc",
+    "sender_id": "91d43d70-b985-4776-ae9f-41d077232510",
+    "content": "Test waktu WIB",
+    "attachments": [],
+    "is_read": false,
+    "created_at": "2026-03-15T14:08:41.028Z",
+    "edited_at": null,
+    "sender_username": "jebolkasir1",
+    "sender_avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=jebolkasir1"
+  },
+  "sender": {
+    "id": "91d43d70-b985-4776-ae9f-41d077232510",
+    "username": "jebolkasir1",
+    "displayName": "jebolkasir1",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=jebolkasir1"
+  }
+} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📨 Current channel id ref: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ Message is for current channel @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] Replacing optimistic message with real message @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: dm-message-read 22dea506-f5f0-4622-a297-7ca1aaf24407 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] ✅ DM message read: {messageId: 22dea506-f5f0-4622-a297-7ca1aaf24407, channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, readBy: 3dfa5268-4aef-42ea-9ae1-caab1e5d86dd} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: dm-message-read ea05ed6b-3337-45f4-b273-72346e7b9f9e @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] ✅ DM message read: {messageId: ea05ed6b-3337-45f4-b273-72346e7b9f9e, channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, readBy: 3dfa5268-4aef-42ea-9ae1-caab1e5d86dd} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: {id: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, name: null, type: direct, members: Array(2), friend: Object} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc selectedDMChannel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 👋 Leaving DM channel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[ERROR] WebSocket connection to 'wss://workgrid.homeku.net/socket.io/?EIO=4&transport=websocket' failed: Error during WebSocket handshake: Unexpected response code: 502 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[ERROR] Socket connection error: websocket error @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] 🔌 useSocket: Socket connected: kU0Br6IE8SPtVliIAAAB @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: {id: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, name: null, type: direct, members: Array(2), friend: Object} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc selectedDMChannel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: authenticated  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] 🔌 Socket: Event received: user_status_changed  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] useSocket: User status changed: {userId: 91d43d70-b985-4776-ae9f-41d077232510, status: online, username: jebolkasir1} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: {id: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, name: null, type: direct, members: Array(2), friend: Object} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc selectedDMChannel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ Joining DM channel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc Friend: Admin Avatar: /uploads/file-1773526988381-971537826.jpg @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📤 Emitting join-dm-channel for: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: user_status_changed  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] useSocket: User status changed: {userId: 3dfa5268-4aef-42ea-9ae1-caab1e5d86dd, status: online, username: Admin} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] [ChatLayout] selectedServer?.owner_id: undefined @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] currentUserId: 91d43d70-b985-4776-ae9f-41d077232510 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [ChatLayout] isServerOwner: false @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 selectedDMChannel: {id: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, name: null, type: direct, members: Array(2), friend: Object} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📊 dmChannels: [Object] @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] [Mobile Layout] viewMode: dm selectedDMChannelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc selectedDMChannel: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ⌨️ handleTyping called: {connected: true, channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📤 Emitting dm-typing: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] Sending via socket: {channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, content: Test timezone WIB lagi, attachments: Array(0)} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: new-dm-message  @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] 📨 new-dm-message received: {
+  "channelId": "91e37fdf-6286-4010-8ed2-d5a0c72d82bc",
+  "message": {
+    "id": "51980755-1836-4abd-b446-bbc3f075d421",
+    "channel_id": "91e37fdf-6286-4010-8ed2-d5a0c72d82bc",
+    "sender_id": "91d43d70-b985-4776-ae9f-41d077232510",
+    "content": "Test timezone WIB lagi",
+    "attachments": [],
+    "is_read": false,
+    "created_at": "2026-03-15T14:10:24.861Z",
+    "edited_at": null,
+    "sender_username": "jebolkasir1",
+    "sender_avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=jebolkasir1"
+  },
+  "sender": {
+    "id": "91d43d70-b985-4776-ae9f-41d077232510",
+    "username": "jebolkasir1",
+    "displayName": "jebolkasir1",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=jebolkasir1"
+  }
+} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 📨 Current channel id ref: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] ✅ Message is for current channel @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] Replacing optimistic message with real message @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: dm-message-read 51980755-1836-4abd-b446-bbc3f075d421 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] ✅ DM message read: {messageId: 51980755-1836-4abd-b446-bbc3f075d421, channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, readBy: 3dfa5268-4aef-42ea-9ae1-caab1e5d86dd} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781
+[LOG] 🔌 Socket: Event received: dm-message-read 22dea506-f5f0-4622-a297-7ca1aaf24407 @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:60
+[LOG] ✅ DM message read: {messageId: 22dea506-f5f0-4622-a297-7ca1aaf24407, channelId: 91e37fdf-6286-4010-8ed2-d5a0c72d82bc, readBy: 3dfa5268-4aef-42ea-9ae1-caab1e5d86dd} @ https://workgrid.homeku.net/assets/index-CyQDxXov.js:781

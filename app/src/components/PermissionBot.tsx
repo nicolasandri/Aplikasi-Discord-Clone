@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Timer, CheckCircle, AlertCircle, Clock, User, LogOut } from 'lucide-react';
+import { Timer, CheckCircle, AlertCircle, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +9,12 @@ interface PermissionRequest {
   id: string;
   user_id: string;
   request_type: string;
-  status: string;
+  status: 'active' | 'completed' | 'expired';
   max_duration_minutes: number;
   started_at: string;
   ended_at?: string;
+  actual_duration_seconds?: number;
+  penalty_seconds?: number;
   username?: string;
   display_name?: string;
   avatar?: string;
@@ -22,12 +24,23 @@ interface PermissionBotProps {
   channelId: string;
   serverId: string;
   currentUserId: string;
+  onRefreshMessages?: () => void;
 }
 
-export function PermissionBot({ channelId, serverId, currentUserId }: PermissionBotProps) {
-  const [activeRequests, setActiveRequests] = useState<PermissionRequest[]>([]);
+// Format duration (2m 30d)
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins > 0) {
+    return `${mins}m ${secs}d`;
+  }
+  return `${secs}d`;
+}
+
+export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMessages }: PermissionBotProps) {
   const [myActiveRequest, setMyActiveRequest] = useState<PermissionRequest | null>(null);
-  const [izinType, setIzinType] = useState('wc');
+  const [activeCount, setActiveCount] = useState(0);
+  const [izinType, setIzinType] = useState('');
   const [loading, setLoading] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const { toast } = useToast();
@@ -36,31 +49,31 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
     ? 'http://localhost:3001/api'
     : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
-  // Fetch active permissions
-  const fetchActivePermissions = useCallback(async () => {
+  // Fetch my active permission
+  const fetchMyPermission = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/channels/${channelId}/permissions/active`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
       if (response.ok) {
         const data = await response.json();
-        setActiveRequests(data);
-        // Find my active request
+        setActiveCount(data.length);
         const mine = data.find((r: PermissionRequest) => r.user_id === currentUserId);
         setMyActiveRequest(mine || null);
       }
     } catch (error) {
-      console.error('Failed to fetch active permissions:', error);
+      console.error('Failed to fetch permission:', error);
     }
   }, [channelId, currentUserId, API_URL]);
 
-  // Initial fetch and polling
+  // Polling
   useEffect(() => {
-    fetchActivePermissions();
-    const interval = setInterval(fetchActivePermissions, 5000); // Poll every 5 seconds
+    fetchMyPermission();
+    const interval = setInterval(fetchMyPermission, 5000);
     return () => clearInterval(interval);
-  }, [fetchActivePermissions]);
+  }, [fetchMyPermission]);
 
   // Update elapsed time
   useEffect(() => {
@@ -72,14 +85,15 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
     const startedAt = new Date(myActiveRequest.started_at).getTime();
     const interval = setInterval(() => {
       const now = Date.now();
-      const elapsed = Math.floor((now - startedAt) / 1000);
-      setElapsedTime(elapsed);
+      setElapsedTime(Math.floor((now - startedAt) / 1000));
     }, 1000);
 
     return () => clearInterval(interval);
   }, [myActiveRequest]);
 
   const handleIzin = async () => {
+    if (!izinType.trim()) return;
+    
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -101,11 +115,16 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
       
       if (response.ok) {
         toast({
-          title: data.embed.title,
-          description: `Izin ${data.embed.type} dimulai. Maksimal ${data.embed.maxDuration}.`,
-          duration: 5000
+          title: '✅ IZIN DIMULAI',
+          description: `Izin ${data.embed.type} untuk ${data.embed.maxDuration}`,
+          duration: 3000
         });
-        fetchActivePermissions();
+        setIzinType('');
+        fetchMyPermission();
+        // Refresh messages to show bot message
+        setTimeout(() => {
+          onRefreshMessages?.();
+        }, 500);
       } else {
         toast({
           variant: 'destructive',
@@ -115,7 +134,6 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
         });
       }
     } catch (error) {
-      console.error('Failed to request permission:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -146,14 +164,17 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
       const data = await response.json();
       
       if (response.ok) {
-        const embed = data.embed;
+        const isLate = data.details?.penaltySeconds > 0;
         toast({
-          title: embed.title,
-          description: `Durasi: ${embed.actualDuration}${embed.penalty !== '0d' ? ` (Penalty: ${embed.penalty})` : ''}`,
-          duration: 5000
+          title: isLate ? '🏁 IZIN SELESAI (TERLAMBAT)' : '✅ IZIN SELESAI',
+          description: `Durasi: ${data.embed.actualDuration}`,
+          duration: 3000
         });
-        fetchActivePermissions();
-        setElapsedTime(0);
+        fetchMyPermission();
+        // Refresh messages to show bot message
+        setTimeout(() => {
+          onRefreshMessages?.();
+        }, 500);
       } else {
         toast({
           variant: 'destructive',
@@ -163,7 +184,6 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
         });
       }
     } catch (error) {
-      console.error('Failed to complete permission:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -174,49 +194,51 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs.toString().padStart(2, '0')}d`;
-  };
-
   const isOverTime = myActiveRequest && elapsedTime > (myActiveRequest.max_duration_minutes * 60);
 
   return (
     <div className="bg-[#1e1f2e] rounded-lg p-4 mb-4 border border-[#2f3136]">
+      {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <Timer className="w-5 h-5 text-[#00d4ff]" />
+        <Shield className="w-5 h-5 text-[#00d4ff]" />
         <h3 className="text-white font-semibold">Bot Izin Keluar</h3>
-        {activeRequests.length > 0 && (
+        {activeCount > 0 && (
           <Badge className="bg-[#00d4ff] text-black text-xs">
-            {activeRequests.length} aktif
+            {activeCount} aktif
           </Badge>
         )}
       </div>
 
       {/* My Active Request */}
       {myActiveRequest ? (
-        <div className={`p-4 rounded-lg mb-4 ${isOverTime ? 'bg-red-900/30 border border-red-500' : 'bg-[#2a2b3d] border border-[#00d4ff]/30'}`}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle className={`w-5 h-5 ${isOverTime ? 'text-red-400' : 'text-green-400'}`} />
-              <span className="text-white font-medium">IZIN AKTIF</span>
-            </div>
-            <Badge className={`${isOverTime ? 'bg-red-500' : 'bg-green-500'} text-white`}>
+        <div className={`p-4 rounded-lg ${isOverTime ? 'bg-red-900/20 border border-red-500/50' : 'bg-[#2a2b3d] border border-green-500/30'}`}>
+          <div className="flex items-center gap-2 mb-3">
+            {isOverTime ? (
+              <>
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <span className="text-red-400 font-bold">⚠️ TERLAMBAT!</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <span className="text-white font-bold">IZIN AKTIF</span>
+              </>
+            )}
+            <Badge className={`${isOverTime ? 'bg-red-500' : 'bg-green-500'} text-white text-xs`}>
               {myActiveRequest.request_type.toUpperCase()}
             </Badge>
           </div>
           
-          <div className="space-y-2 text-sm mb-4">
-            <div className="flex items-center gap-2 text-gray-300">
-              <Clock className="w-4 h-4" />
-              <span>Waktu: {formatTime(elapsedTime)}</span>
-              <span className="text-gray-500">/ {myActiveRequest.max_duration_minutes} menit</span>
+          <div className="text-sm mb-4">
+            <div className="flex justify-between text-gray-300 mb-1">
+              <span>Waktu:</span>
+              <span className={isOverTime ? 'text-red-400 font-bold' : 'text-white'}>
+                {formatDuration(elapsedTime)} / {myActiveRequest.max_duration_minutes} menit
+              </span>
             </div>
             {isOverTime && (
-              <div className="flex items-center gap-2 text-red-400">
-                <AlertCircle className="w-4 h-4" />
-                <span>TERLAMBAT! Penalty: {formatTime(elapsedTime - (myActiveRequest.max_duration_minutes * 60))}</span>
+              <div className="text-red-400 text-sm">
+                Keterlambatan: {formatDuration(elapsedTime - (myActiveRequest.max_duration_minutes * 60))}
               </div>
             )}
           </div>
@@ -226,9 +248,12 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
             disabled={loading}
             className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
-            <LogOut className="w-4 h-4 mr-2" />
             {loading ? 'Memproses...' : 'KEMBALI'}
           </Button>
+          
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Laporan akan muncul di chat setelah klik KEMBALI
+          </p>
         </div>
       ) : (
         /* Request Form */
@@ -240,6 +265,7 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
               placeholder="Jenis izin (wc, makan, rokok, dll)"
               className="flex-1 bg-[#2a2b3d] border-[#40444b] text-white placeholder-gray-500"
               disabled={loading}
+              onKeyPress={(e) => e.key === 'Enter' && handleIzin()}
             />
             <Button
               onClick={handleIzin}
@@ -252,37 +278,9 @@ export function PermissionBot({ channelId, serverId, currentUserId }: Permission
           <p className="text-xs text-gray-500">
             Contoh: wc, makan, rokok, dll. Maksimal 5 menit.
           </p>
-        </div>
-      )}
-
-      {/* Other Active Requests */}
-      {activeRequests.filter(r => r.user_id !== currentUserId).length > 0 && (
-        <div className="mt-4 pt-4 border-t border-[#2f3136]">
-          <h4 className="text-sm text-gray-400 mb-3 flex items-center gap-2">
-            <User className="w-4 h-4" />
-            Staff lain yang izin:
-          </h4>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {activeRequests
-              .filter(r => r.user_id !== currentUserId)
-              .map(request => (
-                <div key={request.id} className="flex items-center justify-between p-2 bg-[#2a2b3d] rounded">
-                  <div className="flex items-center gap-2">
-                    <img 
-                      src={request.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.username}`}
-                      alt={request.username}
-                      className="w-6 h-6 rounded-full"
-                    />
-                    <span className="text-sm text-gray-300">
-                      {request.display_name || request.username}
-                    </span>
-                  </div>
-                  <Badge className="bg-[#5865f2] text-white text-xs">
-                    {request.request_type}
-                  </Badge>
-                </div>
-              ))}
-          </div>
+          <p className="text-xs text-gray-500">
+            Laporan izin akan muncul di chat channel ini.
+          </p>
         </div>
       )}
     </div>

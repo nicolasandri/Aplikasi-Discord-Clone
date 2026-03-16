@@ -10,6 +10,7 @@ import { ForwardedMessageDisplay } from './ForwardedMessageDisplay';
 import { MessageContextMenu } from './MessageContextMenu';
 import { VoiceChannelPanel } from './VoiceChannelPanel';
 import { PermissionBot } from './PermissionBot';
+import { BotMessage } from './BotMessage';
 import { ReactionTooltip } from './ReactionTooltip';
 import { ForwardModal } from './ForwardModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -571,7 +572,22 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             </div>
           </div>
         ) : (
-          <MessageContent content={message.content} serverId={serverId || undefined} />
+          (() => {
+            // Check if this is a bot message with embed
+            const isSystemUser = message.userId === '00000000-0000-0000-0000-000000000000' || 
+                                (message as any).user_id === '00000000-0000-0000-0000-000000000000';
+            if (isSystemUser) {
+              try {
+                const parsed = JSON.parse(message.content);
+                if (parsed.embed) {
+                  return <BotMessage content={message.content} />;
+                }
+              } catch {
+                // Not a bot embed, render normally
+              }
+            }
+            return <MessageContent content={message.content} serverId={serverId || undefined} />;
+          })()
         )}
 
         {/* Forwarded Message Display */}
@@ -1515,6 +1531,21 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         <div className="flex items-center gap-2 min-w-0">
           <Hash className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-[#8e9297] flex-shrink-0`} />
           <h2 className="text-white font-semibold truncate">{channel.name}</h2>
+          {/* Refresh button untuk permission bot */}
+          {channel.name?.toLowerCase().includes('report izin') && onRefresh && (
+            <button 
+              onClick={async () => {
+                setIsRefreshing(true);
+                await onRefresh();
+                setTimeout(() => setIsRefreshing(false), 500);
+              }}
+              disabled={isRefreshing}
+              className="text-[#00d4ff] hover:text-[#00d4ff]/80 transition-colors p-1 ml-1 disabled:opacity-50"
+              title="Refresh pesan izin"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {!isMobile && (
@@ -1602,6 +1633,7 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
             channelId={channel.id} 
             serverId={serverId} 
             currentUserId={currentUser?.id || ''}
+            onRefreshMessages={onRefresh}
           />
         </div>
       )}

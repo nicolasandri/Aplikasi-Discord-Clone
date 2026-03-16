@@ -7,6 +7,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'discord_clone',
   password: process.env.DB_PASSWORD || 'your_secure_password',
   port: parseInt(process.env.DB_PORT || '5432'),
+
+  // Timezone - Asia/Jakarta (WIB)
+  options: '-c timezone=Asia/Jakarta',
   
   // Connection pool settings
   max: 20,                        // max connections in pool
@@ -20,8 +23,9 @@ const pool = new Pool({
 });
 
 // Test connection on startup
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL');
+pool.on('connect', (client) => {
+  client.query("SET timezone = 'Asia/Jakarta'");
+  console.log('✅ Connected to PostgreSQL (WIB timezone)');
 });
 
 pool.on('error', (err) => {
@@ -33,6 +37,7 @@ async function withTransaction(callback) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query("SET timezone = 'Asia/Jakarta'");
     const result = await callback(client);
     await client.query('COMMIT');
     return result;

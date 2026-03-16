@@ -26,8 +26,11 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install PostgreSQL client untuk healthcheck
-RUN apk add --no-cache postgresql-client curl
+# Install PostgreSQL client untuk healthcheck dan tzdata untuk timezone
+RUN apk add --no-cache postgresql-client curl tzdata
+
+# Set timezone ke Asia/Jakarta (WIB)
+ENV TZ=Asia/Jakarta
 
 # Copy dependencies dari stage 1
 COPY --from=dependencies /app/node_modules ./node_modules

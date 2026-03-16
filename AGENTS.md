@@ -38,7 +38,7 @@
 | Vite | 7.2.4 | Build tool dan dev server |
 | TypeScript | 5.9.3 | Type safety |
 | Tailwind CSS | 3.4.19 | Utility-first styling |
-| shadcn/ui | New York | UI component library (53+ components) |
+| shadcn/ui | New York | UI component library (53 components) |
 | Radix UI | Various | Headless UI primitives |
 | Lucide React | 0.562.0 | Icons |
 | Socket.IO Client | 4.8.3 | Real-time communication |
@@ -94,7 +94,7 @@
 /
 ├── app/                          # Frontend React application
 │   ├── src/
-│   │   ├── components/           # React components (56+ files)
+│   │   ├── components/           # React components (56 files)
 │   │   │   ├── ui/              # shadcn/ui components (53 components)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display area
@@ -124,24 +124,24 @@
 │   │   │   ├── UpdateButton.tsx # Electron update button
 │   │   │   ├── MasterAdminDashboard.tsx # System admin panel
 │   │   │   ├── ForceChangePassword.tsx # Password change on first login
-│   │   │   └── ...
+│   │   │   └── ... (56 total components)
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
-│   │   ├── hooks/
+│   │   ├── hooks/               # Custom React hooks (6 files)
 │   │   │   ├── useSocket.ts     # Socket.IO connection
 │   │   │   ├── useVoiceChannel.ts # WebRTC voice hook
 │   │   │   ├── use-mobile.ts    # Mobile detection
 │   │   │   ├── useBreakpoint.ts # Responsive breakpoints
 │   │   │   ├── useNotification.ts # Browser notifications
 │   │   │   └── usePush.ts       # Push notifications
-│   │   ├── types/
-│   │   │   ├── index.ts         # TypeScript interfaces
+│   │   ├── types/               # TypeScript type definitions
+│   │   │   ├── index.ts         # Main interfaces (User, Server, Message, etc.)
 │   │   │   ├── voice.ts         # Voice-related types
 │   │   │   ├── electron.d.ts    # Electron type definitions
 │   │   │   └── simple-peer.d.ts # SimplePeer types
 │   │   ├── lib/
 │   │   │   └── utils.ts         # Utility functions (cn helper)
-│   │   ├── pages/
+│   │   ├── pages/               # Page-level components
 │   │   │   ├── InvitePage.tsx   # Invite acceptance page
 │   │   │   └── FriendsPage.tsx  # Friends management page
 │   │   ├── landing/             # Landing page components
@@ -200,13 +200,13 @@
 ├── nginx/                       # Nginx configuration
 │   └── nginx.conf               # Production Nginx config
 │
-├── scripts/                     # Deployment scripts
+├── scripts/                     # Deployment scripts (36 shell scripts)
 │   ├── deploy.sh                # Deploy script
 │   ├── backup.sh                # Backup script
 │   ├── restore.sh               # Restore script
 │   ├── update.sh                # Update script
 │   ├── setup-master-admin.js    # Master admin setup
-│   └── ...
+│   └── ... (various fix and setup scripts)
 │
 ├── docs/                        # Documentation
 │   ├── BUG_REPORT.md            # Bug tracking
@@ -226,48 +226,69 @@
 ### Frontend Configuration
 
 #### `app/vite.config.ts`
-- **Port**: 5173 (strict)
-- **Proxy**: `/api` → `http://localhost:3001`
-- **Build Output**: `dist/`
-- **Path Alias**: `@/` → `./src`
-- **Source Maps**: Enabled
-- **Optimized Deps**: TipTap, tippy.js
+```typescript
+- Port: 5173 (strict)
+- Proxy: /api → http://localhost:3001
+- Build Output: dist/
+- Path Alias: @/ → ./src
+- Source Maps: Enabled
+- Optimized Deps: TipTap, tippy.js
+```
 
 #### `app/tailwind.config.js`
-- **Dark Mode**: `class`
-- **Content**: `./index.html`, `./src/**/*.{js,ts,jsx,tsx}`
-- **CSS Variables**: HSL color system untuk theming
-- **Animations**: Accordion, caret-blink
-- **Plugin**: `tailwindcss-animate`
+```javascript
+- Dark Mode: class
+- Content: ./index.html, ./src/**/*.{js,ts,jsx,tsx}
+- CSS Variables: HSL color system untuk theming
+- Animations: Accordion, caret-blink
+- Plugin: tailwindcss-animate
+```
 
 #### `app/tsconfig.app.json`
-- **Target**: ES2022
-- **Module**: ESNext
-- **Strict Mode**: Enabled
-- **JSX**: react-jsx
-- **Path Alias**: `@/*` → `./src/*`
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "strict": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
 
 #### `app/components.json` (shadcn/ui)
-- **Style**: New York
-- **Base Color**: slate
-- **CSS Variables**: Enabled
-- **Icon Library**: lucide
+```json
+{
+  "style": "new-york",
+  "baseColor": "slate",
+  "cssVariables": true,
+  "iconLibrary": "lucide"
+}
+```
 
 #### `app/capacitor.config.ts`
-- **App ID**: `com.chatcord.app`
-- **App Name**: ChatCord
-- **Web Dir**: `dist`
+```typescript
+{
+  appId: 'com.chatcord.app',
+  appName: 'ChatCord',
+  webDir: 'dist'
+}
+```
 
 #### `app/eslint.config.js`
-- **Files**: `**/*.{ts,tsx}`
-- **Extends**: ESLint recommended, TypeScript ESLint, React Hooks, React Refresh
-- **Ignores**: `dist`
+- Files: `**/*.{ts,tsx}`
+- Extends: ESLint recommended, TypeScript ESLint, React Hooks, React Refresh
+- Ignores: `dist`
 
 ### Backend Configuration
 
 #### `server/package.json`
-- **Main**: `server.js`
-- **Scripts**:
+- Main: `server.js`
+- Scripts:
   - `start`: `node server.js`
   - `dev`: `nodemon server.js`
   - `setup:postgres`: `node migrations/setup-postgres.js`
@@ -826,7 +847,7 @@ Aplikasi Electron menggunakan `electron-updater` untuk auto-update. Update serve
 ```json
 "publish": {
   "provider": "generic",
-  "url": "http://your-update-server:8080",
+  "url": "http://167.172.72.73:8080",
   "channel": "latest"
 }
 ```

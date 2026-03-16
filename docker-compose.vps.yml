@@ -65,6 +65,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      TZ: Asia/Jakarta
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: discord_clone
@@ -73,9 +74,9 @@ services:
       DB_SSL: "false"
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
-      FRONTEND_URL: ${FRONTEND_URL:-http://152.42.242.180}
+      FRONTEND_URL: ${FRONTEND_URL:-http://workgrid.homeku.net}
       USE_POSTGRES: "true"
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://152.42.242.180}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.242.180,https://152.42.242.180}
     volumes:
       - uploads_data:/app/uploads
     networks:
@@ -106,6 +107,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx-final.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - discord_network
     depends_on:

@@ -59,13 +59,14 @@ function formatTime(timestamp: string): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
   if (isNaN(date.getTime())) return '';
-  // Format: 11:28:30 PM
-  const hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const seconds = date.getSeconds().toString().padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = (hours % 12 || 12).toString().padStart(2, '0');
-  return `${displayHours}:${minutes}:${seconds} ${ampm}`;
+  // Format 24-jam dengan timezone Asia/Jakarta (WIB)
+  return date.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Jakarta'
+  });
 }
 
 function formatDate(timestamp: string): string {
@@ -136,7 +137,13 @@ function groupMessagesByDate(messages: DMMessage[]): { date: string; messages: D
     const date = new Date(timeField);
     if (isNaN(date.getTime())) return;
     
-    const dateKey = date.toDateString();
+    // Use date string in Asia/Jakarta timezone for grouping
+    const dateKey = date.toLocaleDateString('id-ID', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'Asia/Jakarta'
+    });
     if (!groups[dateKey]) {
       groups[dateKey] = [];
     }

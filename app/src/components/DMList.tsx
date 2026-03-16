@@ -49,6 +49,7 @@ export function DMList({
   const lastFetchTime = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
   const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
   
   // Decode token to get user ID
   const getUserIdFromToken = () => {
@@ -61,7 +62,8 @@ export function DMList({
       return null;
     }
   };
-  const currentUserId = getUserIdFromToken();
+  currentUserIdRef.current = getUserIdFromToken();
+  const currentUserId = currentUserIdRef.current;
 
   const fetchDMChannels = useCallback(async (force = false) => {
     const token = tokenRef.current;
@@ -85,23 +87,43 @@ export function DMList({
       if (response.ok) {
         const data = await response.json();
         console.log('📨 DM channels raw data:', data);
-        // API returns nested friend object, use it directly
-        const mappedChannels: DMChannel[] = data.map((row: any) => ({
-          id: row.id,
-          friend: row.friend || {
-            // Fallback if API returns flat format (from DB query)
-            id: row.friend_id,
-            username: row.friend_username,
-            displayName: row.friend_display_name,
-            avatar: row.friend_avatar,
-            status: row.friend_status || 'offline',
-            email: '',
-          },
-          lastMessage: row.lastMessage || row.last_message,
-          lastMessageAt: row.lastMessageAt || row.last_message_at,
-          unreadCount: row.unread_count || 0,
-          updatedAt: row.updated_at || row.last_message_at,
-        }));
+        // API returns members array, find the friend (other user) from members
+        const mappedChannels: DMChannel[] = data.map((row: any) => {
+          // If API returns members array, find the other user (not current user)
+          let friend = row.friend;
+          if (!friend && row.members && Array.isArray(row.members)) {
+            friend = row.members.find((m: any) => m.id !== currentUserIdRef.current);
+            // Normalize displayName from API (snake_case to camelCase)
+            if (friend) {
+              friend = {
+                ...friend,
+                displayName: friend.displayName || friend.display_name || friend.username,
+              };
+            }
+          }
+          // Fallback if still no friend found
+          if (!friend) {
+            friend = {
+              id: row.friend_id,
+              username: row.friend_username,
+              displayName: row.friend_display_name || row.friend_username,
+              avatar: row.friend_avatar,
+              status: row.friend_status || 'offline',
+              email: '',
+            };
+          }
+          return {
+            id: row.id,
+            friend: friend,
+            type: row.type,
+            name: row.name,
+            members: row.members,
+            lastMessage: row.lastMessage || row.last_message,
+            lastMessageAt: row.lastMessageAt || row.last_message_at,
+            unreadCount: parseInt(row.unread_count || row.unreadCount || '0', 10),
+            updatedAt: row.updated_at || row.updatedAt || row.last_message_at,
+          };
+        });
         console.log('📨 DM channels mapped:', mappedChannels);
         setDmChannels(mappedChannels);
       }

@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast.tsx';
-import { Hash, Volume2 } from 'lucide-react';
+import { Hash, Timer, Bot } from 'lucide-react';
 
 interface CreateChannelModalProps {
   isOpen: boolean;
@@ -34,7 +34,7 @@ export function CreateChannelModal({
   onChannelCreated,
 }: CreateChannelModalProps) {
   const [channelName, setChannelName] = useState('');
-  const [channelType, setChannelType] = useState<'text' | 'voice'>('text');
+  const [channelType, setChannelType] = useState<'text' | 'permission_bot'>('text');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const token = localStorage.getItem('token');
@@ -53,7 +53,7 @@ export function CreateChannelModal({
         },
         body: JSON.stringify({ 
           name: channelName.trim(),
-          type: channelType,
+          type: channelType === 'permission_bot' ? 'voice' : channelType,
           categoryId: categoryId || null,
         }),
       });
@@ -122,17 +122,17 @@ export function CreateChannelModal({
               </button>
               <button
                 type="button"
-                onClick={() => setChannelType('voice')}
+                onClick={() => setChannelType('permission_bot')}
                 className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                  channelType === 'voice'
+                  channelType === 'permission_bot'
                     ? 'border-[#00d4ff] bg-[#00d4ff]/10'
                     : 'border-[#0f0f1a] bg-[#0f0f1a] hover:bg-[#232438]'
                 }`}
               >
-                <Volume2 className="w-5 h-5 text-[#6a6a7a]" />
+                <Timer className="w-5 h-5 text-[#6a6a7a]" />
                 <div className="text-left">
-                  <p className="text-white font-medium text-sm">Suara</p>
-                  <p className="text-[#6a6a7a] text-xs">Chat suara dan video call</p>
+                  <p className="text-white font-medium text-sm">Bot Izin Keluar</p>
+                  <p className="text-[#6a6a7a] text-xs">Sistem izin dan report staff</p>
                 </div>
               </button>
             </div>
@@ -145,12 +145,12 @@ export function CreateChannelModal({
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6a6a7a]">
-                {channelType === 'text' ? '#' : '🔊'}
+                {channelType === 'text' ? '#' : '⏱️'}
               </span>
               <Input
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
-                placeholder={channelType === 'text' ? 'channel-baru' : 'Channel Suara'}
+                placeholder={channelType === 'text' ? 'channel-baru' : 'bot-izin-keluar'}
                 className="bg-[#0f0f1a] border-[#040405] text-white focus:border-[#00d4ff] pl-8"
                 autoFocus
               />
