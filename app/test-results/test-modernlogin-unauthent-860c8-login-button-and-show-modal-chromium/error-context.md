@@ -1,0 +1,181 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - button "🏠" [ref=e5] [cursor=pointer]:
+      - generic [ref=e6]: 🏠
+    - generic [ref=e8]:
+      - button "🎯" [ref=e9] [cursor=pointer]: 🎯
+      - button "🎮" [ref=e11] [cursor=pointer]
+      - button "🎨" [ref=e12] [cursor=pointer]
+      - button [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+      - button [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+    - button [ref=e20] [cursor=pointer]:
+      - img [ref=e21]
+  - generic [ref=e24]:
+    - generic [ref=e25] [cursor=pointer]:
+      - heading "JEBOLTOGEL" [level=2] [ref=e26]
+      - img [ref=e27]
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - button "OPERASIONAL" [ref=e31] [cursor=pointer]:
+          - img [ref=e33]
+          - text: OPERASIONAL
+        - generic [ref=e36]:
+          - button "Operasional 0" [ref=e37] [cursor=pointer]:
+            - img [ref=e38]
+            - generic [ref=e41]: Operasional
+            - text: "0"
+          - button "kendala-deposit 5" [ref=e42] [cursor=pointer]:
+            - img [ref=e43]
+            - generic [ref=e46]: kendala-deposit
+            - generic [ref=e47]: "5"
+          - button "report-izin 0" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+            - generic [ref=e52]: report-izin
+            - text: "0"
+          - button "depo-up-5-juta 12" [ref=e53] [cursor=pointer]:
+            - img [ref=e54]
+            - generic [ref=e57]: depo-up-5-juta
+            - generic [ref=e58]: "12"
+          - button "info-bank-gangguan 0" [ref=e59] [cursor=pointer]:
+            - img [ref=e60]
+            - generic [ref=e63]: info-bank-gangguan
+            - text: "0"
+          - button "auditor 0" [ref=e64] [cursor=pointer]:
+            - img [ref=e65]
+            - generic [ref=e68]: auditor
+            - text: "0"
+          - button "absen-harian 0" [ref=e69] [cursor=pointer]:
+            - img [ref=e70]
+            - generic [ref=e73]: absen-harian
+            - text: "0"
+          - button "change-shift 0" [ref=e74] [cursor=pointer]:
+            - img [ref=e75]
+            - generic [ref=e78]: change-shift
+            - text: "0"
+      - generic [ref=e79]:
+        - button "VOICE CHANNELS" [ref=e80] [cursor=pointer]:
+          - img [ref=e82]
+          - text: VOICE CHANNELS
+        - generic [ref=e85]:
+          - button "General Voice 3" [ref=e86] [cursor=pointer]:
+            - img [ref=e87]
+            - generic [ref=e91]: General Voice
+            - generic [ref=e92]: "3"
+          - button "Meeting Room 0" [ref=e94] [cursor=pointer]:
+            - img [ref=e95]
+            - generic [ref=e99]: Meeting Room
+            - text: "0"
+      - generic [ref=e100]:
+        - button "LAINNYA" [ref=e101] [cursor=pointer]:
+          - img [ref=e103]
+          - text: LAINNYA
+        - generic [ref=e106]:
+          - button "random 0" [ref=e107] [cursor=pointer]:
+            - img [ref=e108]
+            - generic [ref=e111]: random
+            - text: "0"
+          - button "media-share 0" [ref=e112] [cursor=pointer]:
+            - img [ref=e113]
+            - generic [ref=e116]: media-share
+            - text: "0"
+      - button "Buat Kategori" [ref=e117] [cursor=pointer]:
+        - img [ref=e118]
+        - text: Buat Kategori
+    - generic [ref=e120]:
+      - generic [ref=e123]: 👤
+      - generic [ref=e126]:
+        - generic [ref=e127]: Admin
+        - generic [ref=e128]: Online
+      - generic [ref=e129]:
+        - button [ref=e130] [cursor=pointer]:
+          - img [ref=e131]
+        - button [ref=e134] [cursor=pointer]:
+          - img [ref=e135]
+        - button [ref=e137] [cursor=pointer]:
+          - img [ref=e138]
+  - generic [ref=e141]:
+    - generic [ref=e142]:
+      - generic [ref=e143]:
+        - img [ref=e144]
+        - generic [ref=e147]: Operasional
+        - generic [ref=e149]: Channel untuk diskusi operasional
+      - generic [ref=e150]:
+        - button [ref=e151] [cursor=pointer]:
+          - img [ref=e152]
+        - button [ref=e154] [cursor=pointer]:
+          - img [ref=e155]
+        - button [ref=e158] [cursor=pointer]:
+          - img [ref=e159]
+        - button [ref=e165] [cursor=pointer]:
+          - img [ref=e166]
+        - button [ref=e169] [cursor=pointer]:
+          - img [ref=e170]
+        - button [ref=e173] [cursor=pointer]:
+          - img [ref=e174]
+    - generic [ref=e177]:
+      - generic [ref=e180]: 14 Maret 2026
+      - generic [ref=e183]:
+        - generic [ref=e185]: 👤
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - generic [ref=e188] [cursor=pointer]: Admin
+            - generic [ref=e189]: Sabtu pukul 20:23
+          - paragraph [ref=e190]: Aa
+      - paragraph [ref=e195]: asas
+      - paragraph [ref=e200]: Aaa
+    - generic [ref=e202]:
+      - generic [ref=e203]:
+        - button [ref=e204] [cursor=pointer]:
+          - img [ref=e205]
+        - button [ref=e206] [cursor=pointer]:
+          - img [ref=e207]
+        - button [ref=e211] [cursor=pointer]:
+          - img [ref=e212]
+      - textbox "Ketik pesan..." [ref=e217]
+      - generic [ref=e218]:
+        - button [ref=e219] [cursor=pointer]:
+          - img [ref=e220]
+        - button [disabled] [ref=e223]:
+          - img [ref=e224]
+  - generic [ref=e227]:
+    - heading "Member" [level=3] [ref=e229]
+    - generic [ref=e230]:
+      - generic [ref=e231]:
+        - generic [ref=e233]: Online — 1
+        - button "👤 Admin SPV" [ref=e235] [cursor=pointer]:
+          - generic [ref=e238]: 👤
+          - generic [ref=e240]:
+            - generic [ref=e241]:
+              - generic [ref=e242]: Admin
+              - img [ref=e243]
+            - text: SPV
+      - generic [ref=e245]:
+        - generic [ref=e247]: Offline — 4
+        - generic [ref=e248]:
+          - button "👤 nicolasandri MEMBER" [ref=e249] [cursor=pointer]:
+            - generic [ref=e252]: 👤
+            - generic [ref=e254]:
+              - generic [ref=e256]: nicolasandri
+              - text: MEMBER
+          - button "👤 testmember01 MEMBER" [ref=e257] [cursor=pointer]:
+            - generic [ref=e260]: 👤
+            - generic [ref=e262]:
+              - generic [ref=e264]: testmember01
+              - text: MEMBER
+          - button "👤 memberbaru02 MEMBER" [ref=e265] [cursor=pointer]:
+            - generic [ref=e268]: 👤
+            - generic [ref=e270]:
+              - generic [ref=e272]: memberbaru02
+              - text: MEMBER
+          - button "👤 jebolkasir1 MEMBER" [ref=e273] [cursor=pointer]:
+            - generic [ref=e276]: 👤
+            - generic [ref=e278]:
+              - generic [ref=e280]: jebolkasir1
+              - text: MEMBER
+    - generic [ref=e284]: Online
+```

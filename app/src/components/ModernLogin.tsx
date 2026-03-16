@@ -9,11 +9,7 @@ import { motion } from 'framer-motion';
 import { AnimatedNavbar, ModernHero, FeatureShowcase } from '@/components/sections';
 import { MagneticButton } from '@/components/animations';
 
-interface ModernLoginProps {
-  onToggleForm?: () => void;
-}
-
-export function ModernLogin({ onToggleForm }: ModernLoginProps) {
+export function ModernLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

@@ -1,6 +1,6 @@
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { Login } from '@/components/Login';
+import { ModernLogin } from '@/components/ModernLogin';
 import { Register } from '@/components/Register';
 import { ChatLayout } from '@/components/ChatLayout';
 import { TitleBar } from '@/components/TitleBar';
@@ -136,7 +136,7 @@ function AppContent() {
                 path="/login"
                 element={
                   <PublicRoute>
-                    <Login />
+                    <ModernLogin />
                   </PublicRoute>
                 }
               />
