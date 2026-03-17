@@ -2655,8 +2655,8 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
       
       // Save bot message to database
       try {
-        await query(
-          `INSERT INTO messages (id, channel_id, user_id, content, created_at) 
+        await dbRun(
+          `INSERT INTO messages (id, channel_id, user_id, content, created_at)
            VALUES ($1, $2, $3, $4, NOW())`,
           [botMessageId, channelId, '00000000-0000-0000-0000-000000000000', botMessageContent]
         );
@@ -2731,8 +2731,8 @@ app.post('/api/bot/permission', authenticateToken, async (req, res) => {
       
       // Save bot message to database
       try {
-        await query(
-          `INSERT INTO messages (id, channel_id, user_id, content, created_at) 
+        await dbRun(
+          `INSERT INTO messages (id, channel_id, user_id, content, created_at)
            VALUES ($1, $2, $3, $4, NOW())`,
           [botMessageId, channelId, '00000000-0000-0000-0000-000000000000', botMessageContent]
         );

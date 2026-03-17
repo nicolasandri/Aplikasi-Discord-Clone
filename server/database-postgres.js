@@ -1400,7 +1400,7 @@ const messageDB = {
        JOIN users u ON m.user_id::text = u.id::text
        ${where}
        ORDER BY m.created_at DESC
-       LIMIT $${i} OFFSET $${i+1}::text`,
+       LIMIT $${i} OFFSET $${i+1}`,
       params
     );
     return rows.map(r => ({ ...r, attachments: r.attachments ? (typeof r.attachments === 'string' ? JSON.parse(r.attachments) : r.attachments) : [] }));
@@ -2972,7 +2972,7 @@ const masterAdminDB = {
               dmc.name as channel_name, dmc.type as channel_type
        FROM dm_messages dm JOIN users u ON dm.sender_id::text = u.id::text
        JOIN dm_channels dmc ON dm.channel_id::text = dmc.id::text
-       ORDER BY dm.created_at DESC LIMIT $1 OFFSET $2::text`,
+       ORDER BY dm.created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
     const result = await Promise.all(rows.map(async (row) => {
