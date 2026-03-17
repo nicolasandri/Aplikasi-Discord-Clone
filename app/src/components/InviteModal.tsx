@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -77,6 +78,9 @@ export function InviteModal({ serverId, serverName, isOpen, onClose }: InviteMod
       <DialogContent className="sm:max-w-md bg-[#1a1b2e] border-[#0f0f1a] text-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Undang teman ke {serverName}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Buat dan bagikan link undangan untuk server
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 pt-4">

@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +98,9 @@ export function CreateChannelModal({
       <DialogContent className="bg-[#1a1b2e] border-[#0f0f1a] text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Buat Channel</DialogTitle>
+          <DialogDescription className="sr-only">
+            Form untuk membuat channel baru di server
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           {/* Channel Type Selection */}
