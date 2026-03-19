@@ -38,14 +38,12 @@ const createWindow = () => {
 
   // Load the app
   const isDev = !app.isPackaged;
-  
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-    // Open DevTools in production for debugging (remove this in final build)
-    mainWindow.webContents.openDevTools();
   }
 
   // Disable default context menu
@@ -59,11 +57,12 @@ const createWindow = () => {
   });
 
   // Check for updates when window is ready (only in production)
-  if (!isDev) {
-    mainWindow.webContents.on('did-finish-load', () => {
-      checkForUpdates();
-    });
-  }
+  // Disabled: Auto-update URL not configured yet
+  // if (!isDev) {
+  //   mainWindow.webContents.on('did-finish-load', () => {
+  //     checkForUpdates();
+  //   });
+  // }
 };
 
 // Auto-update functions
