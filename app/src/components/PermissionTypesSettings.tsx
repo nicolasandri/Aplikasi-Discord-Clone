@@ -27,9 +27,7 @@ export function PermissionTypesSettings({ serverId }: PermissionTypesSettingsPro
   const [editName, setEditName] = useState('');
   const [editDuration, setEditDuration] = useState(5);
 
-  const API_URL = typeof window !== 'undefined' && (window as any).electronAPI 
-    ? 'http://localhost:3001/api' 
-    : '/api';
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     fetchPermissionTypes();

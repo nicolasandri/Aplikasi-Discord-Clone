@@ -1,7 +1,7 @@
 #!/bin/bash
 # Auto deploy using SSH key
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 SSH_KEY="$HOME/.ssh/workgrid_deploy"
 
 echo "🚀 Deploying to VPS $VPS_IP..."

@@ -7,7 +7,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 📍 TARGET VPS
-  IP: 152.42.242.180
+  IP: 152.42.229.212
   User: root
   Domain: workgrid.homeku.net
   SSH Key: ~/.ssh/workgrid_vps
@@ -29,18 +29,18 @@ STEP 1: Upload Build Files
 
 For PowerShell (Windows):
 
-scp -i $env:USERPROFILE\.ssh\workgrid_vps -r app/dist/* root@152.42.242.180:/app/frontend/
+scp -i $env:USERPROFILE\.ssh\workgrid_vps -r app/dist/* root@152.42.229.212:/app/frontend/
 
 
 For Git Bash / Linux / WSL:
 
-scp -i ~/.ssh/workgrid_vps -r app/dist/* root@152.42.242.180:/app/frontend/
+scp -i ~/.ssh/workgrid_vps -r app/dist/* root@152.42.229.212:/app/frontend/
 
 
 STEP 2: Reload Nginx on VPS
 ────────────────────────────────────────────────────────────────────────────────
 
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 
 # Then run on VPS:
 systemctl reload nginx
@@ -52,7 +52,7 @@ STEP 3: Verify Deployment
 
 Open in Browser:
   https://workgrid.homeku.net
-  https://152.42.242.180
+  https://152.42.229.212
 
 ✓ Should see ModernLogin landing page (if logged out)
 
@@ -111,7 +111,7 @@ Premium Animations:
 
 2. VERIFY CONNECTIVITY
    Before uploading, test SSH:
-   ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+   ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 
    You should see the prompt "root@..." without password
 
@@ -121,7 +121,7 @@ Premium Animations:
 
 4. BACKUP (Optional but Recommended)
    Before overwriting, create backup:
-   ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+   ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
    cp -r /app/frontend /backup/frontend_backup_$(date +%Y%m%d_%H%M%S)
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -130,14 +130,14 @@ Premium Animations:
 
 ❌ "Permission denied (publickey)"
    → Check SSH key: chmod 600 ~/.ssh/workgrid_vps
-   → Verify key is added to VPS: ssh-copy-id -i ~/.ssh/workgrid_vps root@152.42.242.180
+   → Verify key is added to VPS: ssh-copy-id -i ~/.ssh/workgrid_vps root@152.42.229.212
 
 ❌ "Connection refused"
-   → Verify VPS is running: ping 152.42.242.180
-   → Check SSH is available: ssh -i ~/.ssh/workgrid_vps -v root@152.42.242.180
+   → Verify VPS is running: ping 152.42.229.212
+   → Check SSH is available: ssh -i ~/.ssh/workgrid_vps -v root@152.42.229.212
 
 ❌ "Not enough space"
-   → Check disk: ssh -i ~/.ssh/workgrid_vps root@152.42.242.180 'df -h'
+   → Check disk: ssh -i ~/.ssh/workgrid_vps root@152.42.229.212 'df -h'
    → Clean up: rm -rf /app/frontend/*
 
 ❌ "404 on page load"
@@ -195,7 +195,7 @@ Total time: ~2-3 minutes
 
 Questions? Check:
   1. DEPLOYMENT_GUIDE.md (Troubleshooting section)
-  2. SSH connection with: ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+  2. SSH connection with: ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
   3. Nginx logs: tail -100 /var/log/nginx/error.log
 
 ═══════════════════════════════════════════════════════════════════════════════

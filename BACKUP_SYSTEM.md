@@ -32,7 +32,7 @@
 
 **Langkah 1: SSH ke VPS**
 ```bash
-ssh root@152.42.242.180
+ssh root@152.42.229.212
 # Password: %0|F?H@f!berhO3e
 ```
 
@@ -54,7 +54,7 @@ docker logs discord_clone_backend --tail 20
 ```
 
 **Langkah 3: Verifikasi**
-- Buka http://152.42.242.180
+- Buka http://152.42.229.212
 - Login dengan admin@workgrid.com / admin123
 - Cek apakah server, channels, dan messages muncul
 
@@ -117,17 +117,17 @@ kimi
 
 ### Cek Status Server
 ```bash
-ssh root@152.42.242.180 "docker-compose ps"
+ssh root@152.42.229.212 "docker-compose ps"
 ```
 
 ### Cek Logs Backend
 ```bash
-ssh root@152.42.242.180 "docker logs discord_clone_backend --tail 50"
+ssh root@152.42.229.212 "docker logs discord_clone_backend --tail 50"
 ```
 
 ### Test API Endpoint
 ```bash
-curl http://152.42.242.180/api/servers/476bde5d-a814-4835-9c6b-1c9c2689783b/members
+curl http://152.42.229.212/api/servers/476bde5d-a814-4835-9c6b-1c9c2689783b/members
 ```
 
 ---
@@ -139,7 +139,7 @@ curl http://152.42.242.180/api/servers/476bde5d-a814-4835-9c6b-1c9c2689783b/memb
 1. **Project**: WorkGrid Discord Clone
 2. **Status UUID Fixes**: ✅ Sudah selesai dan stabil
 3. **Backup Tersedia**: v1.0.0-stable di `/opt/workgrid/backups/versions/`
-4. **VPS IP**: 152.42.242.180
+4. **VPS IP**: 152.42.229.212
 5. **SSH Key**: Sudah setup (workgrid_deploy)
 6. **Login Testing**: admin@workgrid.com / admin123
 
@@ -153,7 +153,7 @@ Halo Kimi, lanjutkan project WorkGrid Discord Clone.
 Status kemarin:
 - UUID casting fixes sudah berhasil di-deploy
 - Backup v1.0.0-stable tersimpan di VPS
-- Server running normal di http://152.42.242.180
+- Server running normal di http://152.42.229.212
 
 Tugas hari ini:
 [isi dengan yang mau dikerjakan, contoh:]

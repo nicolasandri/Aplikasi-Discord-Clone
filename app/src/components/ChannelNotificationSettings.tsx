@@ -32,9 +32,7 @@ export function ChannelNotificationSettings({ channelId, serverId: _serverId }: 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const API_URL = typeof window !== 'undefined' && (window as any).electronAPI
-    ? 'http://localhost:3001/api'
-    : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+  const API_URL = import.meta.env.VITE_API_URL;
 
   // Fetch current settings
   useEffect(() => {

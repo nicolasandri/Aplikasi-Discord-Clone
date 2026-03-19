@@ -1,9 +1,9 @@
 # WorkGrid Automated Deployment Script
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # One-time setup with password, then automated
 
 param(
-    [string]$VPS_IP = "152.42.242.180",
+    [string]$VPS_IP = "152.42.229.212",
     [string]$VPS_USER = "root",
     [string]$VPS_PASS = "%0|F?H@f!berhO3e"
 )

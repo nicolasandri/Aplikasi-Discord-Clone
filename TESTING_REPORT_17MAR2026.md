@@ -1,7 +1,7 @@
 # WorkGrid Testing Report - 17 Maret 2026
 
 ## Status Server: ✅ RUNNING
-- **Server IP**: 152.42.242.180
+- **Server IP**: 152.42.229.212
 - **Domain**: workgrid.homeku.net
 - **Status**: All containers healthy
 
@@ -17,7 +17,7 @@
 
 ### 1. Health Check ✅
 ```bash
-GET http://152.42.242.180:3001/health
+GET http://152.42.229.212:3001/health
 Response: {"status":"healthy","timestamp":"2026-03-16T17:41:13.873Z","uptime":47134.976734255,"database":"connected","version":"2.0.0"}
 ```
 - **Status**: PASS
@@ -25,7 +25,7 @@ Response: {"status":"healthy","timestamp":"2026-03-16T17:41:13.873Z","uptime":47
 
 ### 2. File Uploads ✅
 ```bash
-GET http://152.42.242.180/uploads/file-1771787357862-340831807.png
+GET http://152.42.229.212/uploads/file-1771787357862-340831807.png
 Response: HTTP 200 OK
 Content-Type: image/png
 ```
@@ -42,8 +42,8 @@ Response Header: Access-Control-Allow-Origin: http://workgrid.homeku.net
 - **Allowed Origins**: 
   - http://workgrid.homeku.net
   - https://workgrid.homeku.net
-  - http://152.42.242.180
-  - https://152.42.242.180
+  - http://152.42.229.212
+  - https://152.42.229.212
 
 ### 4. API Endpoints ✅
 | Endpoint | Method | Status | Notes |
@@ -55,7 +55,7 @@ Response Header: Access-Control-Allow-Origin: http://workgrid.homeku.net
 | /socket.io/ | GET | ✅ 400 | WebSocket endpoint (expected) |
 
 ### 5. WebSocket (Socket.IO) ✅
-- Endpoint: `http://152.42.242.180:3001/socket.io/`
+- Endpoint: `http://152.42.229.212:3001/socket.io/`
 - Status: Listening (returns 400 for non-WS requests, expected)
 
 ### 6. Nginx Configuration ✅

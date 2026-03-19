@@ -2,7 +2,7 @@
 # Update WorkGrid VPS - quick deploy script
 # Run this from local machine with SSH access
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 VPS_USER="root"
 LOCAL_DIR="$(pwd)"
 

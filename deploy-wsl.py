@@ -3,7 +3,7 @@ import paramiko
 import time
 import sys
 
-VPS_IP = "152.42.242.180"
+VPS_IP = "152.42.229.212"
 PASSWORD = "%0|F?H@f!berhO3e"
 
 def deploy():

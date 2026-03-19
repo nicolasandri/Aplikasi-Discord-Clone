@@ -1,6 +1,6 @@
 # ============================================
 # WorkGrid Deployment Script for Windows
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # ============================================
 
 param(
@@ -9,7 +9,7 @@ param(
     [string]$Action = "Full"
 )
 
-$VPS_IP = "152.42.242.180"
+$VPS_IP = "152.42.229.212"
 $VPS_User = "root"
 $VPS_Pass = '%0|F?H@f!berhO3e'
 $InstallDir = "/opt/workgrid"

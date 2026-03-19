@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Hash, Volume2, Users, Pin, Search, Inbox, HelpCircle, Reply, Trash2, FileText, RefreshCw, Keyboard, MessageCircle, Bell, AtSign, Phone, Video, X } from 'lucide-react';
 import { EmojiPicker } from './EmojiPicker';
 import { ChannelNotificationSettings } from './ChannelNotificationSettings';
@@ -13,6 +13,7 @@ import { PermissionBot } from './PermissionBot';
 import { BotMessage } from './BotMessage';
 import { ReactionTooltip } from './ReactionTooltip';
 import { ForwardModal } from './ForwardModal';
+import { ThreadModal } from './ThreadModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Channel, Message, User, Server } from '@/types';
 
@@ -20,12 +21,10 @@ import type { Channel, Message, User, Server } from '@/types';
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron
-  ? 'http://localhost:3001/api'
-  : (import.meta.env.VITE_API_URL || '/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Get base URL for backend (without /api)
-const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+const BASE_URL = import.meta.env.VITE_SOCKET_URL;
 
 // Helper to safely check if value is a string and starts with prefix
 const safeStartsWith = (value: unknown, prefix: string): boolean => {
@@ -346,7 +345,9 @@ interface MessageItemProps {
   currentUser: User | null;
   userPermissions: UserPermissions | null;
   onReply: (message: Message) => void;
+  onOpenThread?: (message: Message) => void;
   onReaction: (messageId: string, emoji: string) => void;
+  replyCounts?: Record<string, number>;
   onDelete: (messageId: string) => void;
   onEdit?: (message: Message) => void;
   onUserClick?: (userId: string) => void;
@@ -371,7 +372,7 @@ interface MessageItemProps {
 }
 
 
-function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, onUnpin, pinnedMessageIds, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, memberRoleColors = new Map(), isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef }: MessageItemProps) {
+function MessageItem({ message, showHeader, currentUser, userPermissions, onReply, onOpenThread: _onOpenThread, onReaction, onDelete, onEdit, onUserClick, onAttachmentClick, onForward, onCopy, onPin, onUnpin, pinnedMessageIds, isMobile = false, avatarVersion = 0, userMap = new Map(), serverId = null, memberRoleColors = new Map(), isEditing = false, editContent = '', onEditContentChange, onEditSave, onEditCancel, editInputRef, replyCounts = {} }: MessageItemProps) {
 
   const [showActions, setShowActions] = useState(false);
   
@@ -498,40 +499,6 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
           </div>
         )}
         
-        {/* Reply reference */}
-        {message.replyTo && (
-          <div className="flex items-start gap-2 mb-2 p-2 rounded-md bg-[#1a1d24]/50 border-l-2 border-cyan-500">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-xs">
-                {message.replyTo?.user?.avatar ? (
-                  <img 
-                    src={safeStartsWith(message.replyTo.user.avatar, 'http') ? message.replyTo.user.avatar : `${BASE_URL}${message.replyTo.user.avatar}`}
-                    alt={message.replyTo.user?.displayName || message.replyTo.user?.username || 'User'}
-                    className="w-4 h-4 rounded-full"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.replyTo?.user?.username || 'User'}`;
-                    }}
-                  />
-                ) : (
-                  <div className="w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center text-[8px] text-white font-bold">
-                    {(message.replyTo.user?.displayName || message.replyTo.user?.username || 'U')[0].toUpperCase()}
-                  </div>
-                )}
-                <span 
-                  className="font-medium"
-                  style={{ color: memberRoleColors.get(message.replyTo.userId || message.replyTo.user?.id || '') || message.replyTo.user?.role_color || '#00d4ff' }}
-                >
-                  {message.replyTo.user?.displayName || message.replyTo.user?.username}
-                </span>
-              </div>
-              <p className="text-gray-400 text-xs mt-0.5 truncate">
-                {message.replyTo.content}
-              </p>
-            </div>
-          </div>
-        )}
-        
         {/* Message Content or Edit UI */}
         {isEditing ? (
           <div className="mt-1">
@@ -587,6 +554,81 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             }
             return <MessageContent content={message.content} serverId={serverId || undefined} />;
           })()
+        )}
+
+        {/* Reply reference - below text content, above attachments */}
+        {message.replyTo && (
+          <div 
+            className="flex items-center gap-2 mt-2 p-2 rounded-md bg-[#1a1d24]/50 border-l-2 border-cyan-500 cursor-pointer hover:bg-[#1a1d24]/80 transition-colors"
+            onClick={() => {
+              // Scroll to the original message
+              const originalMessageElement = document.getElementById(`message-${message.replyTo?.id}`);
+              if (originalMessageElement) {
+                originalMessageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Add highlight effect
+                originalMessageElement.classList.add('bg-cyan-500/10');
+                setTimeout(() => {
+                  originalMessageElement.classList.remove('bg-cyan-500/10');
+                }, 2000);
+              }
+            }}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs">
+                {message.replyTo?.user?.avatar ? (
+                  <img 
+                    src={safeStartsWith(message.replyTo.user.avatar, 'http') ? message.replyTo.user.avatar : `${BASE_URL}${message.replyTo.user.avatar}`}
+                    alt={message.replyTo.user?.displayName || message.replyTo.user?.username || 'User'}
+                    className="w-4 h-4 rounded-full"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${message.replyTo?.user?.username || 'User'}`;
+                    }}
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center text-[8px] text-white font-bold">
+                    {(message.replyTo.user?.displayName || message.replyTo.user?.username || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <span 
+                  className="font-medium"
+                  style={{ color: memberRoleColors.get(message.replyTo.userId || message.replyTo.user?.id || '') || message.replyTo.user?.role_color || '#00d4ff' }}
+                >
+                  {message.replyTo.user?.displayName || message.replyTo.user?.username}
+                </span>
+              </div>
+              <p className="text-gray-400 text-xs mt-0.5 truncate">
+                {message.replyTo.content || (message.replyTo.attachments && message.replyTo.attachments.length > 0 ? '📎 Lampiran' : 'Pesan kosong')}
+              </p>
+            </div>
+            
+            {/* Thumbnail for image attachments */}
+            {message.replyTo.attachments && message.replyTo.attachments.length > 0 && (
+              (() => {
+                const firstImage = message.replyTo.attachments.find(att => {
+                  const mime = att.mimetype || att.type || '';
+                  return mime.startsWith('image/');
+                });
+                if (firstImage) {
+                  return (
+                    <img 
+                      src={getFileUrl(firstImage.url)}
+                      alt="Attachment thumbnail"
+                      className="w-10 h-10 rounded object-cover flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <div className="w-10 h-10 rounded bg-[#2B2D31] flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-gray-400" />
+                  </div>
+                );
+              })()
+            )}
+          </div>
         )}
 
         {/* Forwarded Message Display */}
@@ -722,6 +764,21 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
             })}
           </div>
         )}
+        
+        {/* Thread Button - Always show for replyable messages */}
+        {_onOpenThread && (
+          <button
+            onClick={() => _onOpenThread(message)}
+            className="flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-[#1a1d24] hover:bg-[#252830] border border-cyan-500/30 hover:border-cyan-500 rounded-full text-sm transition-all group/thread"
+          >
+            <MessageCircle className="w-4 h-4 text-cyan-400" />
+            <span className="text-gray-500 text-xs group-hover/thread:text-gray-400">
+              {replyCounts[message.id] !== undefined 
+                ? `${replyCounts[message.id]} balasan` 
+                : 'Lihat thread'}
+            </span>
+          </button>
+        )}
       </div>
       
       {/* Message Actions */}
@@ -762,7 +819,7 @@ function MessageItem({ message, showHeader, currentUser, userPermissions, onRepl
         onReply={() => onReply(message)}
         onForward={() => onForward?.(message)}
         onCopy={() => onCopy ? onCopy(message.content) : handleCopy(message.content)}
-        onCopyLink={() => handleCopy(`http://localhost:3001/message/${message.id}`)}
+        onCopyLink={() => handleCopy(`${BASE_URL}/message/${message.id}`)}
         onDelete={canDelete ? () => onDelete(message.id) : undefined}
         onEdit={canEdit && onEdit ? () => onEdit(message) : undefined}
         onPin={canPin && onPin ? () => onPin(message) : undefined}
@@ -826,7 +883,11 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
   const hasScrolledToUnreadRef = useRef(false);
   // Cache for member role colors
   const [memberRoleColors, setMemberRoleColors] = useState<Map<string, string>>(new Map());
-
+  
+  // Thread modal state
+  const [isThreadModalOpen, setIsThreadModalOpen] = useState(false);
+  const [threadMessage, setThreadMessage] = useState<Message | null>(null);
+  const [replyCounts, setReplyCounts] = useState<Record<string, number>>({});
 
   // Update avatar version when currentUser avatar changes
   useEffect(() => {
@@ -1359,6 +1420,46 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
     }
   };
 
+  // Open thread modal
+  const openThread = async (message: Message) => {
+    setThreadMessage(message);
+    setIsThreadModalOpen(true);
+    
+    // Always fetch reply count when opening thread
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/messages/${message.id}/reply-count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setReplyCounts(prev => ({ ...prev, [message.id]: data.count || 0 }));
+      }
+    } catch (e) {
+      // Silently ignore errors
+    }
+  };
+
+  // Handle reply in thread
+  const handleThreadReply = async (content: string, replyToId: string) => {
+    const socket = (window as any).socket;
+    if (socket && channel?.id) {
+      socket.emit('send_message', {
+        channelId: channel.id,
+        content,
+        replyToId
+      });
+      
+      // Update reply count locally
+      setReplyCounts(prev => ({
+        ...prev,
+        [replyToId]: (prev[replyToId] || 0) + 1
+      }));
+    }
+  };
+
   // Edit message handlers
   const handleStartEdit = (message: Message) => {
     setEditingMessageId(message.id);
@@ -1406,8 +1507,8 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
       const isElectron = !!(window as any).electronAPI;
-      const apiUrl = isElectron ? 'http://localhost:3001/api' : (import.meta.env.VITE_API_URL || '/api');
-      const baseUrl = isElectron ? 'http://localhost:3001' : '';
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const baseUrl = import.meta.env.VITE_SOCKET_URL;
 
       const [userRes, roleRes, memberRolesRes] = await Promise.allSettled([
         fetch(`${apiUrl}/users/${userId}`, { headers }),
@@ -1728,7 +1829,9 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
                           currentUser={currentUser}
                           userPermissions={userPermissions}
                           onReply={onReply || (() => {})}
+                          onOpenThread={openThread}
                           onReaction={handleReaction}
+                          replyCounts={replyCounts}
                           onDelete={handleDelete}
                           onEdit={handleStartEdit}
                           onUserClick={handleUserClick}
@@ -1820,6 +1923,17 @@ export function ChatArea({ channel, messages, typingUsers, currentUser, onReply,
         dmChannels={dmChannels}
         currentServerId={serverId ?? null}
         onForward={handleForwardMessage}
+      />
+
+      {/* Thread Modal */}
+      <ThreadModal
+        isOpen={isThreadModalOpen}
+        onClose={() => setIsThreadModalOpen(false)}
+        originalMessage={threadMessage}
+        serverId={serverId || undefined}
+        channelId={channel?.id}
+        onReply={handleThreadReply}
+        socket={(window as any).socket}
       />
 
       {/* Pin Confirmation Modal */}

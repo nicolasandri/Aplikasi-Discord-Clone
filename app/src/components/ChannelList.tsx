@@ -5,6 +5,7 @@ import { CategoryItem } from './CategoryItem';
 import { CreateCategoryModal } from './CreateCategoryModal';
 import { RenameCategoryModal } from './RenameCategoryModal';
 import { CreateChannelModal } from './CreateChannelModal';
+import { NotificationSettingsModal } from './NotificationSettingsModal';
 import type { Channel, Server, Category } from '@/types';
 
 // Dnd-kit imports
@@ -41,12 +42,10 @@ interface ChannelListProps {
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Base URL for assets
-const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+const BASE_URL = import.meta.env.VITE_SOCKET_URL;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function ChannelList({ server, channels: _channels, selectedChannelId, onSelectChannel, onOpenSettings, onOpenServerSettings, onOpenUserSettings, onOpenInvite, onLeaveServer, isMobile = false, onClose, isOwner: propIsOwner, unreadCounts = {} }: ChannelListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -60,6 +59,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
   const [showServerMenu, setShowServerMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const serverMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -530,7 +530,7 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
             {/* Notification Settings */}
             <button
               onClick={() => {
-                alert('Notification Settings - Fitur akan segera hadir!');
+                setShowNotificationSettings(true);
                 setShowServerMenu(false);
               }}
               className="w-full flex items-center justify-between px-3 py-2 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors text-sm"
@@ -883,6 +883,15 @@ export function ChannelList({ server, channels: _channels, selectedChannelId, on
           onCategoryRenamed={fetchCategories}
         />
       )}
+
+      {/* Notification Settings Modal */}
+      <NotificationSettingsModal
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
+        serverId={server?.id || ''}
+        serverName={server?.name || ''}
+        channels={_channels}
+      />
     </div>
   );
 }

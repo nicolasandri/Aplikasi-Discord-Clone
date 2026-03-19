@@ -10,4 +10,4 @@ PUBKEY
 
 chmod 600 ~/.ssh/authorized_keys
 echo "SSH Key added successfully!"
-echo "You can now connect via: ssh -i workgrid_deploy_key root@152.42.242.180"
+echo "You can now connect via: ssh -i workgrid_deploy_key root@152.42.229.212"

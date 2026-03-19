@@ -45,6 +45,7 @@ function formatDuration(seconds: number): string {
 
 export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMessages }: PermissionBotProps) {
   const [myActiveRequest, setMyActiveRequest] = useState<PermissionRequest | null>(null);
+  const [activeRequests, setActiveRequests] = useState<PermissionRequest[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [izinType, setIzinType] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,11 +54,9 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
   const [selectedType, setSelectedType] = useState<PermissionType | null>(null);
   const { toast } = useToast();
 
-  const API_URL = typeof window !== 'undefined' && (window as any).electronAPI
-    ? 'http://localhost:3001/api'
-    : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+  const API_URL = import.meta.env.VITE_API_URL;
 
-  // Fetch my active permission
+  // Fetch active permissions for this channel
   const fetchMyPermission = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -67,6 +66,7 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
       
       if (response.ok) {
         const data = await response.json();
+        setActiveRequests(data);
         setActiveCount(data.length);
         const mine = data.find((r: PermissionRequest) => r.user_id === currentUserId);
         setMyActiveRequest(mine || null);
@@ -247,6 +247,51 @@ export function PermissionBot({ channelId, serverId, currentUserId, onRefreshMes
           </Badge>
         )}
       </div>
+
+      {/* Active Staff List */}
+      {activeCount > 0 && (
+        <div className="mb-4 p-3 bg-[#2a2b3d] rounded-lg border border-[#00d4ff]/30">
+          <div className="text-xs text-gray-400 mb-2">Staff izin aktif:</div>
+          <div className="flex flex-wrap gap-2">
+            {activeRequests.map((request) => {
+              // Check if this staff is late
+              const startedAt = new Date(request.started_at).getTime();
+              const maxDurationMs = request.max_duration_minutes * 60 * 1000;
+              const isStaffLate = Date.now() > (startedAt + maxDurationMs);
+              
+              return (
+                <div 
+                  key={request.id} 
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${
+                    isStaffLate 
+                      ? 'bg-red-900/30 border border-red-500/30' 
+                      : 'bg-[#1e1f2e]'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                    isStaffLate 
+                      ? 'bg-red-500/20 text-red-400' 
+                      : 'bg-green-500/20 text-green-400'
+                  }`}>
+                    {(request.display_name || request.username || 'User').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-xs text-white">
+                    @{request.display_name || request.username || 'User'}
+                  </span>
+                  <span className={`text-[10px] px-1.5 rounded ${
+                    isStaffLate 
+                      ? 'text-red-400 bg-red-500/10' 
+                      : 'text-[#00d4ff] bg-[#00d4ff]/10'
+                  }`}>
+                    {request.request_type}
+                    {isStaffLate && ' ⚠️'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* My Active Request */}
       {myActiveRequest ? (

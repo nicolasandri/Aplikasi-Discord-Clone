@@ -2449,7 +2449,7 @@ const messageDB = {
     });
   },
 
-  async getByChannel(channelId, limit = 50, offset = 0) {
+  async getByChannel(channelId, limit = 1000, offset = 0) {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT m.*, u.id as user_id, u.username, u.display_name, u.avatar, u.badges,
@@ -2691,7 +2691,7 @@ const messageDB = {
       dateFrom = null,
       dateTo = null,
       hasAttachments = null,
-      limit = 50,
+      limit = 1000,
       offset = 0
     } = options;
     
@@ -3898,7 +3898,7 @@ const dmDB = {
   },
 
   // Get messages in DM channel
-  async getDMMessages(channelId, limit = 50, offset = 0) {
+  async getDMMessages(channelId, limit = 1000, offset = 0) {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT dm.*, u.username as sender_username, u.display_name as sender_display_name, u.avatar as sender_avatar

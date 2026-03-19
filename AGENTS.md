@@ -2,10 +2,10 @@
 
 ## Project Overview
 
-**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi oleh Discord. Aplikasi ini dibangun sebagai multi-platform yang mendukung web, mobile (Android via Capacitor), dan desktop (Electron). UI aplikasi menggunakan bahasa **Bahasa Indonesia** dengan tema Cyberpunk Dark.
+**WorkGrid** (juga dikenal sebagai ChatCord) adalah platform kolaborasi tim real-time yang terinspirasi oleh Discord. Aplikasi ini dibangun sebagai multi-platform yang mendukung web, mobile (Android via Capacitor), dan desktop (Electron). UI aplikasi menggunakan bahasa **Bahasa Indonesia** dengan tema Cyberpunk Dark (Cyan Theme).
 
 ### Fitur Utama
-- **Autentikasi JWT** - Token dengan kedaluwarsa 7 hari, token versioning untuk force logout
+- **Autentikasi JWT** - Token dengan kedaluwarsa 7 hari
 - **Manajemen Server dan Channel** - Text & voice channels dengan categories
 - **Real-time Messaging** - Socket.IO untuk komunikasi instan
 - **File Sharing** - Upload file max 10MB dengan MIME type filtering
@@ -23,7 +23,6 @@
 - **Mention System** - @user, @role, @everyone, @here
 - **Link Embeds** - Preview untuk URL
 - **Responsive UI** - Mobile, tablet, dan desktop
-- **Auto-update** - Untuk desktop Electron app
 - **Master Admin Dashboard** - System administration panel
 
 ---
@@ -94,7 +93,7 @@
 /
 ├── app/                          # Frontend React application
 │   ├── src/
-│   │   ├── components/           # React components (59 files)
+│   │   ├── components/           # React components (64+ files)
 │   │   │   ├── ui/              # shadcn/ui components (53 components)
 │   │   │   ├── ChatLayout.tsx   # Main chat interface
 │   │   │   ├── ChatArea.tsx     # Message display area
@@ -124,7 +123,7 @@
 │   │   │   ├── UpdateButton.tsx # Electron update button
 │   │   │   ├── MasterAdminDashboard.tsx # System admin panel
 │   │   │   ├── ForceChangePassword.tsx # Password change on first login
-│   │   │   └── ... (59 total components)
+│   │   │   └── ... (64+ total components)
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx  # Authentication state
 │   │   ├── hooks/               # Custom React hooks (6 files)
@@ -193,7 +192,9 @@
 │   │   ├── 013_add_push_subscriptions.sql
 │   │   ├── 014_add_is_active_column.sql
 │   │   ├── 014_add_users_display_name.sql
-│   │   └── 015_add_permission_types.sql
+│   │   ├── 015_add_permission_types.sql
+│   │   ├── 016_add_server_notification_settings.sql
+│   │   └── 016_add_timeout_alert_config.sql
 │   ├── uploads/                 # File upload directory
 │   ├── Dockerfile               # Backend Docker image
 │   └── package.json
@@ -244,7 +245,7 @@
 - Dark Mode: class
 - Content: ./index.html, ./src/**/*.{js,ts,jsx,tsx}
 - CSS Variables: HSL color system untuk theming
-- Animations: Accordion, caret-blink
+- Animations: Accordion, caret-blink, glitch, shimmer, pulse-glow
 - Plugin: tailwindcss-animate
 ```
 
@@ -774,7 +775,6 @@ const Permissions = {
 
 ### Current Implementation
 - **Authentication:** JWT dengan Bearer token disimpan di localStorage (expires in 7 days)
-- **Token Versioning:** Mendukung force logout dengan token_version di database
 - **Password Hashing:** bcryptjs dengan 12 salt rounds
 - **File Uploads:** Limited to 10MB, MIME type filtering
 - **CORS:** Strict origin checking dengan ALLOWED_ORIGINS

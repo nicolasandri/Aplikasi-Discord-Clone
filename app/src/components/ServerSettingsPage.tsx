@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Settings, Shield, Users, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck, Clock } from 'lucide-react';
+import { X, Settings, Shield, Users, ImageIcon, MoreVertical, KeyRound, Crown, ShieldCheck, Clock, BarChart3 } from 'lucide-react';
 import { ServerRoles } from './ServerRoles';
 import { PermissionTypesSettings } from './PermissionTypesSettings';
 import { DaftarNamaStaff } from './DaftarNamaStaff';
@@ -23,9 +23,7 @@ interface ServerSettingsPageProps {
 }
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Helper to convert relative URL to absolute URL
 const getFullImageUrl = (url: string | null | undefined): string => {
@@ -61,6 +59,8 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
   const [isLoading, setIsLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [transferConfirmOpen, setTransferConfirmOpen] = useState<string | null>(null);
+  const [auditChannelId, setAuditChannelId] = useState('');
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   // Only reset form when switching to a different server (not on every server prop update)
   // This prevents uploaded icon from being overwritten by stale server state from WebSocket
@@ -85,6 +85,42 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
       }
     } catch (error) {
       console.error('Failed to fetch members:', error);
+    }
+  };
+
+  const generateAuditReport = async () => {
+    if (!server || !auditChannelId) {
+      alert('Masukkan ID channel auditor terlebih dahulu!');
+      return;
+    }
+    
+    setGeneratingReport(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/admin/generate-audit-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          serverId: server.id,
+          channelId: auditChannelId,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        alert('Laporan audit berhasil dibuat! Silakan cek channel auditor.');
+      } else {
+        alert(data.message || data.error || 'Gagal membuat laporan audit');
+      }
+    } catch (error) {
+      console.error('Generate audit report error:', error);
+      alert('Terjadi kesalahan saat membuat laporan audit');
+    } finally {
+      setGeneratingReport(false);
     }
   };
 
@@ -403,7 +439,57 @@ export function ServerSettingsPage({ server, isOpen, onClose, onUpdateServer }: 
           )}
 
           {activeTab === 'permissionTypes' && (
-            <PermissionTypesSettings serverId={server.id} />
+            <div className="space-y-6">
+              <PermissionTypesSettings serverId={server.id} />
+              
+              {/* Audit Report Section */}
+              <div className="mt-8 pt-6 border-t border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-[#00d4ff]" />
+                  Laporan Audit Izin
+                </h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Generate laporan harian untuk melihat statistik izin staff. 
+                  Laporan akan dikirim ke channel yang ditentukan.
+                </p>
+                
+                <div className="bg-[#2a2b3d] rounded-lg p-4 space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-2">
+                      ID Channel Auditor
+                    </label>
+                    <input
+                      type="text"
+                      value={auditChannelId}
+                      onChange={(e) => setAuditChannelId(e.target.value)}
+                      placeholder="Contoh: 30dabf93-6a52-4662-8a08-467b209f09bc"
+                      className="w-full bg-[#1e1f2e] border border-[#40444b] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#00d4ff]"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Masukkan ID channel tempat laporan akan dikirim
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={generateAuditReport}
+                    disabled={generatingReport || !auditChannelId}
+                    className="w-full bg-[#00d4ff] hover:bg-[#00b8db] disabled:opacity-50 disabled:cursor-not-allowed text-black font-medium py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
+                  >
+                    {generatingReport ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                        Membuat Laporan...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="w-4 h-4" />
+                        Generate Laporan Audit
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

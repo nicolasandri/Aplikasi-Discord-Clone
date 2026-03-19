@@ -1,7 +1,7 @@
 # ============================================
 # Docker Compose - VPS Deployment
 # WorkGrid (Discord Clone)
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # ============================================
 
 version: '3.8'
@@ -81,7 +81,7 @@ services:
       REDIS_URL: redis://redis:6379
       FRONTEND_URL: ${FRONTEND_URL:-http://workgrid.homeku.net}
       USE_POSTGRES: "true"
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.242.180,https://152.42.242.180}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.229.212,https://152.42.229.212}
     volumes:
       - uploads_data:/app/uploads
     networks:

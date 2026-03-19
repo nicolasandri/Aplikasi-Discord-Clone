@@ -60,9 +60,7 @@ const TRENDING_TERMS = ['hello', 'thank you', 'love', 'hug', 'laugh', 'sad', 'go
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function EmojiStickerGIFPicker({ onSelectEmoji, onSelectSticker, onSelectGIF, serverId, disabled }: EmojiStickerGIFPickerProps) {
   const [isOpen, setIsOpen] = useState(false);

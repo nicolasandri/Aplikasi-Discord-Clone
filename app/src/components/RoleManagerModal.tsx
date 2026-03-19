@@ -45,9 +45,7 @@ const ROLE_COLORS = [
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function RoleManagerModal({ 
   isOpen, 

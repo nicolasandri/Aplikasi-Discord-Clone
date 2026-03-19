@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: workgrid_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: discord_clone
+      POSTGRES_USER: discord_user
+      POSTGRES_PASSWORD: WorkGridDB@Secure2024!
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - backend_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U discord_user -d discord_clone"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+
+  redis:
+    image: redis:7-alpine
+    container_name: workgrid_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: workgrid_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: discord_clone
+      DB_USER: discord_user
+      DB_PASSWORD: WorkGridDB@Secure2024!
+      DB_SSL: "false"
+      JWT_SECRET: WG_SecretKey_2024_Random_Ch4r4ct3rs_F0r_S3cur1ty!
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: http://workgrid.homeku.net
+      USE_POSTGRES: "true"
+      # CORS: Only allow Frontend VPS
+      CORS_ORIGIN: http://165.22.63.51,http://workgrid.homeku.net
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "0.0.0.0:3001:3001"
+    networks:
+      - backend_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1.5G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  backend_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
+  redis_data:

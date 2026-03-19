@@ -1,47 +1,47 @@
 Total messages: 180 (Errors: 18, Warnings: 2)
 Returning 18 messages for level "error"
 
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.242.180/assets/index-B5mRfWmr.js:781
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.229.212/assets/index-B5mRfWmr.js:781
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.242.180/assets/index-B5mRfWmr.js:781
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.229.212/assets/index-B5mRfWmr.js:781
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:67:100724
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:67:101669
-    at $c (http://152.42.242.180/assets/index-B5mRfWmr.js:9:93647)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108983)
-    at pa (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108867)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:109751)
-    at pa (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108867)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108963)
-    at pa (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108867)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108963) @ http://152.42.242.180/assets/index-B5mRfWmr.js:66
-[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.242.180/uploads/file-1773526988381-971537826.jpg?v=1773637442360:0
-[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.242.180/uploads/file-1773528611546-967951381.jpg:0
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:67:100724
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:67:101669
+    at $c (http://152.42.229.212/assets/index-B5mRfWmr.js:9:93647)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108983)
+    at pa (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108867)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:109751)
+    at pa (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108867)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108963)
+    at pa (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108867)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108963) @ http://152.42.229.212/assets/index-B5mRfWmr.js:66
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.229.212/uploads/file-1773526988381-971537826.jpg?v=1773637442360:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.229.212/uploads/file-1773528611546-967951381.jpg:0
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:67:100724
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:67:101669
-    at $c (http://152.42.242.180/assets/index-B5mRfWmr.js:9:93647)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108983)
-    at pa (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108867)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:109751)
-    at pa (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108867)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108963)
-    at pa (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108867)
-    at C2 (http://152.42.242.180/assets/index-B5mRfWmr.js:9:108963) @ http://152.42.242.180/assets/index-B5mRfWmr.js:66
-[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.242.180/uploads/file-1773526988381-971537826.jpg?v=1773637448065:0
-[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.242.180/uploads/file-1773528611546-967951381.jpg:0
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:67:100724
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:67:101669
+    at $c (http://152.42.229.212/assets/index-B5mRfWmr.js:9:93647)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108983)
+    at pa (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108867)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:109751)
+    at pa (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108867)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108963)
+    at pa (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108867)
+    at C2 (http://152.42.229.212/assets/index-B5mRfWmr.js:9:108963) @ http://152.42.229.212/assets/index-B5mRfWmr.js:66
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.229.212/uploads/file-1773526988381-971537826.jpg?v=1773637448065:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://152.42.229.212/uploads/file-1773528611546-967951381.jpg:0
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.242.180/assets/index-B5mRfWmr.js:781
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.229.212/assets/index-B5mRfWmr.js:781
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.242.180/assets/index-B5mRfWmr.js:781
-[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://152.42.242.180 https://152.42.242.180 ws://152.42.242.180 wss://152.42.242.180". The action has been blocked. @ http://152.42.242.180/friends:0
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:782:64003 @ http://152.42.229.212/assets/index-B5mRfWmr.js:781
+[ERROR] Connecting to 'https://workgrid.homeku.net/api/dm/channels' violates the following Content Security Policy directive: "connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://152.42.229.212 https://152.42.229.212 ws://152.42.229.212 wss://152.42.229.212". The action has been blocked. @ http://152.42.229.212/friends:0
 [ERROR] Failed to fetch DM channels: TypeError: Failed to fetch
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:67:100724
-    at http://152.42.242.180/assets/index-B5mRfWmr.js:67:101700 @ http://152.42.242.180/assets/index-B5mRfWmr.js:66
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:67:100724
+    at http://152.42.229.212/assets/index-B5mRfWmr.js:67:101700 @ http://152.42.229.212/assets/index-B5mRfWmr.js:66

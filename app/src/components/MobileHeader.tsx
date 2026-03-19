@@ -2,7 +2,7 @@ import { Menu, X, Users, ArrowLeft } from 'lucide-react';
 import type { Channel, Server, DMChannel } from '@/types';
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+const BASE_URL = import.meta.env.VITE_SOCKET_URL;
 
 interface MobileHeaderProps {
   server?: Server | null;

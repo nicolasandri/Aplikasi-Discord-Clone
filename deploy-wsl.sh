@@ -1,7 +1,7 @@
 #!/bin/bash
 # Deploy script using WSL
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 PASSWORD='%0|F?H@f!berhO3e'
 
 echo "🚀 Deploying to VPS $VPS_IP..."

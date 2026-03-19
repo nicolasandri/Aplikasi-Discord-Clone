@@ -1,0 +1,29 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies
+RUN apk add --no-cache postgresql-client curl tzdata
+
+# Set timezone
+ENV TZ=Asia/Jakarta
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --production && npm cache clean --force
+
+# Copy source
+COPY . .
+
+# Create uploads folder
+RUN mkdir -p uploads && chmod 777 uploads
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
+
+EXPOSE 3001
+
+CMD ["node", "server.js"]

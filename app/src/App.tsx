@@ -1,6 +1,6 @@
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { ModernLogin } from '@/components/ModernLogin';
+import { SimpleLogin } from '@/components/SimpleLogin';
 import { Register } from '@/components/Register';
 import { ChatLayout } from '@/components/ChatLayout';
 import { TitleBar } from '@/components/TitleBar';
@@ -11,6 +11,13 @@ import { Toaster } from '@/components/ui/sonner';
 import { LandingPage } from '@/landing/LandingPage';
 import './App.css';
 import { useState, useEffect } from 'react';
+
+// Detect if running in Electron - check for electronAPI or HashRouter usage (/#/ in URL)
+const isElectron = typeof window !== 'undefined' && (
+  !!(window as any).electronAPI || 
+  window.location.hash.startsWith('#/') ||
+  window.location.href.includes('/#/')
+);
 
 // Wrapper for ForceChangePassword to handle redirect after password change
 function ForceChangePasswordWrapper() {
@@ -79,19 +86,22 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 }
 
-// Root route: LandingPage for guests, ChatLayout for authenticated users
+// Root route: LandingPage for web guests, Login for Electron, ChatLayout for authenticated users
 function RootRoute() {
   const { isAuthenticated } = useAuth();
   const { needsPasswordChange, checking } = useForcePasswordChange();
 
   if (checking) return null;
   if (needsPasswordChange) return <Navigate to="/force-change-password" replace />;
-  if (!isAuthenticated) return <LandingPage />;
+  if (!isAuthenticated) {
+    // For Electron desktop app, go directly to login page
+    if (isElectron) {
+      return <Navigate to="/login" replace />;
+    }
+    return <LandingPage />;
+  }
   return <ChatLayout />;
 }
-
-// Detect if running in Electron
-const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use HashRouter for Electron, BrowserRouter for web
 const Router = isElectron ? HashRouter : BrowserRouter;
@@ -136,7 +146,7 @@ function AppContent() {
                 path="/login"
                 element={
                   <PublicRoute>
-                    <ModernLogin />
+                    <SimpleLogin />
                   </PublicRoute>
                 }
               />

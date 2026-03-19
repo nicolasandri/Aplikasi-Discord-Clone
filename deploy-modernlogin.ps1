@@ -2,7 +2,7 @@
 # Run this script in PowerShell as Administrator
 
 param(
-    [string]$VPS_IP = "152.42.242.180",
+    [string]$VPS_IP = "152.42.229.212",
     [string]$VPS_USER = "root",
     [string]$SSH_KEY = "$env:USERPROFILE\.ssh\workgrid_vps"
 )
@@ -103,7 +103,7 @@ function Show-DeploymentSummary {
 
     Write-Host "📍 Access After Deployment:" -ForegroundColor Green
     Write-Host "  • https://workgrid.homeku.net" -ForegroundColor Cyan
-    Write-Host "  • https://152.42.242.180" -ForegroundColor Cyan
+    Write-Host "  • https://152.42.229.212" -ForegroundColor Cyan
     Write-Host ""
 
     Write-Host "⏱️  Next Steps:" -ForegroundColor Green
@@ -134,8 +134,8 @@ Show-DeploymentSummary
 Write-Host "✅ Deployment preparation completed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "IMPORTANT NEXT STEP:" -ForegroundColor Yellow
-Write-Host "  Use SCP or SFTP to upload dist/ folder to 152.42.242.180:/app/frontend" -ForegroundColor Yellow
+Write-Host "  Use SCP or SFTP to upload dist/ folder to 152.42.229.212:/app/frontend" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Command:" -ForegroundColor Gray
-Write-Host "  scp -i ~/.ssh/workgrid_vps -r app/dist/* root@152.42.242.180:/app/frontend/" -ForegroundColor Cyan
+Write-Host "  scp -i ~/.ssh/workgrid_vps -r app/dist/* root@152.42.229.212:/app/frontend/" -ForegroundColor Cyan
 Write-Host ""

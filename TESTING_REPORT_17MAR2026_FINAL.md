@@ -6,7 +6,7 @@
 
 | Komponen | Status | Detail |
 |----------|--------|--------|
-| VPS Connectivity | ✅ OK | 152.42.242.180 |
+| VPS Connectivity | ✅ OK | 152.42.229.212 |
 | Domain HTTPS | ✅ OK | workgrid.homeku.net |
 | Frontend | ✅ OK | v1.0.0-stable |
 | Backend | ✅ OK | API + WebSocket |
@@ -36,8 +36,8 @@
 const ALLOWED_ORIGINS = [
   'http://workgrid.homeku.net',
   'https://workgrid.homeku.net',
-  'http://152.42.242.180',
-  'https://152.42.242.180'
+  'http://152.42.229.212',
+  'https://152.42.229.212'
 ];
 ```
 
@@ -132,7 +132,7 @@ a80741cf38c5   workgrid-backend   Up (healthy)              3001/tcp
 ```nginx
 server {
     listen 443 ssl;
-    server_name workgrid.homeku.net 152.42.242.180;
+    server_name workgrid.homeku.net 152.42.229.212;
     
     ssl_certificate /etc/letsencrypt/live/workgrid.homeku.net/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/workgrid.homeku.net/privkey.pem;
@@ -153,7 +153,7 @@ server {
 ### .env
 ```env
 FRONTEND_URL=http://workgrid.homeku.net
-ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.242.180,https://152.42.242.180
+ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.229.212,https://152.42.229.212
 ```
 
 ---
@@ -214,5 +214,5 @@ ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://15
 
 **Report Generated:** 17 Maret 2026  
 **Deployed By:** AI Assistant  
-**Server:** 152.42.242.180  
+**Server:** 152.42.229.212  
 **Domain:** https://workgrid.homeku.net

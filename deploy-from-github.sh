@@ -1,11 +1,11 @@
 #!/bin/bash
 # WorkGrid One-Click Deploy Script from GitHub
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # Usage: curl -fsSL https://raw.githubusercontent.com/nicolasandri/Aplikasi-Discord-Clone/main/deploy-from-github.sh | bash
 
 set -e
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 PROJECT_DIR="/opt/workgrid"
 GITHUB_REPO="https://github.com/nicolasandri/Aplikasi-Discord-Clone.git"
 

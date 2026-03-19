@@ -10,12 +10,10 @@ import type { DMChannel } from '@/types';
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Base URL for assets (images, uploads)
-const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+const BASE_URL = import.meta.env.VITE_SOCKET_URL;
 
 const statusColors = {
   online: 'bg-[#3ba55d]',

@@ -1,6 +1,13 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { LinkEmbed, extractUrls } from './LinkEmbed';
+
+// Global cache for mention data per server
+const mentionDataCache: Record<string, { users: Record<string, { username: string; displayName?: string }>; roles: Record<string, { name: string; color: string }>; timestamp: number }> = {};
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+// Track fetch in progress to prevent duplicate requests
+const fetchInProgress: Record<string, Promise<void> | null> = {};
 
 interface MessageContentProps {
   content: string;
@@ -14,9 +21,7 @@ interface MentionData {
 }
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function MessageContent({ content, serverId, showLinkEmbeds = true }: MessageContentProps) {
   const [mentionData, setMentionData] = useState<MentionData>({ users: {}, roles: {} });
@@ -27,6 +32,24 @@ export function MessageContent({ content, serverId, showLinkEmbeds = true }: Mes
   // Fetch mention data (members and roles) when serverId changes
   useEffect(() => {
     if (!serverId) return;
+    
+    // Check cache first
+    const cached = mentionDataCache[serverId];
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      setMentionData({ users: cached.users, roles: cached.roles });
+      return;
+    }
+    
+    // If fetch already in progress for this server, wait for it
+    if (fetchInProgress[serverId]) {
+      fetchInProgress[serverId]!.then(() => {
+        const updatedCache = mentionDataCache[serverId];
+        if (updatedCache) {
+          setMentionData({ users: updatedCache.users, roles: updatedCache.roles });
+        }
+      });
+      return;
+    }
     
     const fetchData = async () => {
       try {
@@ -56,13 +79,18 @@ export function MessageContent({ content, serverId, showLinkEmbeds = true }: Mes
           });
         }
 
+        // Update cache
+        mentionDataCache[serverId] = { users, roles, timestamp: Date.now() };
         setMentionData({ users, roles });
       } catch (error) {
         console.error('Failed to fetch mention data:', error);
+      } finally {
+        fetchInProgress[serverId] = null;
       }
     };
-
-    fetchData();
+    
+    // Store fetch promise
+    fetchInProgress[serverId] = fetchData();
   }, [serverId]);
 
   const parseContent = useCallback((text: string): ReactNode[] => {

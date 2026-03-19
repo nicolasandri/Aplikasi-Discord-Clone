@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: discord_clone_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: discord_clone
+      POSTGRES_USER: discord_user
+      POSTGRES_PASSWORD: WorkGridDB@Secure2024!
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - discord_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U discord_user -d discord_clone"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: discord_clone_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - discord_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  backend:
+    build: ./server
+    container_name: discord_clone_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: discord_clone
+      DB_USER: discord_user
+      DB_PASSWORD: WorkGridDB@Secure2024!
+      DB_SSL: "false"
+      JWT_SECRET: WG_SecretKey_2024_Random_Ch4r4ct3rs_F0r_S3cur1ty!
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: http://workgrid.homeku.net
+      USE_POSTGRES: "true"
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "127.0.0.1:3001:3001"
+    networks:
+      - discord_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: deployment-frontend:latest
+    container_name: discord_clone_frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - discord_network
+    depends_on:
+      - backend
+
+networks:
+  discord_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
+  redis_data:

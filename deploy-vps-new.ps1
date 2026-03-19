@@ -1,8 +1,8 @@
 # WorkGrid VPS Deployment Script
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # Run this in PowerShell
 
-$VPS_IP = "152.42.242.180"
+$VPS_IP = "152.42.229.212"
 $VPS_USER = "root"
 $VPS_PASS = "%0|F?H@f!berhO3e"
 $PROJECT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path

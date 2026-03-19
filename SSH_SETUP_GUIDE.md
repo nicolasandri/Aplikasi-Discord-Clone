@@ -1,4 +1,4 @@
-# SSH Key Setup Guide untuk VPS 152.42.242.180
+# SSH Key Setup Guide untuk VPS 152.42.229.212
 
 ## SSH Key Generated ✅
 
@@ -13,7 +13,7 @@
 Anda perlu login ke VPS dulu menggunakan password untuk setup SSH key:
 
 ```bash
-ssh root@152.42.242.180
+ssh root@152.42.229.212
 # Password: %0|F?H@f!berhO3e
 ```
 
@@ -44,13 +44,13 @@ chmod 600 ~/.ssh/authorized_keys
 Copy public key berikut ke VPS:
 
 ```
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHPIPZ62PCoQiIlvzlGwUS4GIklSm9AlosHQHsh07L0JLgZWx/ISg20vyGmq3TXeMSuw+pUE/McaAoFQBeXtUHaM/mchGFFf1ApHLAjkVEFl8/4cuyHDHPbw/bd7qiu8igIKilD/nVWP1AnX4apk8qho7W25vxL37q/q0qPakDtkX5N/BG+d1/YFYHdKkQQSYY1fVtrqn2Y5cxJV9J1NDjq+TToOg/KsPYea6DXyINBpaoOhqP+lzQhYW/BkLfaM33LUtcG3RnIWF+C8WgUPjYi8I77xKvxTYI7lLZKR7Z4JkAGEL4/wgY2mmAY5Z+I18vHQR2Z5cHeK6zIVxVkuyYu5ejqUbHgNGlmxFWTjZ0xlfkLfDZX9TtbNHb1rP2HlnKDbMTss3AX2Wcz4vWP6TIjl+1fjs/AvgsKvUiIalQgXz0AUgUf+s9JnW5Z/ujudImFO8vNmbh0d3VFEpvXAb993g855yWt80+FVTjNgL5TZBUUbn/JQjI/I2qaSt92JQAVAfY2vdqYYmuwmnvoNswm7WNM5aL3/Ukbg+HHsN918P/EFSwcFwqJZg0bL/CsMxeWcCnB7KQv9ugiDLEhpereFR1fbojwFVqkFxK+/xu5BQ8kadT1vpkVcBVQoTRXpibFrkNX9RlQ== workgrid@152.42.242.180
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHPIPZ62PCoQiIlvzlGwUS4GIklSm9AlosHQHsh07L0JLgZWx/ISg20vyGmq3TXeMSuw+pUE/McaAoFQBeXtUHaM/mchGFFf1ApHLAjkVEFl8/4cuyHDHPbw/bd7qiu8igIKilD/nVWP1AnX4apk8qho7W25vxL37q/q0qPakDtkX5N/BG+d1/YFYHdKkQQSYY1fVtrqn2Y5cxJV9J1NDjq+TToOg/KsPYea6DXyINBpaoOhqP+lzQhYW/BkLfaM33LUtcG3RnIWF+C8WgUPjYi8I77xKvxTYI7lLZKR7Z4JkAGEL4/wgY2mmAY5Z+I18vHQR2Z5cHeK6zIVxVkuyYu5ejqUbHgNGlmxFWTjZ0xlfkLfDZX9TtbNHb1rP2HlnKDbMTss3AX2Wcz4vWP6TIjl+1fjs/AvgsKvUiIalQgXz0AUgUf+s9JnW5Z/ujudImFO8vNmbh0d3VFEpvXAb993g855yWt80+FVTjNgL5TZBUUbn/JQjI/I2qaSt92JQAVAfY2vdqYYmuwmnvoNswm7WNM5aL3/Ukbg+HHsN918P/EFSwcFwqJZg0bL/CsMxeWcCnB7KQv9ugiDLEhpereFR1fbojwFVqkFxK+/xu5BQ8kadT1vpkVcBVQoTRXpibFrkNX9RlQ== workgrid@152.42.229.212
 ```
 
 Di VPS, append public key ke file:
 
 ```bash
-echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHPIPZ62PCoQiIlvzlGwUS4GIklSm9AlosHQHsh07L0JLgZWx/ISg20vyGmq3TXeMSuw+pUE/McaAoFQBeXtUHaM/mchGFFf1ApHLAjkVEFl8/4cuyHDHPbw/bd7qiu8igIKilD/nVWP1AnX4apk8qho7W25vxL37q/q0qPakDtkX5N/BG+d1/YFYHdKkQQSYY1fVtrqn2Y5cxJV9J1NDjq+TToOg/KsPYea6DXyINBpaoOhqP+lzQhYW/BkLfaM33LUtcG3RnIWF+C8WgUPjYi8I77xKvxTYI7lLZKR7Z4JkAGEL4/wgY2mmAY5Z+I18vHQR2Z5cHeK6zIVxVkuyYu5ejqUbHgNGlmxFWTjZ0xlfkLfDZX9TtbNHb1rP2HlnKDbMTss3AX2Wcz4vWP6TIjl+1fjs/AvgsKvUiIalQgXz0AUgUf+s9JnW5Z/ujudImFO8vNmbh0d3VFEpvXAb993g855yWt80+FVTjNgL5TZBUUbn/JQjI/I2qaSt92JQAVAfY2vdqYYmuwmnvoNswm7WNM5aL3/Ukbg+HHsN918P/EFSwcFwqJZg0bL/CsMxeWcCnB7KQv9ugiDLEhpereFR1fbojwFVqkFxK+/xu5BQ8kadT1vpkVcBVQoTRXpibFrkNX9RlQ== workgrid@152.42.242.180" >> ~/.ssh/authorized_keys
+echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHPIPZ62PCoQiIlvzlGwUS4GIklSm9AlosHQHsh07L0JLgZWx/ISg20vyGmq3TXeMSuw+pUE/McaAoFQBeXtUHaM/mchGFFf1ApHLAjkVEFl8/4cuyHDHPbw/bd7qiu8igIKilD/nVWP1AnX4apk8qho7W25vxL37q/q0qPakDtkX5N/BG+d1/YFYHdKkQQSYY1fVtrqn2Y5cxJV9J1NDjq+TToOg/KsPYea6DXyINBpaoOhqP+lzQhYW/BkLfaM33LUtcG3RnIWF+C8WgUPjYi8I77xKvxTYI7lLZKR7Z4JkAGEL4/wgY2mmAY5Z+I18vHQR2Z5cHeK6zIVxVkuyYu5ejqUbHgNGlmxFWTjZ0xlfkLfDZX9TtbNHb1rP2HlnKDbMTss3AX2Wcz4vWP6TIjl+1fjs/AvgsKvUiIalQgXz0AUgUf+s9JnW5Z/ujudImFO8vNmbh0d3VFEpvXAb993g855yWt80+FVTjNgL5TZBUUbn/JQjI/I2qaSt92JQAVAfY2vdqYYmuwmnvoNswm7WNM5aL3/Ukbg+HHsN918P/EFSwcFwqJZg0bL/CsMxeWcCnB7KQv9ugiDLEhpereFR1fbojwFVqkFxK+/xu5BQ8kadT1vpkVcBVQoTRXpibFrkNX9RlQ== workgrid@152.42.229.212" >> ~/.ssh/authorized_keys
 ```
 
 ---
@@ -60,13 +60,13 @@ echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC1m6VG1dqPZ0rKLIQ0jHjb1buRBNJCH1XRHP
 Di Windows (from Claude Code), test koneksi:
 
 ```bash
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 ```
 
 Atau jika menggunakan Git Bash / PowerShell:
 
 ```bash
-ssh -i C:\Users\PC\.ssh\workgrid_vps root@152.42.242.180
+ssh -i C:\Users\PC\.ssh\workgrid_vps root@152.42.229.212
 ```
 
 ---
@@ -77,7 +77,7 @@ Buat file `~/.ssh/config` (atau edit jika sudah ada):
 
 ```
 Host workgrid-vps
-    HostName 152.42.242.180
+    HostName 152.42.229.212
     User root
     IdentityFile ~/.ssh/workgrid_vps
     Port 22
@@ -140,10 +140,10 @@ Gunakan SSH untuk upload files:
 
 ```bash
 # Upload files
-scp -i ~/.ssh/workgrid_vps -r ./app root@152.42.242.180:/root/workgrid/app
+scp -i ~/.ssh/workgrid_vps -r ./app root@152.42.229.212:/root/workgrid/app
 
 # Upload docker-compose
-scp -i ~/.ssh/workgrid_vps docker-compose.yml root@152.42.242.180:/root/workgrid/
+scp -i ~/.ssh/workgrid_vps docker-compose.yml root@152.42.229.212:/root/workgrid/
 ```
 
 ---

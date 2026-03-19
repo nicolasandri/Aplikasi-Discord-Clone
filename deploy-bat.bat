@@ -3,7 +3,7 @@ chcp 65001 >nul
 echo.
 echo 🚀 WorkGrid VPS Deployment Tool
 echo ================================
-echo Target VPS: 152.42.242.180
+echo Target VPS: 152.42.229.212
 echo.
 echo ⚠️  Pastikan Anda sudah menginstall:
 echo    - Git for Windows (untuk SSH dan SCP)
@@ -15,7 +15,7 @@ echo =========================================
 echo.
 echo Jalankan perintah berikut di VPS Anda:
 echo.
-echo ssh root@152.42.242.180
+echo ssh root@152.42.229.212
 echo Password: %%0^|F?H@f!berhO3e
 echo.
 echo Lalu jalankan script setup:
@@ -58,7 +58,7 @@ echo Archive created: %TEMP_DIR%\workgrid-deploy.tar.gz
 echo.
 echo Sekarang copy file ke VPS dengan perintah:
 echo.
-echo scp %TEMP_DIR%\workgrid-deploy.tar.gz root@152.42.242.180:/tmp/
+echo scp %TEMP_DIR%\workgrid-deploy.tar.gz root@152.42.229.212:/tmp/
 echo.
 echo Password: %%0^|F?H@f!berhO3e
 echo.
@@ -67,7 +67,7 @@ pause
 echo.
 echo Setelah file tercopy, SSH ke VPS dan extract:
 echo.
-echo ssh root@152.42.242.180
+echo ssh root@152.42.229.212
 echo cd /opt/workgrid ^&^& tar -xzf /tmp/workgrid-deploy.tar.gz ^&^& rm /tmp/workgrid-deploy.tar.gz
 echo.
 pause
@@ -79,7 +79,7 @@ echo =========================================
 echo.
 echo SSH ke VPS dan buat file .env:
 echo.
-echo ssh root@152.42.242.180
+echo ssh root@152.42.229.212
 echo.
 echo cat ^> /opt/workgrid/.env ^<^< 'EOF'
 echo # Database
@@ -90,7 +90,7 @@ echo # JWT Secret
 echo JWT_SECRET=YourSuperSecretJWTKeyForProduction123456789012
 echo.
 echo # Frontend URL
-echo FRONTEND_URL=http://152.42.242.180
+echo FRONTEND_URL=http://152.42.229.212
 echo.
 echo # Node Environment
 echo NODE_ENV=production
@@ -101,7 +101,7 @@ echo VAPID_PRIVATE_KEY=
 echo VAPID_SUBJECT=mailto:admin@workgrid.app
 echo.
 echo # Allowed Origins
-echo ALLOWED_ORIGINS=http://152.42.242.180,http://localhost:5173
+echo ALLOWED_ORIGINS=http://152.42.229.212,http://localhost:5173
 echo EOF
 echo.
 pause
@@ -128,7 +128,7 @@ echo Deployment Complete!
 echo =========================================
 echo.
 echo 🌐 Akses WorkGrid Anda di:
-echo    http://152.42.242.180
+echo    http://152.42.229.212
 echo.
 echo 📋 Perintah berguna:
 echo    View logs:  docker-compose -f deployment/docker-compose.vps.yml logs -f

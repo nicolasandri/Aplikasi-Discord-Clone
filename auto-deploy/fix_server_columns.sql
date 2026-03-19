@@ -1,5 +1,0 @@
--- Add missing columns to servers table
-ALTER TABLE servers 
-ADD COLUMN IF NOT EXISTS banner TEXT,
-ADD COLUMN IF NOT EXISTS description TEXT,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;

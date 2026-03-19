@@ -7,7 +7,7 @@
 #### 1. Konfigurasi Domain workgrid.homeku.net
 - **File**: `.env`
   - `FRONTEND_URL=http://workgrid.homeku.net`
-  - `ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.242.180,https://152.42.242.180`
+  - `ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.229.212,https://152.42.229.212`
 
 - **File**: `docker-compose.vps.yml`
   - Updated `FRONTEND_URL` dan `ALLOWED_ORIGINS`
@@ -20,7 +20,7 @@
 #### 3. Fix CSP (Content Security Policy)
 - **File**: `app/index.html`
   - Updated CSP untuk mengizinkan:
-    - `http://152.42.242.180:3001` dan `ws://152.42.242.180:3001`
+    - `http://152.42.229.212:3001` dan `ws://152.42.229.212:3001`
     - `http://workgrid.homeku.net` dan `ws://workgrid.homeku.net`
     - `https://workgrid.homeku.net` dan `wss://workgrid.homeku.net`
   - Added `blob:` untuk img-src
@@ -40,23 +40,23 @@
 #### 1. Deploy Frontend ke VPS
 ```bash
 # Copy dist files
-scp -r app/dist/* root@152.42.242.180:/opt/workgrid/app/dist/
+scp -r app/dist/* root@152.42.229.212:/opt/workgrid/app/dist/
 ```
 
 #### 2. Deploy Uploads ke VPS
 ```bash
 # Copy uploads ke Docker volume
-scp -r server/uploads/* root@152.42.242.180:/var/lib/docker/volumes/workgrid_uploads_data/_data/
-ssh root@152.42.242.180 "chown -R 1000:1000 /var/lib/docker/volumes/workgrid_uploads_data/_data/"
+scp -r server/uploads/* root@152.42.229.212:/var/lib/docker/volumes/workgrid_uploads_data/_data/
+ssh root@152.42.229.212 "chown -R 1000:1000 /var/lib/docker/volumes/workgrid_uploads_data/_data/"
 ```
 
 #### 3. Restart Services
 ```bash
-ssh root@152.42.242.180 "cd /opt/workgrid && docker-compose -f docker-compose.vps.yml restart frontend backend"
+ssh root@152.42.229.212 "cd /opt/workgrid && docker-compose -f docker-compose.vps.yml restart frontend backend"
 ```
 
 #### 4. DNS Configuration
-- Tambahkan A record untuk `workgrid.homeku.net` → `152.42.242.180`
+- Tambahkan A record untuk `workgrid.homeku.net` → `152.42.229.212`
 - Wait DNS propagation (5-30 menit)
 
 ### ❌ ISSUES DITEMUKAN
@@ -78,19 +78,19 @@ Setelah deploy berhasil, test:
 
 ```bash
 # Test 1: Health Check
-curl http://152.42.242.180/api/health
+curl http://152.42.229.212/api/health
 
 # Test 2: CSP Headers (check if workgrid.homeku.net allowed)
-curl -I http://152.42.242.180/
+curl -I http://152.42.229.212/
 
 # Test 3: Uploads
-curl -I http://152.42.242.180/uploads/file-1772931542928-604654610.png
+curl -I http://152.42.229.212/uploads/file-1772931542928-604654610.png
 
 # Test 4: API
-curl http://152.42.242.180/api/servers
+curl http://152.42.229.212/api/servers
 
 # Test 5: WebSocket (manual via browser console)
-# new WebSocket('ws://152.42.242.180/socket.io/')
+# new WebSocket('ws://152.42.229.212/socket.io/')
 ```
 
 ### 📁 FILES CREATED
@@ -116,7 +116,7 @@ curl http://152.42.242.180/api/servers
    ```
 
 3. **Setup DNS**
-   - A record: `workgrid.homeku.net` → `152.42.242.180`
+   - A record: `workgrid.homeku.net` → `152.42.229.212`
 
 4. **SSL (Optional)**
    - Install certbot
@@ -128,13 +128,13 @@ Jika ada masalah setelah deploy:
 
 ```bash
 # Check logs
-ssh root@152.42.242.180 "cd /opt/workgrid && docker-compose -f docker-compose.vps.yml logs -f"
+ssh root@152.42.229.212 "cd /opt/workgrid && docker-compose -f docker-compose.vps.yml logs -f"
 
 # Check container status
-ssh root@152.42.242.180 "docker ps"
+ssh root@152.42.229.212 "docker ps"
 
 # Check uploads volume
-ssh root@152.42.242.180 "ls -la /var/lib/docker/volumes/workgrid_uploads_data/_data/"
+ssh root@152.42.229.212 "ls -la /var/lib/docker/volumes/workgrid_uploads_data/_data/"
 ```
 
 ---

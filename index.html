@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WorkGrid - Team Collaboration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0c10 0%, #1a1d24 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        h1 { font-size: 3rem; color: #06b6d4; }
+        .status { background: rgba(6,182,212,0.1); border: 1px solid #06b6d4; padding: 20px; border-radius: 8px; margin: 20px; }
+        .btn {
+            background: #06b6d4;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>WorkGrid</h1>
+    <p>Team Collaboration Platform</p>
+    <div class="status">
+        <strong>Frontend:</strong> Running on VPS 1 (165.22.63.51)<br>
+        <strong>Backend:</strong> <span id="backend">Checking...</span>
+    </div>
+    <button class="btn" onclick="testAPI()">Test Backend API</button>
+    <p id="result"></p>
+    
+    <script>
+        fetch('/api/test')
+            .then(r => r.json())
+            .then(d => document.getElementById('backend').innerHTML = 'Connected')            
+            .catch(() => document.getElementById('backend').innerHTML = 'Disconnected');
+        
+        function testAPI() {
+            fetch('/api/test')
+                .then(r => r.json())
+                .then(d => document.getElementById('result').innerHTML = 'API Response: ' + JSON.stringify(d))
+                .catch(e => document.getElementById('result').innerHTML = 'Error: ' + e);
+        }
+    </script>
+</body>
+</html>

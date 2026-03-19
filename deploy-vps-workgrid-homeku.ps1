@@ -1,10 +1,10 @@
 # ============================================
 # Deploy Script for VPS - workgrid.homeku.net
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # ============================================
 
 $ErrorActionPreference = "Stop"
-$VPS_IP = "152.42.242.180"
+$VPS_IP = "152.42.229.212"
 $VPS_USER = "root"
 $PROJECT_NAME = "workgrid"
 

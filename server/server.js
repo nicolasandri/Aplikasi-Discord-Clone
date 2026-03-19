@@ -314,14 +314,14 @@ if (!ALLOWED_ORIGINS.includes('https://workgrid.homeku.net')) {
   ALLOWED_ORIGINS.push('https://workgrid.homeku.net');
 }
 // Force add IP address
-if (!ALLOWED_ORIGINS.includes('http://152.42.242.180')) {
-  ALLOWED_ORIGINS.push('http://152.42.242.180');
+if (!ALLOWED_ORIGINS.includes('http://152.42.229.212')) {
+  ALLOWED_ORIGINS.push('http://152.42.229.212');
 }
-if (!ALLOWED_ORIGINS.includes('https://152.42.242.180')) {
-  ALLOWED_ORIGINS.push('https://152.42.242.180');
+if (!ALLOWED_ORIGINS.includes('https://152.42.229.212')) {
+  ALLOWED_ORIGINS.push('https://152.42.229.212');
 }
 
-const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, notificationSettingsDB, permissionRequestsDB, Permissions } = dbModule;
+const { db, dbGet, dbRun, dbAll, initDatabase, userDB, serverDB, roleDB, categoryDB, channelDB, messageDB, inviteDB, reactionDB, permissionDB, friendDB, dmDB, voiceDB, subscriptionDB, auditLogDB, sessionDB, userServerAccessDB, roleChannelAccessDB, notificationSettingsDB, serverNotificationSettingsDB, permissionRequestsDB, timeoutConfigDB, Permissions } = dbModule;
 
 // BUG-021: Conditional Logging
 const DEBUG = process.env.NODE_ENV !== 'production';
@@ -345,7 +345,11 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: function(origin, callback) {
+      // Allow no origin (Electron desktop app, mobile apps, etc.)
       if (!origin) return callback(null, true);
+      // Allow file:// origins (Electron)
+      if (origin.startsWith('file://')) return callback(null, true);
+      // Allow configured origins
       if (ALLOWED_ORIGINS.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
         callback(null, true);
       } else {
@@ -454,12 +458,12 @@ const authLimiter = rateLimit({
 });
 
 const apiLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: isDev ? 10000 : 300, // Development: 10000, Production: 300
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDev ? 1000000 : 1000000, // Very high limit
   message: { error: 'Too many requests. Please slow down.' },
   skip: (req) => {
-    // Skip rate limiting for /api/users/me (token verification)
-    return req.path === '/users/me';
+    // Skip rate limiting for most endpoints
+    return true; // Disable rate limiting temporarily
   },
   // Skip rate limiting completely in development for smoother experience
   skipSuccessfulRequests: isDev // Skip counting successful requests in dev
@@ -1757,7 +1761,7 @@ app.get('/api/servers/:serverId/channels', authenticateToken, async (req, res) =
     const roleDetails = validRoleIds.length > 0
       ? isPostgres
         ? await dbAll(
-            `SELECT id, name, permissions FROM server_roles WHERE id = ANY($1::uuid[])`,
+            `SELECT id, name, permissions FROM server_roles WHERE id::text = ANY($1::text[])`,
             [validRoleIds]
           )
         : await dbAll(
@@ -2599,6 +2603,130 @@ app.get('/api/notification-settings', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Get all notification settings error:', error);
     res.status(500).json({ error: 'Failed to get notification settings' });
+  }
+});
+
+// ============================================
+// SERVER NOTIFICATION SETTINGS API
+// ============================================
+
+// Get server notification settings for current user
+app.get('/api/servers/:serverId/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { serverId } = req.params;
+    
+    // Check if user is member of server
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Not a member of this server' });
+    }
+    
+    const settings = await serverNotificationSettingsDB.get(userId, serverId);
+    const channelOverrides = await serverNotificationSettingsDB.getChannelOverrides(userId, serverId);
+    
+    res.json({
+      settings: settings || {
+        notification_level: 'all',
+        muted: false,
+        muted_until: null,
+        suppress_everyone_here: false,
+        suppress_role_mentions: false,
+        suppress_highlights: false,
+        push_notifications: true,
+        mobile_push_notifications: true,
+        mute_new_events: false,
+        community_activity_alerts: true
+      },
+      channelOverrides: channelOverrides || []
+    });
+  } catch (error) {
+    console.error('Get server notification settings error:', error);
+    res.status(500).json({ error: 'Failed to get notification settings' });
+  }
+});
+
+// Update server notification settings
+app.put('/api/servers/:serverId/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { serverId } = req.params;
+    const {
+      notificationLevel,
+      muted,
+      mutedUntil,
+      suppressEveryoneHere,
+      suppressRoleMentions,
+      suppressHighlights,
+      pushNotifications,
+      mobilePushNotifications,
+      muteNewEvents,
+      communityActivityAlerts
+    } = req.body;
+    
+    // Check if user is member of server
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Not a member of this server' });
+    }
+    
+    await serverNotificationSettingsDB.set(userId, serverId, {
+      notificationLevel,
+      muted,
+      mutedUntil,
+      suppressEveryoneHere,
+      suppressRoleMentions,
+      suppressHighlights,
+      pushNotifications,
+      mobilePushNotifications,
+      muteNewEvents,
+      communityActivityAlerts
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update server notification settings error:', error);
+    res.status(500).json({ error: 'Failed to update notification settings' });
+  }
+});
+
+// Set channel notification override
+app.put('/api/servers/:serverId/channels/:channelId/notification-override', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { serverId, channelId } = req.params;
+    const { notificationLevel, muted, mutedUntil } = req.body;
+    
+    // Check if user is member of server
+    const isMember = await serverDB.isMember(serverId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Not a member of this server' });
+    }
+    
+    await serverNotificationSettingsDB.setChannelOverride(userId, channelId, serverId, {
+      notificationLevel,
+      muted,
+      mutedUntil
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Set channel notification override error:', error);
+    res.status(500).json({ error: 'Failed to set channel override' });
+  }
+});
+
+// Delete channel notification override
+app.delete('/api/servers/:serverId/channels/:channelId/notification-override', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { channelId } = req.params;
+    
+    await serverNotificationSettingsDB.deleteChannelOverride(userId, channelId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete channel notification override error:', error);
+    res.status(500).json({ error: 'Failed to delete channel override' });
   }
 });
 
@@ -3915,7 +4043,7 @@ app.post('/api/channels/:channelId/messages', authenticateToken, async (req, res
 app.get('/api/channels/:channelId/messages', authenticateToken, async (req, res) => {
   try {
     const { channelId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 1000, offset = 0 } = req.query;
     const userId = req.userId;
     
     // Get channel to verify access
@@ -4000,6 +4128,74 @@ app.get('/api/channels/:channelId/messages', authenticateToken, async (req, res)
   }
 });
 
+// Get reply count for a message
+app.get('/api/messages/:messageId/reply-count', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    
+    // Get message to verify it exists and user has access
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Get channel to check server membership
+    const channel = await channelDB.getById(message.channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    // Check if user is member of the server
+    const isMember = await serverDB.isMember(channel.server_id, req.userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const count = await messageDB.getReplyCount(messageId);
+    res.json({ count });
+  } catch (error) {
+    console.error('Get reply count error:', error);
+    res.status(500).json({ error: 'Failed to get reply count' });
+  }
+});
+
+// Get all replies (thread) for a message
+app.get('/api/messages/:messageId/replies', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { limit = 100, offset = 0 } = req.query;
+    
+    // Get message to verify it exists
+    const message = await messageDB.getById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Get channel to check server membership
+    const channel = await channelDB.getById(message.channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    // Check if user is member of the server
+    const isMember = await serverDB.isMember(channel.server_id, req.userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Get replies
+    const replies = await messageDB.getReplies(messageId, parseInt(limit), parseInt(offset));
+    
+    res.json({
+      originalMessage: message,
+      replies: replies || []
+    });
+  } catch (error) {
+    console.error('Get replies error:', error);
+    res.status(500).json({ error: 'Failed to get replies' });
+  }
+});
+
 // Update channel (rename)
 app.put('/api/channels/:channelId', authenticateToken, async (req, res) => {
   try {
@@ -4072,7 +4268,7 @@ app.get('/api/dm/channels/:channelId/messages', authenticateToken, async (req, r
   try {
     const userId = req.userId;
     const { channelId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 1000, offset = 0 } = req.query;
     
     // Verify user is part of this channel
     const isMember = await dmDB.isChannelMember(channelId, userId);
@@ -4681,7 +4877,7 @@ app.get('/api/search/messages', authenticateToken, async (req, res) => {
       date_from: dateFrom,
       date_to: dateTo,
       has_attachments: hasAttachments,
-      limit = 50,
+      limit = 1000,
       offset = 0
     } = req.query;
 
@@ -4700,7 +4896,7 @@ app.get('/api/search/messages', authenticateToken, async (req, res) => {
       dateFrom: dateFrom || null,
       dateTo: dateTo || null,
       hasAttachments: parsedHasAttachments,
-      limit: parseInt(limit, 10) || 50,
+      limit: parseInt(limit, 10) || 1000,
       offset: parseInt(offset, 10) || 0
     };
 
@@ -5688,8 +5884,128 @@ app.get('/api/master-admin-status', async (req, res) => {
 const masterAdminRoutes = require('./routes/master-admin')(dbModule);
 app.use('/api/admin', masterAdminRoutes);
 
+// ============================================
+// PERMISSION LATENESS MONITOR (Bot Izin)
+// ============================================
+// Monitor active permissions and send alerts for late returns
+// Special rule: For 'rokok' (1 min max), alert if >= 2 minutes (120 seconds)
+
+const LATE_ALERT_INTERVAL = 10 * 1000; // Check every 10 seconds
+const ROPEK_MAX_DURATION = 1; // 1 minute
+const ROPEK_LATE_THRESHOLD = 120; // 2 minutes = 120 seconds
+
+async function checkLatePermissions() {
+  try {
+    // Get all active permission requests
+    const activeRequests = await permissionRequestsDB.getAllActive();
+    
+    for (const request of activeRequests) {
+      // Only check 'rokok' type
+      if (request.request_type !== 'rokok') continue;
+      
+      // Skip if already alerted
+      if (request.late_alert_sent) continue;
+      
+      const startedAt = new Date(request.started_at);
+      const now = new Date();
+      const elapsedSeconds = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
+      
+      // Alert if >= 120 seconds (2 minutes) for rokok
+      if (elapsedSeconds >= ROPEK_LATE_THRESHOLD) {
+        const user = await userDB.findById(request.user_id);
+        
+        // Calculate late duration
+        const lateSeconds = elapsedSeconds - (request.max_duration_minutes * 60);
+        const lateMinutes = Math.floor(lateSeconds / 60);
+        const remainingSeconds = lateSeconds % 60;
+        
+        // Create late notification embed
+        const botMessageId = uuidv4();
+        const botMessageContent = JSON.stringify({
+          embed: {
+            title: '🔔 TERLAMBAT! ROKOK',
+            type: 'late_alert',
+            staff: `@${user?.username || 'Unknown'}`,
+            userId: request.user_id,
+            requestId: request.id,
+            channelId: request.channel_id,
+            serverId: request.server_id,
+            startedAt: request.started_at,
+            maxDuration: '1 menit',
+            actualDuration: `${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s`,
+            lateBy: `${lateMinutes}m ${remainingSeconds}s`,
+            alertTime: new Date().toISOString(),
+            sound: 'bell', // Indicator for frontend to play sound
+            severity: 'warning',
+            message: `⚠️ @${user?.username || 'Unknown'} TERLAMBAT! Izin rokok sudah melewati 2 menit!`,
+            note: 'Segera klik KEMBALI untuk menutup izin'
+          }
+        });
+        
+        // Save bot message to database
+        try {
+          await dbRun(
+            `INSERT INTO messages (id, channel_id, user_id, content, created_at)
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [botMessageId, request.channel_id, '00000000-0000-0000-0000-000000000000', botMessageContent]
+          );
+          
+          // Mark alert as sent
+          await query(
+            `UPDATE permission_requests 
+             SET late_alert_sent = true, late_alert_sent_at = NOW()
+             WHERE id = $1`,
+            [request.id]
+          );
+          
+          // Broadcast via socket to all users in channel
+          if (io) {
+            io.to(request.channel_id).emit('new_message', {
+              id: botMessageId,
+              channel_id: request.channel_id,
+              user_id: '00000000-0000-0000-0000-000000000000',
+              content: botMessageContent,
+              created_at: new Date().toISOString(),
+              is_bot: true,
+              type: 'late_alert',
+              sound: 'bell' // Frontend will detect this and play sound
+            });
+            
+            // Also emit specific late_alert event for sound notification
+            io.to(request.channel_id).emit('permission_late_alert', {
+              requestId: request.id,
+              userId: request.user_id,
+              username: user?.username || 'Unknown',
+              channelId: request.channel_id,
+              serverId: request.server_id,
+              startedAt: request.started_at,
+              elapsedSeconds: elapsedSeconds,
+              lateBy: `${lateMinutes}m ${remainingSeconds}s`,
+              sound: 'bell'
+            });
+          }
+          
+          console.log(`[LATE ALERT] Sent for user ${user?.username}, late by ${lateMinutes}m ${remainingSeconds}s`);
+        } catch (botError) {
+          console.error('Failed to send late alert:', botError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking late permissions:', error);
+  }
+}
+
+// ============================================
+// PERMISSION LATENESS MONITOR (Bot Izin)
+// ============================================
+
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Start late permission monitor
+  setInterval(checkLatePermissions, LATE_ALERT_INTERVAL);
+  console.log(`[LATE MONITOR] Started - checking every ${LATE_ALERT_INTERVAL/1000} seconds for rokok permissions`);
 });

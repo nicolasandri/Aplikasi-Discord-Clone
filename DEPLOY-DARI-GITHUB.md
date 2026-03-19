@@ -2,7 +2,7 @@
 
 ## Info
 - **GitHub**: https://github.com/nicolasandri/Aplikasi-Discord-Clone
-- **VPS**: 152.42.242.180
+- **VPS**: 152.42.229.212
 - **User**: root
 - **Pass**: `%0|F?H@f!berhO3e`
 
@@ -13,7 +13,7 @@
 ### Step 1: SSH ke VPS
 
 ```bash
-ssh root@152.42.242.180
+ssh root@152.42.229.212
 # Password: %0|F?H@f!berhO3e
 ```
 
@@ -49,9 +49,9 @@ ufw --force enable
 cat > .env << 'EOF'
 DB_PASSWORD=WorkGridSecurePass123!
 JWT_SECRET=$(openssl rand -base64 48)
-FRONTEND_URL=http://152.42.242.180
+FRONTEND_URL=http://152.42.229.212
 NODE_ENV=production
-ALLOWED_ORIGINS=http://152.42.242.180,http://localhost:5173
+ALLOWED_ORIGINS=http://152.42.229.212,http://localhost:5173
 EOF
 
 # 6. Deploy!
@@ -78,8 +78,8 @@ curl http://localhost:3001/health
 ## 🌐 Akses
 
 Setelah deploy berhasil:
-- **Web**: http://152.42.242.180
-- **API**: http://152.42.242.180/api
+- **Web**: http://152.42.229.212
+- **API**: http://152.42.229.212/api
 
 ---
 

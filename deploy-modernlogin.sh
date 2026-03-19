@@ -6,10 +6,10 @@
 set -e
 
 echo "🚀 Starting ModernLogin UI Deployment to VPS..."
-echo "VPS: 152.42.242.180"
+echo "VPS: 152.42.229.212"
 
 # Configuration
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 VPS_USER="root"
 SSH_KEY="$HOME/.ssh/workgrid_vps"
 APP_DIR="c:/Users/PC/Downloads/PROJECT\ TEAMCHAT/Aplikasi\ Discord\ Clone"
@@ -55,7 +55,7 @@ ssh -i "$SSH_KEY" $VPS_USER@$VPS_IP "
     cat > /etc/nginx/sites-available/workgrid <<'EOF'
 server {
     listen 80;
-    server_name workgrid.homeku.net *.homeku.net 152.42.242.180;
+    server_name workgrid.homeku.net *.homeku.net 152.42.229.212;
 
     # Redirect HTTP to HTTPS
     return 301 https://\$server_name\$request_uri;
@@ -63,7 +63,7 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name workgrid.homeku.net *.homeku.net 152.42.242.180;
+    server_name workgrid.homeku.net *.homeku.net 152.42.229.212;
 
     # SSL certificates
     ssl_certificate /etc/ssl/certs/workgrid.crt;
@@ -156,7 +156,7 @@ if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "301" ]; then
     echo ""
     echo "📍 Access points:"
     echo "   • https://workgrid.homeku.net"
-    echo "   • https://152.42.242.180"
+    echo "   • https://152.42.229.212"
     echo ""
     echo "📋 What's new:"
     echo "   ✨ Modern hero section with animated gradient orbs"
@@ -171,7 +171,7 @@ if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "301" ]; then
     echo "   3. Check the landing page with unauthenticated access"
     echo ""
     echo "📊 Deployment details:"
-    echo "   VPS: 152.42.242.180"
+    echo "   VPS: 152.42.229.212"
     echo "   Build time: $(date)"
     echo "   HTTP Status: $HTTP_CODE"
 else

@@ -16,8 +16,8 @@ replacement = """if (!ALLOWED_ORIGINS.includes('https://workgrid.homeku.net')) {
 }
 
 // Allow IP address access
-if (!ALLOWED_ORIGINS.includes('http://152.42.242.180')) {
-  ALLOWED_ORIGINS.push('http://152.42.242.180');
+if (!ALLOWED_ORIGINS.includes('http://152.42.229.212')) {
+  ALLOWED_ORIGINS.push('http://152.42.229.212');
 }
 
 const { db,"""

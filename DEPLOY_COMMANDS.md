@@ -4,7 +4,7 @@ Jalankan commands berikut di VPS untuk deploy UUID casting fixes:
 
 ```bash
 # 1. SSH ke VPS
-ssh root@152.42.242.180
+ssh root@152.42.229.212
 
 # 2. Update code dari GitHub
 cd /opt/workgrid

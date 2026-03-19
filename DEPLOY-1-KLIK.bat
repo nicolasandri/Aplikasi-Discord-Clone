@@ -4,7 +4,7 @@ echo.
 echo 🚀 WORKGRID - DEPLOY 1 KLIK KE VPS
 echo ===================================
 echo.
-echo VPS: 152.42.242.180
+echo VPS: 152.42.229.212
 echo GitHub: https://github.com/nicolasandri/Aplikasi-Discord-Clone
 echo.
 echo =========================================
@@ -21,7 +21,7 @@ echo.
 echo [METODE 2 - Manual Step-by-Step]
 echo.
 echo 1. SSH ke VPS:
-echo    ssh root@152.42.242.180
+echo    ssh root@152.42.229.212
 echo    Password: %%0^|F?H@f!berhO3e
 echo.
 echo 2. Clone repo:

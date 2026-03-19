@@ -16,9 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

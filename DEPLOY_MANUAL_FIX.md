@@ -5,7 +5,7 @@
 ### Masalah yang Ditemukan
 
 1. **CSP (Content Security Policy) Blocking**
-   - Frontend masih menggunakan CSP lama yang hanya mengizinkan `localhost:3001` dan `152.42.242.180:3001`
+   - Frontend masih menggunakan CSP lama yang hanya mengizinkan `localhost:3001` dan `152.42.229.212:3001`
    - Perlu update CSP untuk mengizinkan `workgrid.homeku.net`
 
 2. **Missing Uploads**
@@ -32,7 +32,7 @@ File: `app/index.html`
 
 **CSP Baru:**
 ```html
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: http: https:; connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.242.180:3001 ws://152.42.242.180:3001 http://workgrid.homeku.net https://workgrid.homeku.net ws://workgrid.homeku.net wss://workgrid.homeku.net;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: http: https:; connect-src 'self' http://localhost:3001 ws://localhost:3001 http://152.42.229.212:3001 ws://152.42.229.212:3001 http://workgrid.homeku.net https://workgrid.homeku.net ws://workgrid.homeku.net wss://workgrid.homeku.net;">
 ```
 
 ### 2. Rebuild Frontend (SUDAH DIKERJAKAN)
@@ -50,7 +50,7 @@ Karena koneksi SSH timeout, lakukan deployment manual:
 
 #### Opsi A: FileZilla / SFTP
 
-1. Connect ke VPS: `152.42.242.180` dengan user `root`
+1. Connect ke VPS: `152.42.229.212` dengan user `root`
 2. Upload folder `app/dist/*` ke `/opt/workgrid/app/dist/`
 3. Upload folder `server/uploads/*` ke `/var/lib/docker/volumes/workgrid_uploads_data/_data/`
 
@@ -84,13 +84,13 @@ Dari local machine:
 
 ```bash
 # Copy dist
-scp -r app/dist/* root@152.42.242.180:/tmp/workgrid-dist/
+scp -r app/dist/* root@152.42.229.212:/tmp/workgrid-dist/
 
 # Copy uploads
-scp -r server/uploads/* root@152.42.242.180:/tmp/workgrid-uploads/
+scp -r server/uploads/* root@152.42.229.212:/tmp/workgrid-uploads/
 
 # SSH ke VPS untuk finalize
-ssh root@152.42.242.180 << 'EOF'
+ssh root@152.42.229.212 << 'EOF'
   cp -r /tmp/workgrid-dist/* /opt/workgrid/app/dist/
   mkdir -p /var/lib/docker/volumes/workgrid_uploads_data/_data
   cp -r /tmp/workgrid-uploads/* /var/lib/docker/volumes/workgrid_uploads_data/_data/
@@ -106,19 +106,19 @@ Setelah deploy, cek:
 
 1. **CSP Headers:**
    ```bash
-   curl -I http://152.42.242.180/
+   curl -I http://152.42.229.212/
    ```
    Pastikan ada: `workgrid.homeku.net` di CSP
 
 2. **Uploads:**
    ```bash
-   curl -I http://152.42.242.180/uploads/file-1773528611546-967951381.jpg
+   curl -I http://152.42.229.212/uploads/file-1773528611546-967951381.jpg
    ```
    Harusnya return 200, bukan 404
 
 3. **API Health:**
    ```bash
-   curl http://152.42.242.180/api/health
+   curl http://152.42.229.212/api/health
    ```
 
 ---
@@ -158,7 +158,7 @@ Agar domain `workgrid.homeku.net` berfungsi:
 2. Tambahkan A record:
    - Name: `workgrid`
    - Type: `A`
-   - Value: `152.42.242.180`
+   - Value: `152.42.229.212`
    - TTL: 300 (5 menit)
 
 3. Tunggu propagasi DNS (5-30 menit)
@@ -172,7 +172,7 @@ Untuk HTTPS:
 
 ```bash
 # SSH ke VPS
-ssh root@152.42.242.180
+ssh root@152.42.229.212
 
 # Install certbot
 docker run -it --rm --name certbot \

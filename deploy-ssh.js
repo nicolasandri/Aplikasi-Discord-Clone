@@ -3,7 +3,7 @@ const { spawn } = require('child_process');
 const ssh = spawn('ssh', [
   '-o', 'StrictHostKeyChecking=no',
   '-o', 'ConnectTimeout=30',
-  'root@152.42.242.180',
+  'root@152.42.229.212',
   'echo SSH_OK'
 ], { stdio: ['pipe', 'pipe', 'pipe'] });
 

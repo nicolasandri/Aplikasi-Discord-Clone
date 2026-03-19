@@ -3,7 +3,7 @@
 # Version: v1.0.0-stable
 # Date: 2025-03-15
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 BACKUP_FILE="workgrid_20250315_044400_v1.0.0_stable.sql"
 
 echo "🆘 EMERGENCY RESTORE - WorkGrid v1.0.0-stable"

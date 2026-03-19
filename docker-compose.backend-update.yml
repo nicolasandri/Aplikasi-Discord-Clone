@@ -1,0 +1,46 @@
+﻿version: '3.8'
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: workgrid_backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=discord_clone
+      - DB_USER=discord_user
+      - DB_PASSWORD=admin123
+      - JWT_SECRET=your-super-secret-jwt-key-min-32-characters
+      - USE_POSTGRES=true
+      - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=http://165.22.63.51,https://165.22.63.51,http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.229.212,https://152.42.229.212
+    volumes:
+      - ./server/uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: workgrid_postgres
+    environment:
+      POSTGRES_USER: discord_user
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: discord_clone
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: workgrid_redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

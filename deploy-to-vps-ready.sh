@@ -3,10 +3,10 @@ set -e
 
 # ============================================
 # WorkGrid Deploy Script - RUN THIS IN VPS
-# Target: 152.42.242.180
+# Target: 152.42.229.212
 # ============================================
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 INSTALL_DIR="/opt/workgrid"
 
 echo "=========================================="
@@ -37,9 +37,9 @@ echo "[3/6] Creating environment config..."
 cat > $INSTALL_DIR/.env << 'EOF'
 DB_PASSWORD=WorkGrid2024SecurePass!
 JWT_SECRET=workgrid-jwt-secret-2024-production-random-key-here
-FRONTEND_URL=http://152.42.242.180
+FRONTEND_URL=http://152.42.229.212
 NODE_ENV=production
-ALLOWED_ORIGINS=http://152.42.242.180
+ALLOWED_ORIGINS=http://152.42.229.212
 EOF
 echo "✅ Environment configured"
 
@@ -130,9 +130,9 @@ services:
       DB_SSL: "false"
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
-      FRONTEND_URL: ${FRONTEND_URL:-http://152.42.242.180}
+      FRONTEND_URL: ${FRONTEND_URL:-http://152.42.229.212}
       USE_POSTGRES: "true"
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://152.42.242.180}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://152.42.229.212}
     volumes:
       - uploads_data:/app/uploads
     networks:

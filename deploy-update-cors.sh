@@ -1,13 +1,13 @@
 #!/bin/bash
 # ============================================
 # Update CORS and Domain Configuration
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # Domain: workgrid.homeku.net
 # ============================================
 
 set -e
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 VPS_USER="root"
 
 echo "============================================"
@@ -56,7 +56,7 @@ NODE_ENV=production
 # ============================================
 # CORS Allowed Origins
 # ============================================
-ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.242.180,https://152.42.242.180
+ALLOWED_ORIGINS=http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.229.212,https://152.42.229.212
 
 # ============================================
 # Push Notifications (VAPID Keys)
@@ -67,8 +67,8 @@ VAPID_SUBJECT=mailto:admin@workgrid.app
 EOF
 
 echo "[3/5] Updating docker-compose configuration..."
-sed -i 's|FRONTEND_URL: ${FRONTEND_URL:-http://152.42.242.180}|FRONTEND_URL: ${FRONTEND_URL:-http://workgrid.homeku.net}|g' docker-compose.vps.yml
-sed -i 's|ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://152.42.242.180}|ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.242.180,https://152.42.242.180}|g' docker-compose.vps.yml
+sed -i 's|FRONTEND_URL: ${FRONTEND_URL:-http://152.42.229.212}|FRONTEND_URL: ${FRONTEND_URL:-http://workgrid.homeku.net}|g' docker-compose.vps.yml
+sed -i 's|ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://152.42.229.212}|ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://workgrid.homeku.net,https://workgrid.homeku.net,http://152.42.229.212,https://152.42.229.212}|g' docker-compose.vps.yml
 
 echo "[4/5] Restoring uploads if missing..."
 if [ -d "/opt/workgrid-backup/uploads" ]; then
@@ -86,7 +86,7 @@ echo "============================================"
 echo "  UPDATE COMPLETED!"
 echo "============================================"
 echo "Domain: http://workgrid.homeku.net"
-echo "IP:     http://152.42.242.180"
+echo "IP:     http://152.42.229.212"
 echo ""
 echo "Health check:"
 curl -s http://localhost/api/health | head -1
@@ -109,7 +109,7 @@ echo "============================================"
 echo ""
 echo "Test URLs:"
 echo "  - http://workgrid.homeku.net"
-echo "  - http://152.42.242.180"
+echo "  - http://152.42.229.212"
 echo ""
 echo "API Test:"
 curl -s "http://${VPS_IP}/api/health" 2>/dev/null | head -1 || echo "Health check pending..."

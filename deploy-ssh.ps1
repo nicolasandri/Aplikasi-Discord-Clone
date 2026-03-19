@@ -1,10 +1,10 @@
 $password = "%0|F?H@f!berhO3e"
-$sshCommand = "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@152.42.242.180"
+$sshCommand = "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@152.42.229.212"
 
 # Create a process start info
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = "ssh"
-$psi.Arguments = "-o StrictHostKeyChecking=no -o ConnectTimeout=30 root@152.42.242.180 echo SSH_OK"
+$psi.Arguments = "-o StrictHostKeyChecking=no -o ConnectTimeout=30 root@152.42.229.212 echo SSH_OK"
 $psi.RedirectStandardInput = $true
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true

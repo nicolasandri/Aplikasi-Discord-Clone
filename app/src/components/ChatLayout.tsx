@@ -22,18 +22,34 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { MobileDrawer } from './MobileDrawer';
 import { MobileHeader } from './MobileHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSocket } from '@/hooks/useSocket';
+import { useSocket, enableAudio, playBellSound } from '@/hooks/useSocket';
 import { useNotification } from '@/hooks/useNotification';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import type { Server, Channel, Message, FileAttachment, DMChannel, User } from '@/types';
+
+// Notification Settings Interface
+interface ServerNotificationSettings {
+  notificationLevel: 'all' | 'mentions' | 'nothing';
+  muted: boolean;
+  mutedUntil: string | null;
+  suppressEveryoneHere: boolean;
+  suppressRoleMentions: boolean;
+  suppressHighlights: boolean;
+  pushNotifications: boolean;
+  mobilePushNotifications: boolean;
+}
+
+interface ChannelNotificationOverride {
+  channelId: string;
+  notificationLevel: 'all' | 'mentions' | 'nothing' | 'default';
+  muted: boolean;
+}
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export type ViewMode = 'server' | 'chat' | 'friends' | 'settings' | 'dm';
 
@@ -74,6 +90,10 @@ export function ChatLayout() {
   const [jumpToMessageId, setJumpToMessageId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [showMemberList, setShowMemberList] = useState(true);
+  
+  // Server notification settings cache
+  const [serverNotificationSettings, setServerNotificationSettings] = useState<Record<string, ServerNotificationSettings>>({});
+  const [channelNotificationOverrides, setChannelNotificationOverrides] = useState<Record<string, ChannelNotificationOverride>>({});
   
   // Track if initial routing has been handled
   const initialRouteHandled = useRef(false);
@@ -130,6 +150,27 @@ export function ChatLayout() {
       }
     }
   }, [requestPermission]);
+  
+  // Enable audio on first user interaction (required for browser autoplay policy)
+  useEffect(() => {
+    const enableAudioOnInteraction = () => {
+      console.log('🔔 Enabling audio on user interaction...');
+      enableAudio();
+      // Also test play a silent sound to unlock audio context
+      setTimeout(() => {
+        playBellSound();
+        console.log('🔔 Audio test played');
+      }, 100);
+    };
+    
+    window.addEventListener('click', enableAudioOnInteraction, { once: true });
+    window.addEventListener('keydown', enableAudioOnInteraction, { once: true });
+    
+    return () => {
+      window.removeEventListener('click', enableAudioOnInteraction);
+      window.removeEventListener('keydown', enableAudioOnInteraction);
+    };
+  }, []);
 
   // Fetch servers on mount
   useEffect(() => {
@@ -666,30 +707,38 @@ export function ChatLayout() {
       }));
     }
     
-    // NOTIFICATION: Always show for other users' messages
+    // NOTIFICATION: Check settings before showing
     if (!isOwnMessage) {
+      // Fetch server ID for this channel
       const currentChannels = channelsRef.current;
       const fromChannel = currentChannels.find(c => c.id === message.channelId);
-      const senderName = message.user?.displayName || message.user?.username || 'Someone';
-      const channelName = fromChannel?.name || 'channel';
+      const messageServerId = fromChannel?.serverId || selectedServerId;
       
-      // Format mentions in content for notification (simple version)
-      let notificationBody = message.content?.substring(0, 100) || '📎 File';
-      
-      // Replace all mentions with simple @ symbol
-      notificationBody = notificationBody.replace(/<@([a-f0-9-]+)>/gi, '@user');
-      notificationBody = notificationBody.replace(/<@&([a-f0-9-]+)>/gi, '@role');
-      notificationBody = notificationBody.replace(/<@everyone>/gi, '@everyone');
-      notificationBody = notificationBody.replace(/<@here>/gi, '@here');
-      
-      console.log('🔔 TRIGGER NOTIFICATION for:', senderName);
-      
-      // Call notify using ref to always have latest function
-      notifyRef.current({
-        title: `${senderName} di #${channelName}`,
-        body: notificationBody,
-        icon: message.user?.avatar,
-      });
+      // Check if we should show notification
+      if (shouldShowNotification(message, messageServerId)) {
+        const senderName = message.user?.displayName || message.user?.username || 'Someone';
+        const channelName = fromChannel?.name || 'channel';
+        
+        // Format mentions in content for notification (simple version)
+        let notificationBody = message.content?.substring(0, 100) || '📎 File';
+        
+        // Replace all mentions with simple @ symbol
+        notificationBody = notificationBody.replace(/<@([a-f0-9-]+)>/gi, '@user');
+        notificationBody = notificationBody.replace(/<@&([a-f0-9-]+)>/gi, '@role');
+        notificationBody = notificationBody.replace(/<@everyone>/gi, '@everyone');
+        notificationBody = notificationBody.replace(/<@here>/gi, '@here');
+        
+        console.log('🔔 TRIGGER NOTIFICATION for:', senderName);
+        
+        // Call notify using ref to always have latest function
+        notifyRef.current({
+          title: `${senderName} di #${channelName}`,
+          body: notificationBody,
+          icon: message.user?.avatar,
+        });
+      } else {
+        console.log('🔕 NOTIFICATION SUPPRESSED based on user settings');
+      }
     }
     
     setMessages(prev => {
@@ -945,6 +994,116 @@ export function ChatLayout() {
     }
   };
 
+  // Fetch notification settings for a server
+  const fetchServerNotificationSettings = useCallback(async (serverId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/servers/${serverId}/notification-settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setServerNotificationSettings(prev => ({
+          ...prev,
+          [serverId]: {
+            notificationLevel: data.settings?.notification_level || 'all',
+            muted: data.settings?.muted || false,
+            mutedUntil: data.settings?.muted_until || null,
+            suppressEveryoneHere: data.settings?.suppress_everyone_here || false,
+            suppressRoleMentions: data.settings?.suppress_role_mentions || false,
+            suppressHighlights: data.settings?.suppress_highlights || false,
+            pushNotifications: data.settings?.push_notifications !== false,
+            mobilePushNotifications: data.settings?.mobile_push_notifications !== false,
+          }
+        }));
+        
+        // Store channel overrides in a flat structure
+        if (data.channelOverrides) {
+          const overridesMap: Record<string, ChannelNotificationOverride> = {};
+          data.channelOverrides.forEach((override: any) => {
+            overridesMap[override.channel_id || override.channelId] = {
+              channelId: override.channel_id || override.channelId,
+              notificationLevel: override.notification_level || override.notificationLevel || 'default',
+              muted: override.muted || false,
+            };
+          });
+          setChannelNotificationOverrides(prev => ({ ...prev, ...overridesMap }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch notification settings:', error);
+    }
+  }, [token]);
+
+  // Check if notification should be shown based on settings
+  const shouldShowNotification = useCallback((
+    message: Message,
+    serverId: string | null
+  ): boolean => {
+    if (!serverId) return true; // DM messages always show
+    
+    const settings = serverNotificationSettings[serverId];
+    if (!settings) return true; // Default to showing if no settings
+    
+    // Check if muted
+    if (settings.muted) {
+      // Even if muted, still show if mentioned
+      const isMentioned = checkIsMentioned(message, user?.id || '');
+      return isMentioned;
+    }
+    
+    // Check notification level
+    if (settings.notificationLevel === 'nothing') {
+      return false;
+    }
+    
+    if (settings.notificationLevel === 'mentions') {
+      return checkIsMentioned(message, user?.id || '');
+    }
+    
+    // Check channel override
+    const channelOverride = channelNotificationOverrides[message.channelId];
+    if (channelOverride) {
+      if (channelOverride.muted) {
+        const isMentioned = checkIsMentioned(message, user?.id || '');
+        return isMentioned;
+      }
+      if (channelOverride.notificationLevel === 'nothing') {
+        return false;
+      }
+      if (channelOverride.notificationLevel === 'mentions') {
+        return checkIsMentioned(message, user?.id || '');
+      }
+    }
+    
+    return true;
+  }, [serverNotificationSettings, channelNotificationOverrides, user?.id]);
+
+  // Helper function to check if user is mentioned in message
+  const checkIsMentioned = (message: Message, userId: string): boolean => {
+    if (!message.content) return false;
+    
+    const content = message.content;
+    
+    // Check @user mention
+    if (content.includes(`<@${userId}>`)) return true;
+    
+    // Check @everyone and @here (unless suppressed)
+    const settings = selectedServerId ? serverNotificationSettings[selectedServerId] : null;
+    if (!settings?.suppressEveryoneHere) {
+      if (content.includes('@everyone')) return true;
+      if (content.includes('@here')) return true;
+    }
+    
+    return false;
+  };
+
+  // Fetch notification settings when server changes
+  useEffect(() => {
+    if (selectedServerId) {
+      fetchServerNotificationSettings(selectedServerId);
+    }
+  }, [selectedServerId, fetchServerNotificationSettings]);
+
   const handleSendMessage = useCallback((content: string, replyToMessage?: Message | null, attachments?: FileAttachment[]) => {
     if (!selectedChannelId || isSending) return;
     
@@ -958,8 +1117,13 @@ export function ChatLayout() {
     setIsSending(true);
     lastMessageTimeRef.current = now;
     
-    (sendMessage as any)(selectedChannelId, content, replyToMessage, attachments);
-    setReplyTo(null);
+    console.log('[ChatLayout] Sending message with replyTo:', replyToMessage?.id);
+    const success = (sendMessage as any)(selectedChannelId, content, replyToMessage, attachments);
+    
+    // Only clear reply if message was sent successfully
+    if (success !== false) {
+      setReplyTo(null);
+    }
     
     // Reset sending state - focus will be handled by MessageInput's useEffect
     setTimeout(() => {

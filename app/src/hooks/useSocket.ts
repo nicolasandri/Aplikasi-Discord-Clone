@@ -12,10 +12,86 @@ function log(...args: any[]) {
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
-// Use absolute URL for Electron, relative for web
-const SOCKET_URL = isElectron
-  ? 'http://localhost:3001'
-  : (import.meta.env.VITE_SOCKET_URL || window.location.origin);
+// Global audio context and enabled flag
+let audioContext: AudioContext | null = null;
+let audioEnabled = false;
+
+// Function to enable audio (must be called after user interaction)
+export function enableAudio() {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    audioContext = new AudioContextClass();
+    audioEnabled = true;
+    console.log('🔔 Audio enabled successfully');
+    
+    // Resume if suspended
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+  } catch (e) {
+    console.error('Failed to enable audio:', e);
+  }
+}
+
+// Play bell sound function
+export function playBellSound() {
+  if (!audioEnabled || !audioContext) {
+    console.log('🔔 Audio not enabled yet, trying to enable...');
+    enableAudio();
+    if (!audioContext) return;
+  }
+  
+  try {
+    // Resume context if needed
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    
+    // First bell tone
+    const osc1 = audioContext.createOscillator();
+    const gain1 = audioContext.createGain();
+    osc1.connect(gain1);
+    gain1.connect(audioContext.destination);
+    
+    osc1.frequency.value = 800;
+    osc1.type = 'sine';
+    gain1.gain.setValueAtTime(0, audioContext.currentTime);
+    gain1.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.01);
+    gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.5);
+    
+    osc1.start(audioContext.currentTime);
+    osc1.stop(audioContext.currentTime + 1.5);
+    
+    // Second bell tone
+    setTimeout(() => {
+      if (!audioContext) return;
+      const osc2 = audioContext.createOscillator();
+      const gain2 = audioContext.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioContext.destination);
+      
+      osc2.frequency.value = 1000;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0, audioContext.currentTime);
+      gain2.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.01);
+      gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+      
+      osc2.start(audioContext.currentTime);
+      osc2.stop(audioContext.currentTime + 1);
+    }, 200);
+    
+    console.log('🔔 Bell sound played');
+  } catch (e) {
+    console.error('Failed to play bell sound:', e);
+  }
+}
+
+// Use environment variable first, fallback based on environment
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
 interface UseSocketReturn {
   socket: Socket | null;
@@ -77,8 +153,15 @@ export function useSocket(
 
     console.log('🔌 useSocket: Initializing socket connection...');
     
+    // For Electron desktop app, use polling transport only (avoids CORS issues)
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+    const isElectronByHash = window.location.hash.startsWith('#/');
+    const usePolling = isElectron || isElectronByHash;
+    
+    console.log('🔌 Socket config:', { isElectron, isElectronByHash, usePolling, SOCKET_URL });
+    
     const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: usePolling ? ['polling'] : ['websocket', 'polling'],
       withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 5,
@@ -167,6 +250,24 @@ export function useSocket(
       }
     });
 
+    // Listen for permission late alerts (Bot Izin)
+    socket.on('permission_late_alert', (data: { 
+      requestId: string;
+      userId: string;
+      username: string;
+      channelId: string;
+      serverId: string;
+      startedAt: string;
+      elapsedSeconds: number;
+      lateBy: string;
+      sound: string;
+    }) => {
+      console.log('🔔 Permission late alert received:', data);
+      
+      // Play bell sound notification
+      playBellSound();
+    });
+
     // Listen for user status changes
     socket.on('user_status_changed', (data: { userId: string; status: string }) => {
       log('useSocket: User status changed:', data);
@@ -218,12 +319,23 @@ export function useSocket(
   }, []);
 
   const sendMessage = useCallback((channelId: string, content: string, replyTo?: Message | null, attachments?: any[]) => {
-    console.log('🔌 Socket: Sending message to channel:', channelId, 'Content:', content?.substring(0, 30));
-    if (socketRef.current) {
-      socketRef.current.emit('send_message', { channelId, content, replyTo, attachments });
-      console.log('🔌 Socket: send_message emitted');
+    console.log('🔌 Socket: Sending message to channel:', channelId, 'Content:', content?.substring(0, 30), 'ReplyTo:', replyTo?.id);
+    console.log('🔌 Socket: Connection state - connected:', socketRef.current?.connected, 'id:', socketRef.current?.id);
+    
+    if (socketRef.current && socketRef.current.connected) {
+      // FIX: Send replyToId (string) instead of replyTo object
+      socketRef.current.emit('send_message', { 
+        channelId, 
+        content, 
+        replyToId: replyTo?.id || null, 
+        attachments 
+      });
+      console.log('🔌 Socket: send_message emitted successfully');
+      return true;
     } else {
-      console.error('🔌 Socket: Cannot send message, socket not connected');
+      console.error('🔌 Socket: Cannot send message - socket not connected');
+      alert('Koneksi terputus. Mohon refresh halaman dan coba lagi.');
+      return false;
     }
   }, []);
 

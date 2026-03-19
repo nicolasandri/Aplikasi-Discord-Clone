@@ -1,5 +1,5 @@
 # Deploy uploads to VPS
-$VPS_IP = "152.42.242.180"
+$VPS_IP = "152.42.229.212"
 $VPS_USER = "root"
 $SSH_KEY = "workgrid_deploy_key"
 

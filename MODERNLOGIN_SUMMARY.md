@@ -70,19 +70,19 @@ app/dist/
 
 **Step 2: Run this command to upload the new build:**
 ```bash
-scp -i $env:USERPROFILE\.ssh\workgrid_vps -r app/dist/* root@152.42.242.180:/app/frontend/
+scp -i $env:USERPROFILE\.ssh\workgrid_vps -r app/dist/* root@152.42.229.212:/app/frontend/
 ```
 
 **Step 3: SSH into VPS and reload nginx:**
 ```bash
-ssh -i $env:USERPROFILE\.ssh\workgrid_vps root@152.42.242.180
+ssh -i $env:USERPROFILE\.ssh\workgrid_vps root@152.42.229.212
 systemctl reload nginx
 exit
 ```
 
 **Step 4: Visit and verify:**
 - https://workgrid.homeku.net
-- https://152.42.242.180
+- https://152.42.229.212
 
 ---
 
@@ -190,7 +190,7 @@ Before deploying, verify:
 | Target | URL | Status |
 |--------|-----|--------|
 | **Production (Domain)** | https://workgrid.homeku.net | Ready |
-| **Production (IP)** | https://152.42.242.180 | Ready |
+| **Production (IP)** | https://152.42.229.212 | Ready |
 | **Development** | http://localhost:5173 | Running |
 
 ---
@@ -255,7 +255,7 @@ Refer to DEPLOYMENT_GUIDE.md for:
 
 ## ✨ What's Next
 
-1. **Deploy the build** to VPS (152.42.242.180)
+1. **Deploy the build** to VPS (152.42.229.212)
 2. **Verify** the deployment is live
 3. **Test** on different devices and browsers
 4. **Collect user feedback** on the new design
@@ -278,6 +278,6 @@ Your WorkGrid application has been successfully modernized with:
 
 **Prepared by:** Claude Code
 **Date:** March 17, 2026
-**VPS:** 152.42.242.180
+**VPS:** 152.42.229.212
 **Domain:** workgrid.homeku.net
 **Status:** ✅ DEPLOYMENT READY

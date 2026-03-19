@@ -1,0 +1,4 @@
+// Add HTTPS domain
+if (!ALLOWED_ORIGINS.includes('https://workgrid.homeku.net')) {
+  ALLOWED_ORIGINS.push('https://workgrid.homeku.net');
+}

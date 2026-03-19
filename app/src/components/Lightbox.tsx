@@ -13,7 +13,7 @@ const safeStartsWith = (value: unknown, prefix: string): boolean => {
 const getFileUrl = (url: string): string => {
   if (!url) return '';
   if (safeStartsWith(url, 'http')) return url;
-  const baseUrl = isElectron ? 'http://localhost:3001' : '';
+  const baseUrl = import.meta.env.VITE_SOCKET_URL;
   const normalizedUrl = safeStartsWith(url, '/') ? url : `/${url}`;
   return `${baseUrl}${normalizedUrl}`;
 };

@@ -3,7 +3,7 @@ chcp 65001 >nul
 title WorkGrid Manual Deployment
 echo ==========================================
 echo   WORKGRID DEPLOYMENT TO VPS
-echo   IP: 152.42.242.180
+echo   IP: 152.42.229.212
 echo ==========================================
 echo.
 echo [!] PASTIKAN ANDA SUDAH:
@@ -18,7 +18,7 @@ echo ==========================================
 echo.
 echo Jalankan command berikut di terminal: 
 echo.
-echo     ssh root@152.42.242.180
+echo     ssh root@152.42.229.212
 echo.
 echo Password: %%0^|F?H@f!berhO3e
 echo.
@@ -54,9 +54,9 @@ echo.
 echo     cat ^> /opt/workgrid/.env ^<^< 'EOF'
 echo     DB_PASSWORD=WorkGrid2024SecurePass!
 echo     JWT_SECRET=workgrid-jwt-secret-2024-production
-echo     FRONTEND_URL=http://152.42.242.180
+echo     FRONTEND_URL=http://152.42.229.212
 echo     NODE_ENV=production
-echo     ALLOWED_ORIGINS=http://152.42.242.180
+echo     ALLOWED_ORIGINS=http://152.42.229.212
 echo     EOF
 echo.
 pause
@@ -69,14 +69,14 @@ echo [PILIH SALAH SATU:]
 echo.
 echo A. Menggunakan WinSCP:
 echo    1. Download WinSCP dari https://winscp.net/
-echo    2. Connect ke 152.42.242.180 dengan user root
+echo    2. Connect ke 152.42.229.212 dengan user root
 echo    3. Copy folder project ini ke /opt/workgrid/
 echo.
 echo B. Menggunakan rsync (Git Bash):
-echo    rsync -avz --exclude='node_modules' --exclude='.git' ./ root@152.42.242.180:/opt/workgrid/
+echo    rsync -avz --exclude='node_modules' --exclude='.git' ./ root@152.42.229.212:/opt/workgrid/
 echo.
 echo C. Menggunakan FileZilla:
-echo    1. Connect SFTP ke 152.42.242.180
+echo    1. Connect SFTP ke 152.42.229.212
 echo    2. Copy semua file ke /opt/workgrid/
 echo.
 pause
@@ -113,7 +113,7 @@ echo ==========================================
 echo   DEPLOYMENT SELESAI!
 echo ==========================================
 echo.
-echo 🌐 Akses aplikasi di: http://152.42.242.180
+echo 🌐 Akses aplikasi di: http://152.42.229.212
 echo.
 echo 📋 Command berguna:
 echo    - Check status:   docker compose ps

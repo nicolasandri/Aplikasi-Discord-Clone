@@ -1,5 +1,5 @@
 # Quick deploy script for VPS
-$VPS_IP = "152.42.242.180"
+$VPS_IP = "152.42.229.212"
 $VPS_USER = "root"
 
 Write-Host "Deploying WorkGrid to VPS..." -ForegroundColor Cyan

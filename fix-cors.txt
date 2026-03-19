@@ -1,0 +1,5 @@
+
+// Add frontend VPS origin
+if (!ALLOWED_ORIGINS.includes('http://165.22.63.51')) {
+  ALLOWED_ORIGINS.push('http://165.22.63.51');
+}

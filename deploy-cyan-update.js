@@ -2,7 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const VPS_IP = '152.42.242.180';
+const VPS_IP = '152.42.229.212';
 const VPS_USER = 'root';
 const SSH_KEY = path.join(__dirname, 'workgrid_deploy_key');
 const ZIP_FILE = path.join(__dirname, 'frontend-cyan-update.zip');
@@ -79,5 +79,5 @@ console.log('\n============================================');
 console.log('  DEPLOYMENT COMPLETED!');
 console.log('============================================');
 console.log('Website: https://workgrid.homeku.net');
-console.log('IP: http://152.42.242.180');
+console.log('IP: http://152.42.229.212');
 console.log('============================================');

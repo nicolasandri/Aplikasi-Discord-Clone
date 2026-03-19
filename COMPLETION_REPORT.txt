@@ -51,10 +51,10 @@
 🚀 QUICK DEPLOYMENT (3 STEPS)
 
 STEP 1: Upload Files
-  scp -i ~/.ssh/workgrid_vps -r app/dist/* root@152.42.242.180:/app/frontend/
+  scp -i ~/.ssh/workgrid_vps -r app/dist/* root@152.42.229.212:/app/frontend/
 
 STEP 2: Reload Nginx
-  ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+  ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
   systemctl reload nginx
   exit
 
@@ -115,7 +115,7 @@ Everything is built, tested, documented, and ready to deploy!
 
 Status: ✅ DEPLOYMENT READY
 Date: March 17, 2026
-VPS: 152.42.242.180
+VPS: 152.42.229.212
 Domain: workgrid.homeku.net
 
 ═══════════════════════════════════════════════════════════════════════════════

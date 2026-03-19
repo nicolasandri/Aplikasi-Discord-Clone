@@ -31,16 +31,16 @@
 
 ```bash
 # From Windows PowerShell or Git Bash
-scp -i ~/.ssh/workgrid_vps -r "app\dist\*" root@152.42.242.180:/app/frontend/
+scp -i ~/.ssh/workgrid_vps -r "app\dist\*" root@152.42.229.212:/app/frontend/
 
 # If using PowerShell with different SSH client
-scp -i $env:USERPROFILE\.ssh\workgrid_vps -r app/dist/* root@152.42.242.180:/app/frontend/
+scp -i $env:USERPROFILE\.ssh\workgrid_vps -r app/dist/* root@152.42.229.212:/app/frontend/
 ```
 
 **Step 3: SSH into VPS and restart services**
 
 ```bash
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 
 # On VPS:
 cd /app/frontend
@@ -84,7 +84,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ```bash
 # SSH into VPS
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 
 # Check if files were uploaded
 ls -la /app/frontend/
@@ -99,7 +99,7 @@ tail -f /var/log/nginx/error.log
 Visit these URLs in your browser:
 
 1. **Primary URL:** https://workgrid.homeku.net
-2. **IP Access:** https://152.42.242.180
+2. **IP Access:** https://152.42.229.212
 3. **Unauthenticated (Logout first):** See the new ModernLogin landing page
 
 ### Step 3: Browser Testing Checklist
@@ -166,7 +166,7 @@ Visit these URLs in your browser:
 chmod 600 ~/.ssh/workgrid_vps
 
 # Test SSH connection
-ssh -i ~/.ssh/workgrid_vps -v root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps -v root@152.42.229.212
 ```
 
 ### Issue: "Permission denied" when uploading
@@ -174,7 +174,7 @@ ssh -i ~/.ssh/workgrid_vps -v root@152.42.242.180
 **Solution:**
 ```bash
 # Ensure /app/frontend exists and has correct permissions
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 
 # On VPS:
 mkdir -p /app/frontend
@@ -187,7 +187,7 @@ chown root:root /app/frontend
 **Solution:**
 ```bash
 # Verify nginx configuration
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 nginx -t
 
 # Check if index.html exists
@@ -245,8 +245,8 @@ tail -50 /var/log/nginx/error.log
 
 ### If deployment fails:
 
-1. **Check VPS connectivity:** `ping 152.42.242.180`
-2. **Verify SSH key:** `ssh -i ~/.ssh/workgrid_vps root@152.42.242.180`
+1. **Check VPS connectivity:** `ping 152.42.229.212`
+2. **Verify SSH key:** `ssh -i ~/.ssh/workgrid_vps root@152.42.229.212`
 3. **Check disk space:** `df -h /app`
 4. **Review nginx logs:** `tail -100 /var/log/nginx/error.log`
 5. **Test nginx config:** `nginx -t`
@@ -254,7 +254,7 @@ tail -50 /var/log/nginx/error.log
 ### Rollback to Previous Version
 
 ```bash
-ssh -i ~/.ssh/workgrid_vps root@152.42.242.180
+ssh -i ~/.ssh/workgrid_vps root@152.42.229.212
 
 # List backups
 ls -la /backup/
@@ -291,7 +291,7 @@ systemctl reload nginx
 ---
 
 **Deployment Date:** 2026-03-17
-**VPS IP:** 152.42.242.180
+**VPS IP:** 152.42.229.212
 **Domain:** workgrid.homeku.net
 **Status:** ✅ Ready for Deployment
 

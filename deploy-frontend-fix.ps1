@@ -1,7 +1,7 @@
 # Deploy Frontend Fix for ChatArea Attachment Error
 # Run this in PowerShell
 
-$VPS_IP = "152.42.242.180"
+$VPS_IP = "152.42.229.212"
 $VPS_USER = "root"
 $PROJECT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 

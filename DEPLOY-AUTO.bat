@@ -3,7 +3,7 @@ chcp 65001 >nul
 echo.
 echo 🚀 WorkGrid Automated Deployment
 echo ================================
-echo VPS: 152.42.242.180
+echo VPS: 152.42.229.212
 echo.
 
 REM Check for SSH key
@@ -27,7 +27,7 @@ echo Anda perlu login ke VPS sekali untuk setup SSH key.
 echo.
 echo Jalankan perintah berikut di window baru:
 echo.
-echo ssh root@152.42.242.180
+echo ssh root@152.42.229.212
 echo Password: %%0^|F?H@f!berhO3e
 echo.
 echo Lalu paste command ini di VPS:
@@ -71,7 +71,7 @@ echo.
 echo Di folder project ini, buka PowerShell baru dan jalankan:
 echo.
 echo tar -czf $env:TEMP\workgrid.tar.gz --exclude="node_modules" --exclude=".git" --exclude="app/dist" --exclude="app/release" --exclude="*.log" --exclude="backups" .
-echo scp -i "%USERPROFILE%\.ssh\workgrid_deploy_key" $env:TEMP\workgrid.tar.gz root@152.42.242.180:/tmp/
+echo scp -i "%USERPROFILE%\.ssh\workgrid_deploy_key" $env:TEMP\workgrid.tar.gz root@152.42.229.212:/tmp/
 echo.
 pause
 
@@ -88,9 +88,9 @@ echo Buat file .env:
 echo cat ^> .env ^<^< 'EOF'
 echo DB_PASSWORD=WorkGridSecurePass123!
 echo JWT_SECRET=WorkGridSuperSecretKey2024ForProductionUse
-echo FRONTEND_URL=http://152.42.242.180
+echo FRONTEND_URL=http://152.42.229.212
 echo NODE_ENV=production
-echo ALLOWED_ORIGINS=http://152.42.242.180,http://localhost:5173
+echo ALLOWED_ORIGINS=http://152.42.229.212,http://localhost:5173
 echo EOF
 echo.
 pause
@@ -116,9 +116,9 @@ echo ✅ DEPLOYMENT COMPLETE!
 echo =========================================
 echo.
 echo 🌐 Akses WorkGrid Anda di:
-echo    http://152.42.242.180
+echo    http://152.42.229.212
 echo.
 echo 📋 Perintah berguna:
-echo    ssh -i %USERPROFILE%\.ssh\workgrid_deploy_key root@152.42.242.180
+echo    ssh -i %USERPROFILE%\.ssh\workgrid_deploy_key root@152.42.229.212
 echo.
 pause

@@ -6,7 +6,7 @@
 ╔════════════════════════════════════════════════════════════╗
 ║  ✅ UUID CASTING FIXES - BERHASIL DI-DEPLOY               ║
 ║  ✅ BACKUP v1.0.0-stable - TERSIMPAN AMAN                 ║
-║  ✅ SERVER RUNNING NORMAL - http://152.42.242.180        ║
+║  ✅ SERVER RUNNING NORMAL - http://152.42.229.212        ║
 ╚════════════════════════════════════════════════════════════╝
 ```
 
@@ -29,7 +29,7 @@ Lanjutkan project WorkGrid Discord Clone.
 STATUS KEMARIN (15 Maret 2026):
 ✅ UUID casting errors sudah fixed dan stabil
 ✅ Backup tersimpan: v1.0.0-stable di VPS
-✅ Server: http://152.42.242.180 running normal
+✅ Server: http://152.42.229.212 running normal
 ✅ Login testing: admin@workgrid.com / admin123 - BERHASIL
 
 LANJUTKAN KE:
@@ -46,7 +46,7 @@ LANJUTKAN KE:
 
 **Langkah 1: SSH ke VPS**
 ```bash
-ssh root@152.42.242.180
+ssh root@152.42.229.212
 Password: %0|F?H@f!berhO3e
 ```
 
@@ -64,8 +64,8 @@ cd /opt/workgrid
 
 | Item | Detail |
 |------|--------|
-| **VPS IP** | 152.42.242.180 |
-| **URL Akses** | http://152.42.242.180 |
+| **VPS IP** | 152.42.229.212 |
+| **URL Akses** | http://152.42.229.212 |
 | **Admin Login** | admin@workgrid.com / admin123 |
 | **Backup File** | workgrid_20250315_044400_v1.0.0_stable.sql |
 | **Backup Lokasi** | /opt/workgrid/backups/versions/ |
@@ -79,15 +79,15 @@ cd /opt/workgrid
 ### Cek dari Windows (PowerShell):
 ```powershell
 # Cek apakah server online
-ping 152.42.242.180
+ping 152.42.229.212
 
 # Cek API endpoint
-curl http://152.42.242.180/api/servers/476bde5d-a814-4835-9c6b-1c9c2689783b/members
+curl http://152.42.229.212/api/servers/476bde5d-a814-4835-9c6b-1c9c2689783b/members
 ```
 
 ### Cek dari VPS:
 ```bash
-ssh root@152.42.242.180 "docker-compose ps"
+ssh root@152.42.229.212 "docker-compose ps"
 ```
 
 ---
@@ -132,7 +132,7 @@ ssh root@152.42.242.180 "docker-compose ps"
 **Jika besok ada masalah:**
 ```bash
 # Auto restore ke versi stabil ini
-ssh root@152.42.242.180 "cd /opt/workgrid && ./emergency-restore.sh"
+ssh root@152.42.229.212 "cd /opt/workgrid && ./emergency-restore.sh"
 ```
 
 ---
@@ -141,12 +141,12 @@ ssh root@152.42.242.180 "cd /opt/workgrid && ./emergency-restore.sh"
 
 ### Deploy Perubahan Baru:
 ```bash
-wsl ssh -i /home/nicolas/.ssh/workgrid_deploy -o StrictHostKeyChecking=no root@152.42.242.180 "cd /opt/workgrid && git pull && docker-compose build backend && docker-compose up -d backend"
+wsl ssh -i /home/nicolas/.ssh/workgrid_deploy -o StrictHostKeyChecking=no root@152.42.229.212 "cd /opt/workgrid && git pull && docker-compose build backend && docker-compose up -d backend"
 ```
 
 ### Cek Logs:
 ```bash
-wsl ssh -i /home/nicolas/.ssh/workgrid_deploy -o StrictHostKeyChecking=no root@152.42.242.180 "docker logs discord_clone_backend --tail 50"
+wsl ssh -i /home/nicolas/.ssh/workgrid_deploy -o StrictHostKeyChecking=no root@152.42.229.212 "docker logs discord_clone_backend --tail 50"
 ```
 
 ---
@@ -159,7 +159,7 @@ wsl ssh -i /home/nicolas/.ssh/workgrid_deploy -o StrictHostKeyChecking=no root@1
 Halo, lanjutkan project WorkGrid Discord Clone.
 
 Status kemarin (15 Mar 2026):
-✅ UUID casting fixes sudah stabil di VPS 152.42.242.180
+✅ UUID casting fixes sudah stabil di VPS 152.42.229.212
 ✅ Backup v1.0.0-stable tersimpan: workgrid_20250315_044400_v1.0.0_stable.sql
 ✅ Deploy otomatis via SSH key sudah setup
 

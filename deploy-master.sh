@@ -3,10 +3,10 @@ set -e
 
 # ============================================
 # WorkGrid Master Deploy Script
-# VPS: 152.42.242.180
+# VPS: 152.42.229.212
 # ============================================
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 VPS_USER="root"
 VPS_PASS="%0|F?H@f!berhO3e"
 LOCAL_DIR="$(pwd)"
@@ -37,7 +37,7 @@ if ! command -v sshpass &> /dev/null; then
         echo "  1. Download dari: https://sourceforge.net/projects/sshwindows/"
         echo "  2. Atau pakai Git Bash dengan: pacman -S sshpass"
         echo ""
-        echo "Alternatif: Copy script deploy-vps-152.42.242.180.sh ke VPS manual dan jalankan di sana."
+        echo "Alternatif: Copy script deploy-vps-152.42.229.212.sh ke VPS manual dan jalankan di sana."
         exit 1
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         sudo apt-get update && sudo apt-get install -y sshpass
@@ -53,8 +53,8 @@ echo "[1/6] Setup VPS (Install Docker & create config)..."
 run_on_vps "mkdir -p /opt/workgrid"
 
 # Copy and run setup script
-sshpass -p "$VPS_PASS" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null deploy-vps-152.42.242.180.sh $VPS_USER@$VPS_IP:/tmp/
-run_on_vps "chmod +x /tmp/deploy-vps-152.42.242.180.sh && /tmp/deploy-vps-152.42.242.180.sh"
+sshpass -p "$VPS_PASS" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null deploy-vps-152.42.229.212.sh $VPS_USER@$VPS_IP:/tmp/
+run_on_vps "chmod +x /tmp/deploy-vps-152.42.229.212.sh && /tmp/deploy-vps-152.42.229.212.sh"
 
 echo ""
 echo "[2/6] Copy project files to VPS..."

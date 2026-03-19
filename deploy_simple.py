@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 # Configuration
-VPS_HOST = "152.42.242.180"
+VPS_HOST = "152.42.229.212"
 VPS_USER = "root"
 SSH_KEY = r"c:\Users\PC\Downloads\PROJECT TEAMCHAT\Aplikasi Discord Clone\workgrid_deploy_key"
 LOCAL_ZIP = r"c:\Users\PC\Downloads\PROJECT TEAMCHAT\Aplikasi Discord Clone\deploy-vps-package.zip"

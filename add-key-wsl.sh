@@ -1,7 +1,7 @@
 #!/bin/bash
 # Add SSH key to VPS
 
-VPS_IP="152.42.242.180"
+VPS_IP="152.42.229.212"
 PASSWORD='%0|F?H@f!berhO3e'
 PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOBGdALFAs7WEOAOTVnJPFMS/56pHzlMq9pLRdMWBEtg deploy@workgrid"
 

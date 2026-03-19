@@ -14,7 +14,7 @@ if errorlevel 1 (
 )
 
 :: Run the deployment script
-echo Starting deployment to 152.42.242.180...
+echo Starting deployment to 152.42.229.212...
 echo.
 
 python "%~dp0deploy_vps.py"

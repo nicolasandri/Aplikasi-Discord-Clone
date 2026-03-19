@@ -1122,7 +1122,7 @@ const messageDB = {
     return this.formatMessage(row, roleColors);
   },
 
-  async getByChannel(channelId, limit = 50, offset = 0) {
+  async getByChannel(channelId, limit = 1000, offset = 0) {
     // First get channel info to get server_id
     const channelInfo = await queryOne(
       'SELECT server_id FROM channels WHERE id = $1',
@@ -1379,7 +1379,7 @@ const messageDB = {
   },
 
   async searchMessages(options) {
-    const { serverId = null, channelId = null, userId = null, query: q = '', dateFrom = null, dateTo = null, hasAttachments = null, limit = 50, offset = 0 } = options;
+    const { serverId = null, channelId = null, userId = null, query: q = '', dateFrom = null, dateTo = null, hasAttachments = null, limit = 1000, offset = 0 } = options;
     let conditions = [];
     let params = [];
     let i = 1;
@@ -1500,6 +1500,105 @@ const messageDB = {
       isSystem: row.is_system === true,
       newMember
     };
+  },
+
+  // Get reply count for a message
+  async getReplyCount(messageId) {
+    const row = await queryOne(
+      `SELECT COUNT(*) as count FROM messages WHERE reply_to_id::text = $1::text`,
+      [messageId]
+    );
+    return parseInt(row?.count || 0);
+  },
+
+  // Get all replies (thread) for a message
+  async getReplies(messageId, limit = 100, offset = 0) {
+    // First get the original message to get channel info
+    const originalMessage = await this.getById(messageId);
+    if (!originalMessage) return null;
+
+    const channelId = originalMessage.channelId;
+    
+    // Get channel info for server_id
+    const channelInfo = await queryOne(
+      'SELECT server_id FROM channels WHERE id = $1',
+      [channelId]
+    );
+    const serverId = channelInfo?.server_id;
+
+    const rows = await queryMany(
+      `SELECT m.*, u.id as user_id, u.username, u.avatar,
+              rm.id as reply_id, rm.content as reply_content,
+              ru.id as reply_user_id, ru.username as reply_username, ru.avatar as reply_user_avatar
+       FROM messages m
+       JOIN users u ON m.user_id::text = u.id::text
+       LEFT JOIN messages rm ON m.reply_to_id::text = rm.id::text
+       LEFT JOIN users ru ON rm.user_id::text = ru.id::text
+       WHERE m.reply_to_id::text = $1::text
+       ORDER BY m.created_at ASC
+       LIMIT $2 OFFSET $3`,
+      [messageId, limit, offset]
+    );
+
+    // Get reactions for these messages
+    const messageIds = rows.map(r => r.id);
+    let reactionsByMessage = {};
+    if (messageIds.length > 0) {
+      const reactions = await queryMany(
+        `SELECT r.message_id, r.emoji, r.user_id, u.username, u.avatar
+         FROM reactions r
+         JOIN users u ON r.user_id::text = u.id::text
+         WHERE r.message_id::text = ANY($1::text[])`,
+        [messageIds]
+      );
+      
+      reactions.forEach(r => {
+        if (!reactionsByMessage[r.message_id]) {
+          reactionsByMessage[r.message_id] = [];
+        }
+        const existing = reactionsByMessage[r.message_id].find(ex => ex.emoji === r.emoji);
+        if (existing) {
+          existing.users.push(r.user_id);
+          existing.count = existing.users.length;
+        } else {
+          reactionsByMessage[r.message_id].push({
+            emoji: r.emoji,
+            users: [r.user_id],
+            count: 1,
+            user: { username: r.username, avatar: r.avatar }
+          });
+        }
+      });
+    }
+
+    // Get role colors if in a server
+    let userRoleColors = {};
+    if (serverId) {
+      try {
+        const userIds = [...new Set(rows.map(r => r.user_id))];
+        if (userIds.length > 0) {
+          const roleRows = await queryMany(
+            `SELECT mr.user_id, sr.color, sr.name
+             FROM member_roles mr
+             JOIN server_roles sr ON mr.role_id = sr.id
+             WHERE mr.server_id::text = $1::text AND mr.user_id::text = ANY($2::text[])`,
+            [serverId, userIds]
+          );
+          
+          for (const r of roleRows) {
+            if (r.user_id) userRoleColors[r.user_id] = { color: r.color, name: r.name };
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch role colors:', e);
+      }
+    }
+
+    return rows.map(row => {
+      const msg = this.formatMessage(row, userRoleColors);
+      msg.reactions = reactionsByMessage[row.id] || [];
+      return msg;
+    });
   },
 
   async getUnreadCountForAllChannels(userId, serverId) {
@@ -2042,7 +2141,7 @@ const dmDB = {
     return row;
   },
 
-  async getDMMessages(channelId, limit = 50, offset = 0) {
+  async getDMMessages(channelId, limit = 1000, offset = 0) {
     const rows = await queryMany(
       `SELECT dm.*, u.username as sender_username, u.avatar as sender_avatar
        FROM dm_messages dm
@@ -2595,6 +2694,113 @@ const notificationSettingsDB = {
 };
 
 // ============================================
+// SERVER NOTIFICATION SETTINGS DATABASE
+// ============================================
+
+const serverNotificationSettingsDB = {
+  // Get server notification settings for a user
+  async get(userId, serverId) {
+    return await queryOne(
+      `SELECT * FROM server_notification_settings 
+       WHERE user_id::text = $1::text AND server_id::text = $2::text`,
+      [userId, serverId]
+    );
+  },
+  
+  // Get all server notification settings for a user
+  async getAllForUser(userId) {
+    return await queryMany(
+      `SELECT * FROM server_notification_settings 
+       WHERE user_id::text = $1::text`,
+      [userId]
+    );
+  },
+  
+  // Set server notification settings
+  async set(userId, serverId, settings) {
+    const id = uuidv4();
+    const {
+      notificationLevel = 'all',
+      muted = false,
+      mutedUntil = null,
+      suppressEveryoneHere = false,
+      suppressRoleMentions = false,
+      suppressHighlights = false,
+      pushNotifications = true,
+      mobilePushNotifications = true,
+      muteNewEvents = false,
+      communityActivityAlerts = true
+    } = settings;
+    
+    await query(
+      `INSERT INTO server_notification_settings (
+        id, user_id, server_id, notification_level, muted, muted_until,
+        suppress_everyone_here, suppress_role_mentions, suppress_highlights,
+        push_notifications, mobile_push_notifications, mute_new_events, community_activity_alerts, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+      ON CONFLICT (user_id, server_id) 
+      DO UPDATE SET 
+        notification_level = $4, muted = $5, muted_until = $6,
+        suppress_everyone_here = $7, suppress_role_mentions = $8, suppress_highlights = $9,
+        push_notifications = $10, mobile_push_notifications = $11, mute_new_events = $12, 
+        community_activity_alerts = $13, updated_at = NOW()`,
+      [id, userId, serverId, notificationLevel, muted, mutedUntil,
+       suppressEveryoneHere, suppressRoleMentions, suppressHighlights,
+       pushNotifications, mobilePushNotifications, muteNewEvents, communityActivityAlerts]
+    );
+    return { success: true };
+  },
+  
+  // Delete server notification settings
+  async delete(userId, serverId) {
+    await query(
+      'DELETE FROM server_notification_settings WHERE user_id::text = $1::text AND server_id::text = $2::text',
+      [userId, serverId]
+    );
+    return { success: true };
+  },
+  
+  // Get channel notification overrides for a user in a server
+  async getChannelOverrides(userId, serverId) {
+    return await queryMany(
+      `SELECT * FROM channel_notification_overrides 
+       WHERE user_id::text = $1::text AND server_id::text = $2::text`,
+      [userId, serverId]
+    );
+  },
+  
+  // Set channel notification override
+  async setChannelOverride(userId, channelId, serverId, settings) {
+    const id = uuidv4();
+    const {
+      notificationLevel = 'default',
+      muted = false,
+      mutedUntil = null
+    } = settings;
+    
+    await query(
+      `INSERT INTO channel_notification_overrides (
+        id, user_id, channel_id, server_id, notification_level, muted, muted_until, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (user_id, channel_id) 
+      DO UPDATE SET 
+        notification_level = $5, muted = $6, muted_until = $7, updated_at = NOW()`,
+      [id, userId, channelId, serverId, notificationLevel, muted, mutedUntil]
+    );
+    return { success: true };
+  },
+  
+  // Delete channel notification override
+  async deleteChannelOverride(userId, channelId) {
+    await query(
+      'DELETE FROM channel_notification_overrides WHERE user_id::text = $1::text AND channel_id::text = $2::text',
+      [userId, channelId]
+    );
+    return { success: true };
+  }
+};
+
+// ============================================
 // PERMISSION REQUESTS DATABASE (Bot Izin)
 // ============================================
 
@@ -2680,6 +2886,17 @@ const permissionRequestsDB = {
     );
   },
   
+  // Get ALL active requests (for monitoring)
+  async getAllActive() {
+    return await queryMany(
+      `SELECT pr.*, u.username, u.display_name, u.avatar 
+       FROM permission_requests pr
+       JOIN users u ON pr.user_id::text = u.id::text
+       WHERE pr.status = 'active'
+       ORDER BY pr.started_at DESC`
+    );
+  },
+  
   // Get history for user
   async getHistoryForUser(userId, limit = 10) {
     return await queryMany(
@@ -2700,6 +2917,117 @@ const permissionRequestsDB = {
        RETURNING *`
     );
     return result.rows || [];
+  },
+  
+  // Get requests that have exceeded max_duration but still active (for timeout alerts)
+  async getTimedOutRequests() {
+    return await queryMany(
+      `SELECT pr.*, u.username, u.display_name, s.name as server_name
+       FROM permission_requests pr
+       JOIN users u ON pr.user_id::text = u.id::text
+       JOIN servers s ON pr.server_id::text = s.id::text
+       WHERE pr.status = 'active'
+       AND pr.started_at < NOW() - (pr.max_duration_minutes || ' minutes')::INTERVAL
+       AND (pr.timeout_alert_sent IS NULL OR pr.timeout_alert_sent = false)
+       ORDER BY pr.started_at ASC`
+    );
+  },
+  
+  // Mark timeout alert as sent
+  async markTimeoutAlertSent(requestId) {
+    await query(
+      `UPDATE permission_requests 
+       SET timeout_alert_sent = true, timeout_alert_sent_at = NOW()
+       WHERE id = $1`,
+      [requestId]
+    );
+    return { success: true };
+  },
+  
+  // Get daily audit statistics
+  async getDailyAuditStats(serverId, date = new Date()) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Get all completed requests for the day
+    const requests = await queryMany(
+      `SELECT pr.*, u.username, u.display_name
+       FROM permission_requests pr
+       JOIN users u ON pr.user_id::text = u.id::text
+       WHERE pr.server_id::text = $1::text
+       AND pr.status = 'completed'
+       AND pr.ended_at >= $2
+       AND pr.ended_at <= $3
+       ORDER BY pr.ended_at DESC`,
+      [serverId, startOfDay.toISOString(), endOfDay.toISOString()]
+    );
+    
+    return requests;
+  },
+  
+  // Get user statistics for audit
+  async getUserAuditStats(serverId, date = new Date()) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Get aggregated stats per user
+    const stats = await queryMany(
+      `SELECT 
+         u.id as user_id,
+         u.username,
+         u.display_name,
+         COUNT(*) as total_requests,
+         SUM(pr.actual_duration_seconds) as total_duration_seconds,
+         SUM(pr.penalty_seconds) as total_penalty_seconds,
+         SUM(CASE WHEN pr.penalty_seconds > 0 THEN 1 ELSE 0 END) as late_count,
+         MAX(pr.actual_duration_seconds) as max_duration_seconds,
+         STRING_AGG(DISTINCT pr.request_type, ', ') as request_types
+       FROM permission_requests pr
+       JOIN users u ON pr.user_id::text = u.id::text
+       WHERE pr.server_id::text = $1::text
+       AND pr.status = 'completed'
+       AND pr.ended_at >= $2
+       AND pr.ended_at <= $3
+       GROUP BY u.id, u.username, u.display_name
+       ORDER BY total_requests DESC`,
+      [serverId, startOfDay.toISOString(), endOfDay.toISOString()]
+    );
+    
+    return stats;
+  }
+};
+
+// Timeout alert configuration DB
+const timeoutConfigDB = {
+  async getConfig(serverId) {
+    const row = await queryOne(
+      `SELECT * FROM permission_timeout_config WHERE server_id::text = $1::text`,
+      [serverId]
+    );
+    if (!row) {
+      // Return default config
+      return {
+        server_id: serverId,
+        alert_roles: ['OPERATOR', 'SPV'],
+        alert_message: '⛔ Waktu izin habis. Kalau masih lanjut, itu bukan izin—itukabur.'
+      };
+    }
+    return row;
+  },
+  
+  async setConfig(serverId, alertRoles, alertMessage) {
+    await query(
+      `INSERT INTO permission_timeout_config (server_id, alert_roles, alert_message)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (server_id) 
+       DO UPDATE SET alert_roles = $2, alert_message = $3, updated_at = NOW()`,
+      [serverId, alertRoles, alertMessage]
+    );
+    return { success: true };
   }
 };
 
@@ -3114,7 +3442,9 @@ module.exports = {
   userServerAccessDB,
   roleChannelAccessDB,
   notificationSettingsDB,
+  serverNotificationSettingsDB,
   permissionRequestsDB,
+  timeoutConfigDB,
   subscriptionDB,
   auditLogDB,
   sessionDB,

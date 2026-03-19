@@ -7,10 +7,8 @@ interface DaftarNamaStaffProps {
 }
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
-const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+const API_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_SOCKET_URL;
 
 type SortOption = 'memberSinceDesc' | 'memberSinceAsc' | 'joinedDiscordDesc' | 'joinedDiscordAsc';
 

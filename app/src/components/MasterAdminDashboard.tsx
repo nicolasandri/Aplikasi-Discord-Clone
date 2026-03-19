@@ -60,10 +60,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
 // Use absolute URL for Electron, relative for web
-const API_URL = isElectron
-  ? 'http://localhost:3001/api'
-  : (import.meta.env.VITE_API_URL || '/api');
-const BASE_URL = isElectron ? 'http://localhost:3001' : '';
+const API_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_SOCKET_URL;
 
 interface UserWithDetails {
   id: string;
@@ -476,10 +474,16 @@ export function MasterAdminDashboard() {
 
   // Format time for chat
   const formatChatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('id-ID', {
+    const date = new Date(dateString);
+    const timeStr = date.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit'
     });
+    const dateStr = date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short'
+    });
+    return `${dateStr}, ${timeStr}`;
   };
 
   // Get avatar with fallback - handle relative paths
@@ -998,10 +1002,6 @@ export function MasterAdminDashboard() {
               <Users className="w-4 h-4 mr-2" />
               Kode Grup
             </TabsTrigger>
-            <TabsTrigger value="messages" className="data-[state=active]:bg-[#404249]">
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Pesan ({stats?.total_messages || 0})
-            </TabsTrigger>
             <TabsTrigger value="dm-monitor" className="data-[state=active]:bg-[#404249]" onClick={() => fetchDMChannels()}>
               <MessageSquare className="w-4 h-4 mr-2" />
               DM Monitor
@@ -1335,235 +1335,6 @@ export function MasterAdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          </TabsContent>
-
-          {/* DM Messages Tab - Chat Style */}
-          <TabsContent value="messages" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-            <div className="h-full flex rounded-lg border border-[#1E1F22] bg-[#313338] overflow-hidden">
-              {/* Left Sidebar - Conversation List */}
-              <div className="w-80 bg-[#2B2D31] border-r border-[#1E1F22] flex flex-col">
-                {/* Header */}
-                <div className="p-4 border-b border-[#1E1F22]">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[#B5BAC1] text-xs font-semibold uppercase tracking-wider">
-                      Semua DM ({dmChannels.length})
-                    </h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={fetchDMChannels}
-                      className="h-6 w-6 p-0 text-[#B5BAC1] hover:text-white"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Input
-                    placeholder="Cari percakapan..."
-                    value={messageSearchQuery}
-                    onChange={(e) => setMessageSearchQuery(e.target.value)}
-                    className="bg-[#1E1F22] border-[#1E1F22] text-white text-sm h-8"
-                  />
-                </div>
-                
-                {/* Conversation List */}
-                <div className="flex-1 overflow-y-auto">
-                  {conversations
-                    .filter(conv => {
-                      if (!messageSearchQuery) return true;
-                      const search = messageSearchQuery.toLowerCase();
-                      return (
-                        conv.participant1.displayName.toLowerCase().includes(search) ||
-                        conv.participant1.username.toLowerCase().includes(search) ||
-                        conv.participant2.displayName.toLowerCase().includes(search) ||
-                        conv.participant2.username.toLowerCase().includes(search)
-                      );
-                    })
-                    .map((conv) => {
-                      const p1 = conv.participant1;
-                      const p2 = conv.participant2;
-                      return (
-                        <div
-                          key={conv.id}
-                          onClick={() => setSelectedConversation(conv)}
-                          className={`p-3 flex items-center gap-3 cursor-pointer transition-colors hover:bg-[#35373C] ${
-                            selectedConversation?.id === conv.id ? 'bg-[#35373C]' : ''
-                          }`}
-                        >
-                          {/* Double Avatar */}
-                          <div className="relative flex-shrink-0">
-                            <img
-                              src={getAvatar(p1.avatar, p1.username)}
-                              alt={p1.displayName}
-                              className="w-8 h-8 rounded-full border-2 border-[#2B2D31]"
-                            />
-                            <img
-                              src={getAvatar(p2.avatar, p2.username)}
-                              alt={p2.displayName}
-                              className="w-8 h-8 rounded-full border-2 border-[#2B2D31] absolute -bottom-1 -right-1"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-white font-medium text-sm truncate">
-                                {p1.displayName || p1.username} ↔ {p2.displayName || p2.username}
-                              </span>
-                              {conv.lastMessage && (
-                                <span className="text-[#B5BAC1] text-xs flex-shrink-0 ml-2">
-                                  {formatChatTime(conv.lastMessage.createdAt)}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <p className="text-[#B5BAC1] text-sm truncate">
-                                {conv.lastMessage ? (
-                                  <>
-                                    <span className="text-[#B5BAC1]">
-                                      {conv.lastMessage.senderId === p1.id ? (p1.displayName || p1.username) : (p2.displayName || p2.username)}:
-                                    </span>{' '}
-                                    {conv.lastMessage.content.substring(0, 30)}
-                                    {conv.lastMessage.content.length > 30 ? '...' : ''}
-                                  </>
-                                ) : (
-                                  <span className="text-[#72767d]">-</span>
-                                )}
-                              </p>
-                              {conv.unreadCount > 0 && (
-                                <Badge className="bg-[#5865F2] text-white text-xs px-2 py-0.5 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0 ml-2">
-                                  {conv.unreadCount}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  
-                  {conversations.length === 0 && (
-                    <div className="text-center text-[#B5BAC1] py-8 px-4">
-                      <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Belum ada percakapan</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Panel - Chat Area */}
-              <div className="flex-1 flex flex-col bg-[#313338]">
-                {selectedConversation ? (
-                  <>
-                    {/* Chat Header */}
-                    <div className="h-14 px-4 border-b border-[#1E1F22] flex items-center gap-3 bg-[#313338]">
-                      <div className="relative">
-                        <img
-                          src={getAvatar(selectedConversation.participant1.avatar, selectedConversation.participant1.username)}
-                          alt={selectedConversation.participant1.displayName}
-                          className="w-8 h-8 rounded-full"
-                        />
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#313338] bg-gray-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm">
-                          {selectedConversation.participant1.displayName || selectedConversation.participant1.username}
-                        </h3>
-                        <p className="text-[#B5BAC1] text-xs">Offline</p>
-                      </div>
-                      <div className="ml-4 text-[#B5BAC1]">
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
-                      <div className="relative">
-                        <img
-                          src={getAvatar(selectedConversation.participant2.avatar, selectedConversation.participant2.username)}
-                          alt={selectedConversation.participant2.displayName}
-                          className="w-8 h-8 rounded-full"
-                        />
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#313338] bg-gray-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm">
-                          {selectedConversation.participant2.displayName || selectedConversation.participant2.username}
-                        </h3>
-                        <p className="text-[#B5BAC1] text-xs">Offline</p>
-                      </div>
-                    </div>
-
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-1">
-                      {(() => {
-                        let lastDate = '';
-                        return selectedConversation.messages.map((msg) => {
-                          const msgDate = formatChatDate(msg.createdAt);
-                          const showDate = msgDate !== lastDate;
-                          lastDate = msgDate;
-                          const isParticipant1 = msg.senderId === selectedConversation.participant1.id;
-                          
-                          return (
-                            <div key={msg.id}>
-                              {showDate && (
-                                <div className="flex justify-center my-4">
-                                  <span className="bg-[#2B2D31] text-[#B5BAC1] text-xs px-3 py-1 rounded-full">
-                                    {msgDate}
-                                  </span>
-                                </div>
-                              )}
-                              <div className={`flex gap-3 mb-4 ${isParticipant1 ? '' : 'flex-row-reverse'}`}>
-                                <img
-                                  src={isParticipant1 ? getAvatar(selectedConversation.participant1.avatar, selectedConversation.participant1.username) : getAvatar(selectedConversation.participant2.avatar, selectedConversation.participant2.username)}
-                                  alt={isParticipant1 ? selectedConversation.participant1.username : selectedConversation.participant2.username}
-                                  className="w-10 h-10 rounded-full flex-shrink-0"
-                                />
-                                <div className={`max-w-[70%] ${isParticipant1 ? '' : 'text-right'}`}>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-white font-semibold text-sm">
-                                      {isParticipant1 
-                                        ? (selectedConversation.participant1.displayName || selectedConversation.participant1.username)
-                                        : (selectedConversation.participant2.displayName || selectedConversation.participant2.username)
-                                      }
-                                    </span>
-                                    <span className="text-[#B5BAC1] text-xs">
-                                      {formatChatTime(msg.createdAt)}
-                                    </span>
-                                  </div>
-                                  <div className={`inline-block px-4 py-2 rounded-2xl text-[#DBDEE1] text-sm ${
-                                    isParticipant1 
-                                      ? 'bg-[#383A40] rounded-tl-none' 
-                                      : 'bg-[#5865F2] rounded-tr-none'
-                                  }`}>
-                                    {msg.content}
-                                  </div>
-                                  {msg.attachments && msg.attachments.length > 0 && (
-                                    <div className={`mt-2 space-y-1 ${isParticipant1 ? '' : 'text-right'}`}>
-                                      {msg.attachments.map((att, attIdx) => (
-                                        <a
-                                          key={attIdx}
-                                          href={att.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-block text-sm text-[#5865F2] hover:underline bg-[#2B2D31] px-3 py-1.5 rounded-lg"
-                                        >
-                                          📎 {att.originalName}
-                                        </a>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center text-[#B5BAC1]">
-                      <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                      <p className="text-lg">Pilih percakapan untuk melihat pesan</p>
-                      <p className="text-sm mt-1">Klik salah satu percakapan di sidebar kiri</p>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </TabsContent>
 

@@ -24,9 +24,7 @@ type TabType = 'servers' | 'dms';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-const API_URL = isElectron 
-  ? 'http://localhost:3001/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function ForwardModal({ isOpen, onClose, message, servers, channels: _channels, dmChannels, currentServerId: _currentServerId, onForward }: ForwardModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
