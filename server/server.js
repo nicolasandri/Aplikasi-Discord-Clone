@@ -517,11 +517,15 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    
-    console.log('[UPLOAD] File uploaded:', req.file.filename);
-    
+
+    console.log('[UPLOAD] File uploaded:', req.file.filename, 'Size:', req.file.size, 'Path:', req.file.path);
+
+    // Construct the full URL for the uploaded file
+    const fileUrl = `/uploads/${req.file.filename}`;
+    console.log('[UPLOAD] File accessible at:', fileUrl);
+
     res.json({
-      url: `/uploads/${req.file.filename}`,
+      url: fileUrl,
       filename: req.file.filename,
       originalName: req.file.originalname,
       mimetype: req.file.mimetype,
@@ -533,13 +537,22 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
   }
 });
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '../app/dist')));
+// Serve uploads FIRST (before dist) to avoid conflicts
 app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.header('Cache-Control', 'public, max-age=31536000');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   next();
-}, express.static(uploadsDir));
+}, express.static(uploadsDir, {
+  dotfiles: 'ignore',
+  index: false
+}));
+
+// Serve static files from dist
+app.use(express.static(path.join(__dirname, '../app/dist')));
 
 // JWT Middleware - Simple token verification (7 days expiry)
 function authenticateToken(req, res, next) {
